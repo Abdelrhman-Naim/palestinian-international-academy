@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useLanguage } from '../context/LanguageContext';
 
 const StudentOverview = () => {
@@ -13,24 +12,35 @@ const StudentOverview = () => {
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
-    const uid = currentUser?.uid || user?.uid;
-    if (!uid) return;
+    const uid = currentUser?.uid || currentUser?.id || user?.uid || user?.id;
+    if (!uid) {
+      setLoadingStats(false);
+      return;
+    }
+
     const fetchStats = async () => {
       setLoadingStats(true);
       try {
-        const q = query(collection(db, 'enrollments'), where('uid', '==', uid));
-        const snap = await getDocs(q);
-        setCoursesCount(snap.size);
+        const { count: cCount } = await supabase
+          .from('course_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('student_id', uid);
 
-        const certQ = query(collection(db, 'certificates'), where('studentId', '==', uid));
-        const certSnap = await getDocs(certQ);
-        setCertCount(certSnap.size);
+        setCoursesCount(cCount || 0);
+
+        const { count: certC } = await supabase
+          .from('certificates')
+          .select('*', { count: 'exact', head: true })
+          .eq('student_id', uid);
+
+        setCertCount(certC || 0);
       } catch (e) {
-        console.warn('Error loading student stats:', e);
+        console.warn('Error loading student stats from Supabase:', e);
       } finally {
         setLoadingStats(false);
       }
     };
+
     fetchStats();
   }, [user, currentUser]);
 
@@ -42,7 +52,7 @@ const StudentOverview = () => {
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between border-b border-[#E8E2D5] dark:border-gray-700 pb-6 gap-4 transition-colors">
           <div className="text-right">
             <h1 className="text-3xl md:text-4xl font-extrabold text-dark dark:text-white">
-              {t('studentOverview.welcomeBack')} {user?.name || user?.fullName || currentUser?.displayName || t('common.students')}
+              {t('studentOverview.welcomeBack')} {user?.name || user?.full_name || currentUser?.displayName || t('common.students')}
             </h1>
           </div>
         </div>
@@ -111,7 +121,6 @@ const StudentOverview = () => {
         {/* Main Content Area: Continue Learning & Badges */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
           
-          {/* Continue Learning (Takes up 2 columns) */}
           <div className="lg:col-span-2">
             <h2 className="text-xl font-bold text-dark dark:text-white mb-6 text-right transition-colors">{t('studentOverview.continueLearning')}</h2>
             <div className="bg-[#F3EFE6]/50 dark:bg-gray-800/50 border-2 border-dashed border-[#E8E2D5] dark:border-gray-700 rounded-2xl h-64 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 transition-colors">
@@ -123,7 +132,6 @@ const StudentOverview = () => {
             </div>
           </div>
           
-          {/* Recent Badges Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-[#E8E2D5] dark:border-gray-700 shadow-sm min-h-75 flex flex-col transition-colors">
               <div className="flex items-center justify-between mb-6">
@@ -152,4 +160,3 @@ const StudentOverview = () => {
 };
 
 export default StudentOverview;
-

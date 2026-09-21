@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useCourses } from '../context/CoursesContext';
@@ -21,47 +20,105 @@ const StudentMyCourses = () => {
   const [messagingInstructorId, setMessagingInstructorId] = useState(null);
   const [activeCertificate, setActiveCertificate] = useState(null);
 
+  const userId = currentUser?.uid || currentUser?.id;
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchEnrollments = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('course_requests')
+          .select('*')
+          .eq('student_id', userId);
+
+        if (error) {
+          console.warn('Error fetching course requests:', error);
+          setEnrollments([]);
+        } else if (data) {
+          setEnrollments(data.map(d => ({
+            id: d.id,
+            courseId: d.course_id,
+            courseTitle: d.course_title,
+            studentName: d.student_name,
+            status: d.status,
+            progress: d.details?.progress || 0,
+            completedLessons: d.details?.completedLessons || [],
+            ...d
+          })));
+        }
+      } catch (err) {
+        console.error('Fetch enrollments error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEnrollments();
+
+    const channel = supabase
+      .channel(`my_courses_${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'course_requests', filter: `student_id=eq.${userId}` }, () => {
+        fetchEnrollments();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
   const handleMessageInstructor = async (enroll) => {
     if (!currentUser) return;
     setMessagingInstructorId(enroll.id);
     try {
-      let instructorUid = enroll.instructorId;
+      let instructorUid = enroll.instructorId || enroll.instructor_id;
       let instructorName = enroll.instructor || 'المدرب';
 
-      // If instructorId is not on the enrollment, fetch course doc
       if (!instructorUid && enroll.courseId) {
-        const cSnap = await getDoc(doc(db, 'courses', enroll.courseId));
-        if (cSnap.exists()) {
-          const cData = cSnap.data();
-          instructorUid = cData.instructorId;
-          instructorName = cData.instructor || instructorName;
-        }
-      }
+        const { data: cData } = await supabase
+          .from('courses')
+          .select('instructor_id, instructor_name')
+          .eq('id', enroll.courseId)
+          .single();
 
-      // If still not found, search users collection for instructor with matching name
-      if (!instructorUid && enroll.instructor) {
-        const uQuery = query(collection(db, 'users'), where('role', '==', 'instructor'));
-        const uSnap = await getDocs(uQuery);
-        const match = uSnap.docs.find(d => {
-          const data = d.data();
-          return data.fullName === enroll.instructor || data.name === enroll.instructor;
-        });
-        if (match) {
-          instructorUid = match.id;
-          instructorName = match.data().fullName || match.data().name || instructorName;
+        if (cData) {
+          instructorUid = cData.instructor_id;
+          instructorName = cData.instructor_name || instructorName;
         }
       }
 
       if (!instructorUid) {
-        alert('لم يتم العثور على حساب المدرب');
+        const { data: instData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('role', 'instructor')
+          .limit(1)
+          .single();
+
+        if (instData) {
+          instructorUid = instData.id;
+          instructorName = instData.full_name || instructorName;
+        }
+      }
+
+      if (!instructorUid) {
+        alert(dir === 'rtl' ? 'لم يتم العثور على حساب المدرب' : 'Instructor account not found');
         return;
       }
 
       const chatId = await getOrCreateDirectChat(
-        { uid: currentUser.uid, name: currentUser.name || currentUser.displayName || 'طالب', role: 'student' },
-        { uid: instructorUid, name: instructorName, role: 'instructor' }
+        userId,
+        instructorUid,
+        currentUser.name || currentUser.email || 'طالب',
+        instructorName,
+        'student',
+        'instructor'
       );
-      navigate(`/dashboard/messages?chatId=${chatId}`);
+      navigate(`/dashboard/messages?chatId=${chatId?.id || chatId}`);
     } catch (err) {
       console.error('Error starting chat with instructor:', err);
     } finally {
@@ -73,28 +130,16 @@ const StudentMyCourses = () => {
     if (!ratingModal || selectedRating === 0) return;
     setIsSubmitting(true);
     try {
-      // 1. Update enrollment with rating
-      const enrollRef = doc(db, 'enrollments', ratingModal.id);
-      await updateDoc(enrollRef, { rating: selectedRating });
-
-      // 2. Fetch course to recalculate overall rating
-      const courseRef = doc(db, 'courses', ratingModal.courseId);
-      const courseSnap = await getDoc(courseRef);
-      if (courseSnap.exists()) {
-        const courseData = courseSnap.data();
-        const currentRatings = courseData.ratings || [];
-        // Remove previous rating by this user if exists
-        const updatedRatings = currentRatings.filter(r => r.uid !== currentUser.uid);
-        updatedRatings.push({ uid: currentUser.uid, rating: selectedRating });
-        
-        // Calculate new average
-        const avg = updatedRatings.reduce((acc, r) => acc + r.rating, 0) / updatedRatings.length;
-        
-        await updateDoc(courseRef, { 
-          ratings: updatedRatings,
-          rating: Number(avg.toFixed(1))
+      await supabase
+        .from('reviews')
+        .upsert({
+          target_type: 'course',
+          target_id: ratingModal.courseId,
+          user_id: userId,
+          rating: selectedRating,
+          updated_at: new Date()
         });
-      }
+
       setRatingModal(null);
       setSelectedRating(0);
     } catch (err) {
@@ -103,16 +148,6 @@ const StudentMyCourses = () => {
       setIsSubmitting(false);
     }
   };
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const q = query(collection(db, 'enrollments'), where('uid', '==', currentUser.uid));
-    const unsub = onSnapshot(q, (snap) => {
-      setEnrollments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
-  }, [currentUser]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
@@ -138,9 +173,8 @@ const StudentMyCourses = () => {
         ) : (
           <div className="space-y-4">
             {enrollments.map((enroll) => {
-              // Find matching course to get live lectures count
               const matchingCourse = courses.find(c => c.id === enroll.courseId);
-              const totalLecs = matchingCourse?.lectures?.length || 0;
+              const totalLecs = matchingCourse?.lectures?.length || matchingCourse?.lessons?.length || 0;
               const completedList = Array.isArray(enroll.completedLessons) ? enroll.completedLessons : [];
               const liveProgress = totalLecs > 0 
                 ? Math.min(100, Math.round((completedList.length / totalLecs) * 100))
@@ -152,17 +186,15 @@ const StudentMyCourses = () => {
                 className="group rounded-2xl border border-[#E8E2D5] bg-white p-5 transition-all hover:border-[#D4AF37] hover:shadow-sm dark:border-gray-700 dark:bg-gray-800/60"
               >
                 <div className="flex flex-col sm:flex-row items-start gap-5">
-                  {/* Icon */}
                   <div className="w-full sm:w-28 h-20 bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
                     <i className="fa-solid fa-book text-2xl"></i>
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 w-full">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="text-lg font-bold text-dark dark:text-white group-hover:text-secondary transition-colors">
-                          {enroll.courseTitle || t('studentMyCourses.unknownCourse')}
+                          {enroll.courseTitle || enroll.course_title || t('studentMyCourses.unknownCourse')}
                         </h3>
                         <div className="mt-1 flex items-center gap-2 flex-wrap">
                           <button
@@ -201,7 +233,6 @@ const StudentMyCourses = () => {
                       </div>
                     </div>
 
-                    {/* Progress */}
                     <div className="mt-4">
                       <div className="flex items-center justify-between text-xs font-bold mb-2">
                         <span className="text-gray-500 dark:text-gray-400">{t('studentMyCourses.progress')}</span>
@@ -217,7 +248,6 @@ const StudentMyCourses = () => {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="mt-4 flex gap-2 flex-wrap items-center">
                       <Link
                         to={`/dashboard/messages?chatId=course_group_${enroll.courseId}`}
@@ -248,10 +278,15 @@ const StudentMyCourses = () => {
                           <button
                             type="button"
                             onClick={async () => {
-                              const cRef = doc(db, 'certificates', `${currentUser.uid}_${enroll.courseId}`);
-                              const cSnap = await getDoc(cRef);
-                              if (cSnap.exists()) {
-                                setActiveCertificate({ id: cSnap.id, ...cSnap.data() });
+                              const { data: certData } = await supabase
+                                .from('certificates')
+                                .select('*')
+                                .eq('student_id', userId)
+                                .eq('course_id', enroll.courseId)
+                                .single();
+
+                              if (certData) {
+                                setActiveCertificate(certData);
                               } else {
                                 navigate('/dashboard/certificates');
                               }
@@ -281,7 +316,6 @@ const StudentMyCourses = () => {
         )}
       </div>
 
-      {/* Active Certificate Modal */}
       {activeCertificate && (
         <CertificateModal
           certificate={activeCertificate}
@@ -289,7 +323,6 @@ const StudentMyCourses = () => {
         />
       )}
 
-      {/* Rating Modal */}
       {ratingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-3xl p-6 w-full max-w-sm shadow-xl">
