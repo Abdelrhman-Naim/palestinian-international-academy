@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useAuth } from './AuthContext';
 
 const MaintenanceContext = createContext(null);
@@ -17,50 +16,20 @@ export function MaintenanceProvider({ children }) {
   const { currentUser } = useAuth();
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      doc(db, 'config', 'maintenance'),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          setIsMaintenance(!!data.enabled);
-          setMaintenanceData({
-            enabled: !!data.enabled,
-            message: data.message || '',
-            updatedAt: data.updatedAt || null,
-            updatedBy: data.updatedBy || ''
-          });
-        } else {
-          setIsMaintenance(false);
-          setMaintenanceData({
-            enabled: false,
-            message: '',
-            updatedAt: null,
-            updatedBy: ''
-          });
-        }
-        setLoading(false);
-      },
-      (err) => {
-        if (err.code !== 'permission-denied') {
-          console.warn('Maintenance status listener error:', err.message);
-        }
-        setLoading(false);
-      }
-    );
-
-    return () => unsub();
+    // Default maintenance off
+    setIsMaintenance(false);
+    setLoading(false);
   }, []);
 
   const toggleMaintenance = async (enabled, customMessage = '') => {
     try {
-      const ref = doc(db, 'config', 'maintenance');
-      const payload = {
+      setIsMaintenance(Boolean(enabled));
+      setMaintenanceData({
         enabled: Boolean(enabled),
-        message: customMessage || maintenanceData.message || 'المنصة تخضع لأعمال صيانة وتحديث مجدولة لتقديم تجربة تعليمية استثنائية. سنعود للعمل قريباً جداً.',
-        updatedAt: serverTimestamp(),
+        message: customMessage || 'المنصة تخضع لأعمال صيانة وتحديث مجدولة لتقديم تجربة تعليمية استثنائية. سنعود للعمل قريباً جداً.',
+        updatedAt: new Date().toISOString(),
         updatedBy: currentUser?.email || 'Admin'
-      };
-      await setDoc(ref, payload, { merge: true });
+      });
       return { success: true };
     } catch (err) {
       console.error('Error updating maintenance mode:', err);

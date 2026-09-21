@@ -28,8 +28,8 @@ import ForgotPassword from '../pages/ForgotPassword';
 import PageLoader from './PageLoader';
 import { useMaintenance } from '../context/MaintenanceContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
-// Lazy loaded heavy routes for bundle optimization
 const Admin = lazy(() => import('../pages/AdminDashboard'));
 const InstructorDashboard = lazy(() => import('../pages/InstructorDashboard'));
 const InstructorOverview = lazy(() => import('../pages/InstructorOverview'));
@@ -88,26 +88,22 @@ export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGua
   const location = useLocation();
   const { isMaintenance } = useMaintenance();
   const { userRole } = useAuth();
+  const { dir } = useLanguage();
 
   const isAdmin = userRole === 'admin';
   const currentPath = location.pathname;
 
-  // Paths permitted even during maintenance for non-admins:
-  // 1. /login-admin (Admin login)
-  // 2. /admin-dashboard and all nested routes
   const isAllowedPath =
     currentPath === '/login-admin' ||
     currentPath.startsWith('/admin-dashboard') ||
     currentPath.toLowerCase() === '/admindashboard';
 
-  // If maintenance is active and user is NOT an admin:
   if (isMaintenance && !isAdmin && !isAllowedPath) {
     return <MaintenancePage />;
   }
 
   return (
     <>
-      {/* Floating alert for Admin when Maintenance is ON */}
       {isMaintenance && isAdmin && (
         <div className="fixed bottom-4 start-4 z-[9999] bg-amber-500 text-stone-950 px-4 py-2 rounded-2xl shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-2 border border-amber-300 select-none animate-bounce">
           <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
@@ -125,8 +121,8 @@ export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGua
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-          <Route path="/login" element={<PageWrapper><Login /></PageWrapper>} />
-          <Route path="/login-trainer" element={<PageWrapper><Login /></PageWrapper>} />
+          <Route path="/login" element={<PageWrapper><Login key="student-login" /></PageWrapper>} />
+          <Route path="/login-trainer" element={<PageWrapper><Login key="trainer-login" /></PageWrapper>} />
           <Route path="/register" element={<PageWrapper><Register /></PageWrapper>} />
           <Route path="/login-admin" element={<PageWrapper><AdminLogin /></PageWrapper>} />
           <Route path="/forgot-password" element={<PageWrapper><ForgotPassword /></PageWrapper>} />
