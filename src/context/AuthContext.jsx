@@ -1,14 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut,
-  updateProfile,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 
 const AuthContext = createContext(null);
 
@@ -19,90 +10,146 @@ export function AuthProvider({ children }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let unsubUserDoc = null;
+  // Helper to fetch profile from Supabase profiles table
+  const fetchUserProfile = async (userId) => {
+    if (!userId) return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (unsubUserDoc) {
-        unsubUserDoc();
-        unsubUserDoc = null;
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching user profile:", error);
       }
+      return data || null;
+    } catch (e) {
+      console.error("Profile fetch exception:", e);
+      return null;
+    }
+  };
 
-      if (user) {
-        setCurrentUser(user);
-        // Real-time listener for user profile in Firestore
-        unsubUserDoc = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserRole(data.role);
-            setUserStatus(data.status || 'active');
-            setUserData(data);
+  useEffect(() => {
+    let profileSubscription = null;
+
+    // Check active session on mount
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setCurrentUser(session.user);
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) {
+            setUserRole(profile.role || 'student');
+            setUserStatus(profile.status || 'active');
+            setUserData({ ...profile, uid: profile.id, name: profile.full_name });
           } else {
             setUserRole('student');
             setUserStatus('active');
-            setUserData(null);
+            setUserData({ uid: session.user.id, email: session.user.email });
           }
-          setLoading(false);
-        }, (error) => {
-          console.error("Error listening to user profile: ", error);
-          setLoading(false);
-        });
+        } else {
+          setCurrentUser(null);
+          setUserRole(null);
+          setUserStatus(null);
+          setUserData(null);
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+        const profile = await fetchUserProfile(session.user.id);
+        if (profile) {
+          setUserRole(profile.role || 'student');
+          setUserStatus(profile.status || 'active');
+          setUserData({ ...profile, uid: profile.id, name: profile.full_name });
+        } else {
+          setUserRole('student');
+          setUserStatus('active');
+          setUserData({ uid: session.user.id, email: session.user.email });
+        }
       } else {
         setCurrentUser(null);
         setUserRole(null);
         setUserStatus(null);
         setUserData(null);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => {
-      if (unsubUserDoc) unsubUserDoc();
-      unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
   const login = async (email, password, requestedRole) => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-    const actualRole = userDoc.exists() ? userDoc.data().role : 'student';
-    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const profile = await fetchUserProfile(data.user.id);
+    const actualRole = profile?.role || 'student';
+
     if (requestedRole && actualRole !== requestedRole) {
-      await signOut(auth);
+      await supabase.auth.signOut();
       throw new Error('role_mismatch');
     }
-    return { userCredential, role: actualRole };
+
+    return { userCredential: { user: data.user }, role: actualRole };
   };
 
   const register = async (email, password, fullName, role) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    const status = role === 'instructor' ? 'pending' : 'active';
     
-    // Update Firebase Auth displayName
-    try {
-      await updateProfile(user, { displayName: fullName });
-    } catch (e) {
-      console.warn('Could not update displayName on auth user:', e);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+          status: status
+        }
+      }
+    });
+
+    if (error) {
+      throw error;
     }
 
-    // Save user info and role to Firestore
-    await setDoc(doc(db, 'users', user.uid), {
-      uid: user.uid,
-      name: fullName,
-      fullName: fullName,
-      email: email,
-      role: role,
-      // Instructors need admin approval, students are active immediately
-      status: role === 'instructor' ? 'pending' : 'active',
-      createdAt: new Date()
-    });
-    
-    return userCredential;
+    if (data.user) {
+      // Upsert profile in Supabase
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        full_name: fullName,
+        email: email,
+        role: role,
+        status: status,
+        updated_at: new Date()
+      });
+    }
+
+    return { user: data.user };
   };
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
@@ -114,7 +161,7 @@ export function AuthProvider({ children }) {
   };
 
   const resetPassword = (email) => {
-    return sendPasswordResetEmail(auth, email);
+    return supabase.auth.resetPasswordForEmail(email);
   };
 
   return (

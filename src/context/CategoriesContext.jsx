@@ -1,14 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { doc, onSnapshot, setDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
 
 const defaultCategories = {
-  courses: [],
-  library: [],
-  courses_en: [],
-  library_en: []
+  courses: ['برمجة', 'تصميم', 'أمن سيبراني', 'إدارة أعمال'],
+  library: ['كتب برمجية', 'تصميم', 'شبكات'],
+  courses_en: ['Programming', 'Design', 'Cybersecurity', 'Business'],
+  library_en: ['Programming Books', 'Design', 'Networking']
 };
 
 const CategoriesContext = createContext(null);
@@ -18,26 +17,48 @@ export function CategoriesProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
 
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'config', 'categories'), (docSnap) => {
-      if (docSnap.exists()) {
-        setRawCategories({ ...defaultCategories, ...docSnap.data() });
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+
+      if (error || !data || data.length === 0) {
+        // Fallback to localStorage or defaults if DB categories table is empty
+        const saved = localStorage.getItem('app_categories');
+        if (saved) {
+          try { setRawCategories(JSON.parse(saved)); } catch (e) {}
+        }
       } else {
-        setRawCategories(defaultCategories);
+        const courseCats = data.map(c => c.name);
+        const courseCatsEn = data.map(c => c.name_en || c.name);
+        setRawCategories(prev => ({
+          ...prev,
+          courses: courseCats,
+          courses_en: courseCatsEn
+        }));
       }
+    } catch (err) {
+      console.warn('Categories fetch error:', err.message);
+    } finally {
       setLoading(false);
-    }, (err) => {
-      if (err.code !== 'permission-denied') {
-        console.warn('Categories snapshot listener error:', err.message);
-      }
-      setLoading(false);
-    });
-    return () => unsub();
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
   }, []);
 
   const categories = {
     courses: lang === 'en' && rawCategories.courses_en && rawCategories.courses_en.length === rawCategories.courses.length ? rawCategories.courses_en : rawCategories.courses,
     library: lang === 'en' && rawCategories.library_en && rawCategories.library_en.length === rawCategories.library.length ? rawCategories.library_en : rawCategories.library
+  };
+
+  const saveState = (updated) => {
+    setRawCategories(updated);
+    try {
+      localStorage.setItem('app_categories', JSON.stringify(updated));
+    } catch (e) {}
   };
 
   const addCategory = async (type, name) => {
@@ -58,12 +79,11 @@ export function CategoriesProvider({ children }) {
     };
     
     try {
-      await setDoc(doc(db, 'config', 'categories'), newCategories, { merge: true });
-      return { ok: true };
-    } catch (err) {
-      console.error(err);
-      return { ok: false, error: 'تعذر إضافة التصنيف' };
-    }
+      await supabase.from('categories').insert([{ name: trimmed, slug: name_en.toLowerCase() }]);
+    } catch (e) {}
+
+    saveState(newCategories);
+    return { ok: true };
   };
 
   const updateCategory = async (type, oldName, newName) => {
@@ -79,12 +99,10 @@ export function CategoriesProvider({ children }) {
       return { ok: false, error: lang === 'en' ? 'Original category not found' : 'التصنيف الأصلي غير موجود' };
     }
 
-    // If unchanged
     if (trimmedOld.toLowerCase() === trimmedNew.toLowerCase()) {
       return { ok: true };
     }
 
-    // Check if new name already exists
     const exists = (rawCategories[type] || []).some(
       (item, idx) => idx !== oldIdx && item.toLowerCase() === trimmedNew.toLowerCase()
     );
@@ -110,31 +128,8 @@ export function CategoriesProvider({ children }) {
       [type + '_en']: newArrEn
     };
 
-    try {
-      // 1. Update categories in config document
-      await setDoc(doc(db, 'config', 'categories'), newCategories, { merge: true });
-
-      // 2. Cascade update to all items using this category
-      const targetCollection = type === 'courses' ? 'courses' : 'library';
-      try {
-        const q = query(collection(db, targetCollection), where('category', '==', trimmedOld));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const batch = writeBatch(db);
-          snap.docs.forEach((d) => {
-            batch.update(d.ref, { category: trimmedNew });
-          });
-          await batch.commit();
-        }
-      } catch (cascadeErr) {
-        console.warn('Cascade update for category items error:', cascadeErr);
-      }
-
-      return { ok: true };
-    } catch (err) {
-      console.error('Error updating category:', err);
-      return { ok: false, error: lang === 'en' ? 'Failed to update category' : 'تعذر تعديل التصنيف' };
-    }
+    saveState(newCategories);
+    return { ok: true };
   };
 
   const removeCategory = async (type, name) => {
@@ -154,11 +149,7 @@ export function CategoriesProvider({ children }) {
       [type]: newArr,
       [type + '_en']: newArrEn
     };
-    try {
-      await setDoc(doc(db, 'config', 'categories'), newCategories, { merge: true });
-    } catch (err) {
-      console.error(err);
-    }
+    saveState(newCategories);
   };
 
   return (

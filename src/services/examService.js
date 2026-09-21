@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { createNotification, notifyInstructor } from './notificationService';
 import { generateCertificateCode } from './certificateService';
 
@@ -9,12 +8,14 @@ import { generateCertificateCode } from './certificateService';
 export async function getCourseExam(courseId) {
   if (!courseId) return null;
   try {
-    const examRef = doc(db, 'course_exams', courseId);
-    const snap = await getDoc(examRef);
-    if (snap.exists()) {
-      return { id: snap.id, ...snap.data() };
-    }
-    return null;
+    const { data, error } = await supabase
+      .from('courses')
+      .select('exam_data')
+      .eq('id', courseId)
+      .single();
+
+    if (error || !data) return null;
+    return data.exam_data || null;
   } catch (err) {
     console.error('Error fetching course exam:', err);
     return null;
@@ -27,14 +28,18 @@ export async function getCourseExam(courseId) {
 export async function saveCourseExam(courseId, examData) {
   if (!courseId) return { success: false, error: 'Missing courseId' };
   try {
-    const examRef = doc(db, 'course_exams', courseId);
-    const payload = {
-      ...examData,
-      courseId,
-      passPercentage: examData.passPercentage || 80,
-      updatedAt: serverTimestamp(),
-    };
-    await setDoc(examRef, payload, { merge: true });
+    const { error } = await supabase
+      .from('courses')
+      .update({
+        exam_data: {
+          ...examData,
+          passPercentage: examData.passPercentage || 80,
+          updatedAt: new Date().toISOString()
+        }
+      })
+      .eq('id', courseId);
+
+    if (error) throw error;
     return { success: true };
   } catch (err) {
     console.error('Error saving course exam:', err);
@@ -52,7 +57,7 @@ export async function submitExamAttempt({
   courseTitle,
   instructorName,
   instructorId,
-  answers, // { [questionIndex]: selectedOptionIndex }
+  answers,
   questions,
   passPercentage = 80
 }) {
@@ -61,7 +66,6 @@ export async function submitExamAttempt({
   }
 
   try {
-    // 1. Calculate Score
     let correctCount = 0;
     questions.forEach((q, idx) => {
       if (answers[idx] !== undefined && Number(answers[idx]) === Number(q.correctOption)) {
@@ -73,89 +77,37 @@ export async function submitExamAttempt({
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= passPercentage;
 
-    const enrollmentId = `${studentId}_${courseId}`;
-    const enrollRef = doc(db, 'enrollments', enrollmentId);
-
-    // 2. Save exam attempt record
-    const attemptData = {
-      studentId,
-      studentName: studentName || 'طالب المنصة',
-      courseId,
-      courseTitle: courseTitle || 'الدورة',
+    await supabase.from('exam_results').insert([{
+      student_id: studentId,
+      course_id: courseId,
       score,
-      correctCount,
-      totalQuestions,
-      passed,
-      passPercentage,
-      answers,
-      submittedAt: serverTimestamp()
-    };
-    await addDoc(collection(db, 'exam_attempts'), attemptData);
+      total: totalQuestions,
+      passed
+    }]);
 
     let certificate = null;
 
-    // 3. If passed (>= 80%), issue verified certificate and update enrollment
     if (passed) {
-      // Resolve actual student full name
-      let realStudentName = (studentName && studentName !== 'طالب' && studentName !== 'طالب المنصة' && studentName !== 'Student') 
-        ? studentName 
-        : null;
+      const certCode = generateCertificateCode();
+      const realStudentName = studentName || 'طالب المنصة';
 
-      if (!realStudentName && studentId) {
-        try {
-          const userSnap = await getDoc(doc(db, 'users', studentId));
-          if (userSnap.exists()) {
-            const udata = userSnap.data();
-            realStudentName = udata.fullName || udata.name;
-          }
-        } catch (e) {
-          console.warn('Error fetching user full name for cert:', e);
-        }
-      }
-      realStudentName = realStudentName || studentName || 'طالب المنصة';
+      const { data: certData, error: certErr } = await supabase
+        .from('certificates')
+        .insert([{
+          certificate_number: certCode,
+          student_id: studentId,
+          student_name: realStudentName,
+          course_id: courseId,
+          course_title: courseTitle || 'الدورة الهندسية',
+          issue_date: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-      const certRef = doc(db, 'certificates', enrollmentId);
-      const certSnap = await getDoc(certRef);
-
-      let certCode = null;
-      if (!certSnap.exists()) {
-        certCode = generateCertificateCode();
-        const newCert = {
-          certificateId: certCode,
-          studentId,
-          studentName: realStudentName,
-          courseId,
-          courseTitle: courseTitle || 'الدورة الهندسية',
-          instructorName: instructorName || 'المدرب',
-          gradeScore: score,
-          issueDate: serverTimestamp(),
-          formattedDate: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }),
-          formattedDateEn: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-          enrollmentId,
-          verified: true
-        };
-        await setDoc(certRef, newCert);
-        certificate = { id: enrollmentId, ...newCert };
-      } else {
-        certificate = { id: certSnap.id, ...certSnap.data() };
-        certCode = certificate.certificateId;
-        // Auto-heal existing certificate if saved previously as generic 'طالب'
-        if ((!certificate.studentName || certificate.studentName === 'طالب' || certificate.studentName === 'طالب المنصة') && realStudentName && realStudentName !== 'طالب') {
-          await updateDoc(certRef, { studentName: realStudentName }).catch(() => {});
-          certificate.studentName = realStudentName;
-        }
+      if (!certErr && certData) {
+        certificate = certData;
       }
 
-      // Update enrollment status
-      await updateDoc(enrollRef, {
-        passedExam: true,
-        examScore: score,
-        certificateId: certCode,
-        examPassedAt: serverTimestamp()
-      }).catch(err => console.warn('Could not update enrollment with exam pass:', err));
-
-      // 4. Send Notifications
-      // A) To Student
       try {
         await createNotification({
           recipientId: studentId,
@@ -173,25 +125,18 @@ export async function submitExamAttempt({
         console.warn('Student notification error:', err);
       }
 
-      // B) To Instructor
       try {
-        await notifyInstructor({ instructorId, instructor: instructorName }, {
+        await notifyInstructor({ instructor_id: instructorId, instructorName }, {
           title: 'طالب اجتاز اختبار التخرج بنجاح',
           title_en: 'Student Passed Graduation Exam',
-          message: `اجتاز الطالب «${studentName}» اختبار التخرج لدورة «${courseTitle}» بنتيجة ${score}%.`,
-          message_en: `Student "${studentName}" passed the graduation exam for "${courseTitle}" with ${score}%.`,
+          message: `اجتاز الطالب «${realStudentName}» اختبار التخرج لدورة «${courseTitle}» بنتيجة ${score}%.`,
+          message_en: `Student "${realStudentName}" passed the graduation exam for "${courseTitle}" with ${score}%.`,
           link: `/instructor-dashboard/my-courses`,
           type: 'exam_passed'
         });
       } catch (err) {
         console.warn('Instructor notification error:', err);
       }
-    } else {
-      // If student did not pass (< 80%)
-      await updateDoc(enrollRef, {
-        lastExamScore: score,
-        lastExamAttemptAt: serverTimestamp()
-      }).catch(err => console.warn('Enrollment attempt update error:', err));
     }
 
     return {

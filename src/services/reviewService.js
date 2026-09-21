@@ -1,166 +1,119 @@
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  deleteDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  updateDoc, 
-  onSnapshot, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 
-/**
- * Recalculate and update the overall rating stats on the parent course or book document
- */
 export async function recalculateTargetRating(targetType, targetId) {
   try {
-    const q = query(
-      collection(db, 'reviews'),
-      where('targetType', '==', targetType),
-      where('targetId', '==', targetId)
-    );
-    const snap = await getDocs(q);
-    const totalCount = snap.size;
+    const table = targetType === 'course' ? 'courses' : 'books';
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('target_type', targetType)
+      .eq('target_id', targetId);
 
-    let ratingSum = 0;
-    const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    if (!reviews || reviews.length === 0) return null;
 
-    snap.forEach((d) => {
-      const r = d.data();
-      const val = Math.min(5, Math.max(1, Number(r.rating) || 5));
-      ratingSum += val;
-      breakdown[val] = (breakdown[val] || 0) + 1;
-    });
+    const totalCount = reviews.length;
+    const ratingSum = reviews.reduce((acc, curr) => acc + Number(curr.rating || 5), 0);
+    const ratingAverage = Number((ratingSum / totalCount).toFixed(1));
 
-    const ratingAverage = totalCount > 0 ? Number((ratingSum / totalCount).toFixed(1)) : 0;
+    await supabase
+      .from(table)
+      .update({ rating: ratingAverage })
+      .eq('id', targetId);
 
-    const parentCollection = targetType === 'course' ? 'courses' : 'library';
-    const parentRef = doc(db, parentCollection, targetId);
-
-    // Check if parent doc exists before updating
-    const parentSnap = await getDoc(parentRef);
-    if (parentSnap.exists()) {
-      await updateDoc(parentRef, {
-        ratingAverage,
-        ratingCount: totalCount,
-        ratingBreakdown: breakdown,
-      });
-    }
-
-    return { ratingAverage, ratingCount: totalCount, breakdown };
+    return { ratingAverage, ratingCount: totalCount };
   } catch (err) {
     console.error('Failed to recalculate rating stats:', err);
     return null;
   }
 }
 
-/**
- * Add or update a review
- */
 export async function addOrUpdateReview({ targetType, targetId, userId, userName, userAvatar, rating, comment }) {
   if (!targetType || !targetId || !userId) {
     throw new Error('Missing targetType, targetId, or userId');
   }
 
-  const reviewId = `${targetType}_${targetId}_${userId}`;
-  const reviewRef = doc(db, 'reviews', reviewId);
-  const existingSnap = await getDoc(reviewRef);
-
   const numRating = Math.min(5, Math.max(1, Number(rating) || 5));
-  const reviewData = {
-    targetType,
-    targetId,
-    userId,
-    userName: userName || 'مستخدم المنصة',
-    userAvatar: userAvatar || '',
-    rating: numRating,
-    comment: (comment || '').trim(),
-    updatedAt: serverTimestamp(),
-  };
 
-  if (!existingSnap.exists()) {
-    reviewData.createdAt = serverTimestamp();
+  const { data, error } = await supabase
+    .from('reviews')
+    .upsert({
+      target_type: targetType,
+      target_id: targetId,
+      user_id: userId,
+      user_name: userName || 'مستخدم المنصة',
+      user_avatar: userAvatar || '',
+      rating: numRating,
+      comment: (comment || '').trim(),
+      updated_at: new Date()
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding/updating review:', error);
+    return { ok: false, error };
   }
 
-  await setDoc(reviewRef, reviewData, { merge: true });
-
-  // Update overall rating stats on course / book
   await recalculateTargetRating(targetType, targetId);
-
-  return { ok: true, reviewId };
+  return { ok: true, reviewId: data?.id };
 }
 
-/**
- * Delete a review
- */
 export async function deleteReview({ targetType, targetId, userId }) {
   if (!targetType || !targetId || !userId) {
     throw new Error('Missing parameters to delete review');
   }
 
-  const reviewId = `${targetType}_${targetId}_${userId}`;
-  const reviewRef = doc(db, 'reviews', reviewId);
-  
-  await deleteDoc(reviewRef);
+  await supabase
+    .from('reviews')
+    .delete()
+    .eq('target_type', targetType)
+    .eq('target_id', targetId)
+    .eq('user_id', userId);
 
-  // Recalculate stats
   await recalculateTargetRating(targetType, targetId);
-
   return { ok: true };
 }
 
-/**
- * Fetch a single user's existing review for a target
- */
 export async function getUserReview(targetType, targetId, userId) {
   if (!targetType || !targetId || !userId) return null;
-  const reviewId = `${targetType}_${targetId}_${userId}`;
-  const snap = await getDoc(doc(db, 'reviews', reviewId));
-  if (snap.exists()) {
-    return { id: snap.id, ...snap.data() };
-  }
-  return null;
+  const { data } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('target_type', targetType)
+    .eq('target_id', targetId)
+    .eq('user_id', userId)
+    .single();
+
+  return data || null;
 }
 
-/**
- * Real-time listener for all reviews of a target
- */
 export function listenToTargetReviews(targetType, targetId, callback) {
   if (!targetType || !targetId) {
     callback([]);
     return () => {};
   }
 
-  const q = query(
-    collection(db, 'reviews'),
-    where('targetType', '==', targetType),
-    where('targetId', '==', targetId)
-  );
+  const fetchReviews = async () => {
+    const { data } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .order('updated_at', { ascending: false });
 
-  return onSnapshot(
-    q,
-    (snap) => {
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+    callback(data || []);
+  };
 
-      // Client-side sort by updatedAt / createdAt descending
-      list.sort((a, b) => {
-        const timeA = a.updatedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
-        const timeB = b.updatedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
-        return timeB - timeA;
-      });
+  fetchReviews();
 
-      callback(list);
-    },
-    (err) => {
-      console.warn('Error listening to reviews:', err);
-      callback([]);
-    }
-  );
+  const channel = supabase
+    .channel(`reviews_${targetType}_${targetId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
+      fetchReviews();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }

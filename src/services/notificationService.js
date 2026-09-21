@@ -1,22 +1,5 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  onSnapshot, 
-  serverTimestamp, 
-  writeBatch 
-} from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 
-/**
- * Creates a single notification document in Firestore.
- */
 export async function createNotification({
   recipientId,
   recipientRole = null,
@@ -24,7 +7,7 @@ export async function createNotification({
   title_en = '',
   message,
   message_en = '',
-  type = 'system', // 'lecture' | 'assignment' | 'course' | 'enrollment' | 'submission' | 'system' | 'exam'
+  type = 'system',
   link = '',
   courseId = null,
   target_id = null,
@@ -37,32 +20,37 @@ export async function createNotification({
     const finalCourseId = courseId || target_id || metadata.courseId || metadata.target_id || null;
     const finalTargetType = target_type || type || metadata.target_type || null;
 
-    const docRef = await addDoc(collection(db, 'notifications'), {
-      recipientId,
-      recipientRole,
-      title: title || '',
-      title_en: title_en || title || '',
-      message: message || '',
-      message_en: message_en || message || '',
-      type,
-      link: link || '',
-      courseId: finalCourseId,
-      target_id: target_id || finalCourseId,
-      target_type: finalTargetType,
-      metadata: metadata || {},
-      isRead: false,
-      createdAt: serverTimestamp(),
-    });
-    return docRef.id;
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([{
+        recipient_id: recipientId,
+        recipient_role: recipientRole,
+        title: title || '',
+        title_en: title_en || title || '',
+        message: message || '',
+        message_en: message_en || message || '',
+        type,
+        link: link || '',
+        course_id: finalCourseId,
+        target_id: target_id || finalCourseId,
+        target_type: finalTargetType,
+        metadata: metadata || {},
+        is_read: false
+      }])
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Failed to create notification in Supabase:', error);
+      return null;
+    }
+    return data?.id;
   } catch (err) {
     console.error('Failed to create notification:', err);
     return null;
   }
 }
 
-/**
- * Notifies all students enrolled in a specific course.
- */
 export async function notifyEnrolledStudents(courseId, {
   title,
   title_en = '',
@@ -75,54 +63,32 @@ export async function notifyEnrolledStudents(courseId, {
   if (!courseId) return 0;
 
   try {
-    const enrollmentsQ = query(
-      collection(db, 'enrollments'),
-      where('courseId', '==', courseId)
-    );
-    const snap = await getDocs(enrollmentsQ);
-    if (snap.empty) return 0;
+    const { data: requests } = await supabase
+      .from('course_requests')
+      .select('student_id')
+      .eq('course_id', courseId)
+      .eq('status', 'approved');
 
-    const studentUids = Array.from(
-      new Set(snap.docs.map(d => d.data().uid).filter(Boolean))
-    );
+    if (!requests || requests.length === 0) return 0;
 
+    const studentUids = Array.from(new Set(requests.map(r => r.student_id).filter(Boolean)));
     if (studentUids.length === 0) return 0;
 
-    // Firestore batch limit is 500 ops
-    const batches = [];
-    let currentBatch = writeBatch(db);
-    let countInBatch = 0;
+    const notificationsToInsert = studentUids.map(uid => ({
+      recipient_id: uid,
+      recipient_role: 'student',
+      title: title || '',
+      title_en: title_en || title || '',
+      message: message || '',
+      message_en: message_en || message || '',
+      type,
+      link,
+      course_id: courseId,
+      metadata: metadata || {},
+      is_read: false
+    }));
 
-    for (const uid of studentUids) {
-      const notifRef = doc(collection(db, 'notifications'));
-      currentBatch.set(notifRef, {
-        recipientId: uid,
-        recipientRole: 'student',
-        title: title || '',
-        title_en: title_en || title || '',
-        message: message || '',
-        message_en: message_en || message || '',
-        type,
-        link,
-        courseId,
-        metadata: metadata || {},
-        isRead: false,
-        createdAt: serverTimestamp(),
-      });
-
-      countInBatch++;
-      if (countInBatch === 450) {
-        batches.push(currentBatch.commit());
-        currentBatch = writeBatch(db);
-        countInBatch = 0;
-      }
-    }
-
-    if (countInBatch > 0) {
-      batches.push(currentBatch.commit());
-    }
-
-    await Promise.all(batches);
+    await supabase.from('notifications').insert(notificationsToInsert);
     return studentUids.length;
   } catch (err) {
     console.error('Failed to notify enrolled students:', err);
@@ -130,61 +96,21 @@ export async function notifyEnrolledStudents(courseId, {
   }
 }
 
-/**
- * Helper to resolve an instructor's UID for a given course.
- */
 export async function resolveInstructorUid(courseOrId) {
   let course = null;
   if (typeof courseOrId === 'string') {
-    const snap = await getDoc(doc(db, 'courses', courseOrId));
-    if (snap.exists()) {
-      course = { id: snap.id, ...snap.data() };
-    }
+    const { data } = await supabase.from('courses').select('*').eq('id', courseOrId).single();
+    course = data;
   } else if (courseOrId && typeof courseOrId === 'object') {
     course = courseOrId;
   }
 
   if (!course) return null;
-
-  // Direct UID if available
-  if (course.instructorId) return course.instructorId;
-  if (course.instructorUid) return course.instructorUid;
-
-  // If instructor name is given, search in users
-  const instructorName = course.instructor;
-  if (instructorName) {
-    try {
-      const uQuery = query(collection(db, 'users'), where('role', '==', 'instructor'));
-      const uSnap = await getDocs(uQuery);
-      const match = uSnap.docs.find(d => {
-        const data = d.data();
-        return (
-          data.fullName === instructorName ||
-          data.name === instructorName ||
-          data.displayName === instructorName
-        );
-      });
-      if (match) return match.id;
-    } catch (err) {
-      console.warn('Error resolving instructor UID by name:', err);
-    }
-  }
-
+  if (course.instructor_id) return course.instructor_id;
   return null;
 }
 
-/**
- * Notifies the instructor of a course.
- */
-export async function notifyInstructor(courseOrId, {
-  title,
-  title_en = '',
-  message,
-  message_en = '',
-  type = 'course',
-  link = '/instructor-dashboard/my-courses',
-  metadata = {}
-}) {
+export async function notifyInstructor(courseOrId, notifData) {
   try {
     const instructorUid = await resolveInstructorUid(courseOrId);
     if (!instructorUid) return null;
@@ -194,14 +120,8 @@ export async function notifyInstructor(courseOrId, {
     return await createNotification({
       recipientId: instructorUid,
       recipientRole: 'instructor',
-      title,
-      title_en,
-      message,
-      message_en,
-      type,
-      link,
-      courseId,
-      metadata
+      ...notifData,
+      courseId
     });
   } catch (err) {
     console.error('Failed to notify instructor:', err);
@@ -209,89 +129,66 @@ export async function notifyInstructor(courseOrId, {
   }
 }
 
-/**
- * Notifies all admins on the platform.
- */
-export async function notifyAdmins({
-  title,
-  title_en = '',
-  message,
-  message_en = '',
-  type = 'system',
-  link = '/admin-dashboard',
-  courseId = null,
-  metadata = {}
-}) {
+export async function notifyAdmins(notifData) {
   try {
-    const adminQ = query(collection(db, 'users'), where('role', '==', 'admin'));
-    const adminSnap = await getDocs(adminQ);
-    if (adminSnap.empty) return 0;
+    const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+    if (!admins || admins.length === 0) return 0;
 
-    const batch = writeBatch(db);
-    adminSnap.docs.forEach(adminDoc => {
-      const notifRef = doc(collection(db, 'notifications'));
-      batch.set(notifRef, {
-        recipientId: adminDoc.id,
-        recipientRole: 'admin',
-        title: title || '',
-        title_en: title_en || title || '',
-        message: message || '',
-        message_en: message_en || message || '',
-        type,
-        link,
-        courseId: courseId || metadata.courseId || null,
-        metadata: metadata || {},
-        isRead: false,
-        createdAt: serverTimestamp(),
-      });
-    });
+    const notifs = admins.map(admin => ({
+      recipient_id: admin.id,
+      recipient_role: 'admin',
+      title: notifData.title || '',
+      title_en: notifData.title_en || notifData.title || '',
+      message: notifData.message || '',
+      message_en: notifData.message_en || notifData.message || '',
+      type: notifData.type || 'system',
+      link: notifData.link || '/admin-dashboard',
+      course_id: notifData.courseId || null,
+      metadata: notifData.metadata || {},
+      is_read: false
+    }));
 
-    await batch.commit();
-    return adminSnap.size;
+    await supabase.from('notifications').insert(notifs);
+    return admins.length;
   } catch (err) {
     console.error('Failed to notify admins:', err);
     return 0;
   }
 }
 
-/**
- * Subscribes in real time to notifications for a specific user UID.
- * Sorts client-side by createdAt descending to avoid requiring composite indexes in Firestore.
- */
 export function subscribeToUserNotifications(userId, callback) {
   if (!userId) {
     callback({ notifications: [], unreadCount: 0, loading: false });
     return () => {};
   }
 
-  const notifQ = query(
-    collection(db, 'notifications'),
-    where('recipientId', '==', userId)
-  );
+  const fetchNotifs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_id', userId)
+        .order('created_at', { ascending: false });
 
-  const unsubscribe = onSnapshot(
-    notifQ,
-    (snapshot) => {
-      const items = snapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        let timestampMillis = 0;
-        if (data.createdAt?.toMillis) {
-          timestampMillis = data.createdAt.toMillis();
-        } else if (data.createdAt?.seconds) {
-          timestampMillis = data.createdAt.seconds * 1000;
-        } else if (data.createdAt instanceof Date) {
-          timestampMillis = data.createdAt.getTime();
-        }
+      if (error) {
+        callback({ notifications: [], unreadCount: 0, loading: false });
+        return;
+      }
 
-        return {
-          id: docSnap.id,
-          ...data,
-          _timestampMillis: timestampMillis,
-        };
-      });
-
-      // Sort newest first
-      items.sort((a, b) => b._timestampMillis - a._timestampMillis);
+      const items = (data || []).map(n => ({
+        id: n.id,
+        recipientId: n.recipient_id,
+        recipientRole: n.recipient_role,
+        title: n.title,
+        title_en: n.title_en,
+        message: n.message,
+        message_en: n.message_en,
+        type: n.type,
+        link: n.link,
+        courseId: n.course_id,
+        isRead: n.is_read,
+        createdAt: n.created_at
+      }));
 
       const unreadCount = items.filter(n => !n.isRead).length;
 
@@ -300,90 +197,61 @@ export function subscribeToUserNotifications(userId, callback) {
         unreadCount,
         loading: false
       });
-    },
-    (err) => {
-      if (err.code !== 'permission-denied') {
-        console.warn('Notifications snapshot error:', err);
-      }
+    } catch (e) {
       callback({ notifications: [], unreadCount: 0, loading: false });
     }
-  );
+  };
 
-  return unsubscribe;
+  fetchNotifs();
+
+  const channel = supabase
+    .channel(`notifs_${userId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'notifications',
+      filter: `recipient_id=eq.${userId}`
+    }, () => {
+      fetchNotifs();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
-/**
- * Marks a notification as read.
- */
 export async function markNotificationAsRead(notificationId) {
   if (!notificationId) return;
   try {
-    await updateDoc(doc(db, 'notifications', notificationId), {
-      isRead: true,
-      readAt: serverTimestamp(),
-    });
+    await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
   } catch (err) {
     console.error('Failed to mark notification as read:', err);
   }
 }
 
-/**
- * Marks all unread notifications for a user as read.
- */
 export async function markAllNotificationsAsRead(userId) {
   if (!userId) return;
   try {
-    const unreadQ = query(
-      collection(db, 'notifications'),
-      where('recipientId', '==', userId),
-      where('isRead', '==', false)
-    );
-    const snap = await getDocs(unreadQ);
-    if (snap.empty) return;
-
-    const batch = writeBatch(db);
-    snap.docs.forEach(d => {
-      batch.update(doc(db, 'notifications', d.id), {
-        isRead: true,
-        readAt: serverTimestamp()
-      });
-    });
-    await batch.commit();
+    await supabase.from('notifications').update({ is_read: true }).eq('recipient_id', userId).eq('is_read', false);
   } catch (err) {
     console.error('Failed to mark all notifications as read:', err);
   }
 }
 
-/**
- * Deletes a single notification.
- */
 export async function deleteNotification(notificationId) {
   if (!notificationId) return;
   try {
-    await deleteDoc(doc(db, 'notifications', notificationId));
+    await supabase.from('notifications').delete().eq('id', notificationId);
   } catch (err) {
     console.error('Failed to delete notification:', err);
   }
 }
 
-/**
- * Deletes all notifications for a user.
- */
 export async function clearAllNotifications(userId) {
   if (!userId) return;
   try {
-    const q = query(
-      collection(db, 'notifications'),
-      where('recipientId', '==', userId)
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) return;
-
-    const batch = writeBatch(db);
-    snap.docs.forEach(d => {
-      batch.delete(doc(db, 'notifications', d.id));
-    });
-    await batch.commit();
+    await supabase.from('notifications').delete().eq('recipient_id', userId);
   } catch (err) {
     console.error('Failed to clear notifications:', err);
   }

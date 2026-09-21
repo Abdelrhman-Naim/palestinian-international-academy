@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
 import { sanitizeObject } from '../utils/sanitize';
@@ -12,19 +11,38 @@ export function LibraryProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
 
+  const fetchBooks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Error fetching books from Supabase:', error.message);
+      } else if (data) {
+        setRawBooks(data.map(item => sanitizeObject(item)));
+      }
+    } catch (err) {
+      console.warn('Books fetch error:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'library'), (snapshot) => {
-      const booksData = snapshot.docs.map(doc => sanitizeObject({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setRawBooks(booksData);
-      setLoading(false);
-    }, (err) => {
-      console.warn('Library snapshot listener error:', err.message);
-      setLoading(false);
-    });
-    return () => unsub();
+    fetchBooks();
+
+    const channel = supabase
+      .channel('books_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, () => {
+        fetchBooks();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const books = rawBooks.map(book => ({
@@ -32,7 +50,7 @@ export function LibraryProvider({ children }) {
     title: lang === 'en' ? (book.title_en || book.title) : book.title,
     author: lang === 'en' ? (book.author_en || book.author) : book.author,
     category: lang === 'en' ? (book.category_en || book.category) : book.category,
-    originalData: book // keep original around just in case
+    originalData: book
   }));
 
   const addBook = async (book) => {
@@ -40,17 +58,29 @@ export function LibraryProvider({ children }) {
       if (book.title) book.title_en = await translateText(book.title);
       if (book.author) book.author_en = await translateText(book.author);
       if (book.category) book.category_en = await translateText(book.category);
-      await addDoc(collection(db, 'library'), book);
+
+      const { error } = await supabase
+        .from('books')
+        .insert([book]);
+
+      if (error) throw error;
+      await fetchBooks();
     } catch (err) {
-      console.error("Error adding book: ", err);
+      console.error("Error adding book to Supabase: ", err);
     }
   };
 
   const removeBook = async (id) => {
     try {
-      await deleteDoc(doc(db, 'library', id));
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchBooks();
     } catch (err) {
-      console.error("Error deleting book: ", err);
+      console.error("Error deleting book from Supabase: ", err);
     }
   };
 
@@ -60,9 +90,16 @@ export function LibraryProvider({ children }) {
       if (dataToUpdate.title) dataToUpdate.title_en = await translateText(dataToUpdate.title);
       if (dataToUpdate.author) dataToUpdate.author_en = await translateText(dataToUpdate.author);
       if (dataToUpdate.category) dataToUpdate.category_en = await translateText(dataToUpdate.category);
-      await updateDoc(doc(db, 'library', id), dataToUpdate);
+
+      const { error } = await supabase
+        .from('books')
+        .update(dataToUpdate)
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchBooks();
     } catch (err) {
-      console.error("Error updating book: ", err);
+      console.error("Error updating book in Supabase: ", err);
     }
   };
 
@@ -78,5 +115,3 @@ export function useLibrary() {
   if (!ctx) throw new Error('useLibrary must be used within LibraryProvider');
   return ctx;
 }
-
-

@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
 import { sanitizeObject } from '../utils/sanitize';
@@ -21,31 +20,44 @@ export function CoursesProvider({ children }) {
     }
   });
 
+  const fetchCourses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Error fetching courses from Supabase:', error.message);
+      } else if (data) {
+        const sanitized = data.map(item => sanitizeObject(item));
+        setRawCourses(sanitized);
+      }
+    } catch (err) {
+      console.warn('Courses fetch error:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'config', 'hero_featured'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        setFeaturedCourseConfig(data);
-        try {
-          localStorage.setItem('hero_featured_course', JSON.stringify(data));
-        } catch (e) {}
-      }
-    }, (err) => {
-      if (err.code !== 'permission-denied') {
-        console.warn('Hero featured course snapshot listener error:', err.message);
-      }
-    });
-    return () => unsub();
+    fetchCourses();
+
+    // Set up real-time subscription for courses table
+    const channel = supabase
+      .channel('courses_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => {
+        fetchCourses();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const updateFeaturedCourse = async (config) => {
     try {
-      const ref = doc(db, 'config', 'hero_featured');
-      const payload = {
-        ...config,
-        updatedAt: new Date().toISOString()
-      };
-      await setDoc(ref, payload, { merge: true });
       setFeaturedCourseConfig(prev => ({ ...prev, ...config }));
       try {
         localStorage.setItem('hero_featured_course', JSON.stringify({ ...featuredCourseConfig, ...config }));
@@ -53,28 +65,9 @@ export function CoursesProvider({ children }) {
       return { ok: true };
     } catch (err) {
       console.error('Error updating hero featured course:', err);
-      setFeaturedCourseConfig(prev => ({ ...prev, ...config }));
-      try {
-        localStorage.setItem('hero_featured_course', JSON.stringify({ ...featuredCourseConfig, ...config }));
-      } catch (e) {}
       return { ok: true };
     }
   };
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'courses'), (snapshot) => {
-      const coursesData = snapshot.docs.map(doc => sanitizeObject({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setRawCourses(coursesData);
-      setLoading(false);
-    }, (err) => {
-      console.warn('Courses snapshot listener error:', err.message);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
 
   const fallbackEnTranslations = {
     'فوتوشوب': 'Photoshop Masterclass',
@@ -102,11 +95,11 @@ export function CoursesProvider({ children }) {
       ...course,
       title: lang === 'en' ? getEnField(course.title, course.title_en) : course.title,
       description: lang === 'en' ? (course.description_en || course.description) : course.description,
-      instructor: lang === 'en' ? getEnField(course.instructor, course.instructor_en) : course.instructor,
-      category: lang === 'en' ? getEnField(course.category, course.category_en) : course.category,
+      instructor: lang === 'en' ? getEnField(course.instructor || course.instructor_name, course.instructor_en) : (course.instructor || course.instructor_name),
+      category: lang === 'en' ? getEnField(course.category || course.category_name, course.category_en) : (course.category || course.category_name),
       level: lang === 'en' ? getEnField(course.level, course.level_en) : course.level,
       goals: lang === 'en' && course.goals_en && course.goals_en.length === (course.goals || []).length ? course.goals_en : course.goals,
-      lectures: (course.lectures || []).map(lec => ({
+      lectures: (course.lectures || course.lessons || []).map(lec => ({
         ...lec,
         title: lang === 'en' ? (lec.title_en || lec.title) : lec.title
       })),
@@ -128,21 +121,33 @@ export function CoursesProvider({ children }) {
           return { ...lec, title_en: await translateText(lec.title) };
         }));
       }
-      if (!courseData.createdAt) courseData.createdAt = new Date().toISOString();
-      courseData.updatedAt = new Date().toISOString();
-      const docRef = await addDoc(collection(db, 'courses'), courseData);
-      return { ok: true, id: docRef.id };
+
+      const { data, error } = await supabase
+        .from('courses')
+        .insert([courseData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      await fetchCourses();
+      return { ok: true, id: data?.id };
     } catch (err) {
-      console.error(err);
+      console.error("Error adding course to Supabase:", err);
       return { ok: false };
     }
   };
 
   const removeCourse = async (id) => {
     try {
-      await deleteDoc(doc(db, 'courses', id));
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchCourses();
     } catch (err) {
-      console.error(err);
+      console.error("Error deleting course from Supabase:", err);
     }
   };
 
@@ -150,8 +155,6 @@ export function CoursesProvider({ children }) {
     try {
       const { id: docId, originalData, ...dataToUpdate } = updatedData;
       
-      // Auto-translate only if strings are provided and we don't already have them?
-      // Actually we should just re-translate them.
       if (dataToUpdate.title) dataToUpdate.title_en = await translateText(dataToUpdate.title);
       if (dataToUpdate.description) dataToUpdate.description_en = await translateText(dataToUpdate.description);
       if (dataToUpdate.instructor) dataToUpdate.instructor_en = await translateText(dataToUpdate.instructor);
@@ -165,11 +168,18 @@ export function CoursesProvider({ children }) {
         }));
       }
 
-      dataToUpdate.updatedAt = new Date().toISOString();
-      await updateDoc(doc(db, 'courses', id), dataToUpdate);
+      dataToUpdate.updated_at = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('courses')
+        .update(dataToUpdate)
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchCourses();
       return { ok: true };
     } catch (err) {
-      console.error(err);
+      console.error("Error updating course in Supabase:", err);
       return { ok: false };
     }
   };
