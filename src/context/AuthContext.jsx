@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper to fetch profile from Supabase profiles table
+  // Helper to fetch profile from Supabase profiles table using maybeSingle()
   const fetchUserProfile = async (userId) => {
     if (!userId) return null;
     try {
@@ -18,22 +18,19 @@ export function AuthProvider({ children }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error("Error fetching user profile:", error);
+      if (error) {
+        console.warn("Notice fetching user profile:", error.message);
       }
       return data || null;
     } catch (e) {
-      console.error("Profile fetch exception:", e);
+      console.warn("Profile fetch exception:", e);
       return null;
     }
   };
 
   useEffect(() => {
-    let profileSubscription = null;
-
-    // Check active session on mount
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -64,7 +61,6 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    // Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setCurrentUser(session.user);
@@ -133,7 +129,6 @@ export function AuthProvider({ children }) {
     }
 
     if (data.user) {
-      // Upsert profile in Supabase
       await supabase.from('profiles').upsert({
         id: data.user.id,
         full_name: fullName,

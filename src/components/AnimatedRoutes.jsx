@@ -69,20 +69,24 @@ const pageTransition = {
   duration: 0.12
 };
 
-const PageWrapper = ({ children }) => (
-  <motion.div
-    initial="initial"
-    animate="in"
-    exit="out"
-    variants={pageVariants}
-    transition={pageTransition}
-    className="w-full h-full"
-  >
-    <Suspense fallback={<PageLoader />}>
-      {children}
-    </Suspense>
-  </motion.div>
-);
+const PageWrapper = ({ children }) => {
+  const location = useLocation();
+  return (
+    <motion.div
+      key={location.pathname}
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+      className="w-full h-full"
+    >
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
+    </motion.div>
+  );
+};
 
 export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGuard }) {
   const location = useLocation();
@@ -119,10 +123,10 @@ export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGua
       )}
 
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
+        <Routes location={location}>
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-          <Route path="/login" element={<PageWrapper><Login key="student-login" /></PageWrapper>} />
-          <Route path="/login-trainer" element={<PageWrapper><Login key="trainer-login" /></PageWrapper>} />
+          <Route path="/login" element={<PageWrapper><Login /></PageWrapper>} />
+          <Route path="/login-trainer" element={<PageWrapper><Login /></PageWrapper>} />
           <Route path="/register" element={<PageWrapper><Register /></PageWrapper>} />
           <Route path="/login-admin" element={<PageWrapper><AdminLogin /></PageWrapper>} />
           <Route path="/forgot-password" element={<PageWrapper><ForgotPassword /></PageWrapper>} />
