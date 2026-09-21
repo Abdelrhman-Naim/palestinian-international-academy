@@ -178,30 +178,65 @@ ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- Public read policies for courses, books, categories
+DROP POLICY IF EXISTS "Allow public read courses" ON public.courses;
 CREATE POLICY "Allow public read courses" ON public.courses FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read books" ON public.books;
 CREATE POLICY "Allow public read books" ON public.books FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read categories" ON public.categories;
 CREATE POLICY "Allow public read categories" ON public.categories FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read profiles" ON public.profiles;
 CREATE POLICY "Allow public read profiles" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read certificates" ON public.certificates;
 CREATE POLICY "Allow public read certificates" ON public.certificates FOR SELECT USING (true);
 
 -- Permissive write policies for authenticated users
+DROP POLICY IF EXISTS "Allow authenticated insert courses" ON public.courses;
 CREATE POLICY "Allow authenticated insert courses" ON public.courses FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated update courses" ON public.courses;
 CREATE POLICY "Allow authenticated update courses" ON public.courses FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated delete courses" ON public.courses;
 CREATE POLICY "Allow authenticated delete courses" ON public.courses FOR DELETE USING (true);
 
+DROP POLICY IF EXISTS "Allow authenticated insert books" ON public.books;
 CREATE POLICY "Allow authenticated insert books" ON public.books FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated update books" ON public.books;
 CREATE POLICY "Allow authenticated update books" ON public.books FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated delete books" ON public.books;
 CREATE POLICY "Allow authenticated delete books" ON public.books FOR DELETE USING (true);
 
+DROP POLICY IF EXISTS "Allow authenticated insert profiles" ON public.profiles;
 CREATE POLICY "Allow authenticated insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated update profiles" ON public.profiles;
 CREATE POLICY "Allow authenticated update profiles" ON public.profiles FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated delete profiles" ON public.profiles;
 CREATE POLICY "Allow authenticated delete profiles" ON public.profiles FOR DELETE USING (true);
 
+DROP POLICY IF EXISTS "Allow authenticated requests" ON public.course_requests;
 CREATE POLICY "Allow authenticated requests" ON public.course_requests FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated assignments" ON public.assignments;
 CREATE POLICY "Allow authenticated assignments" ON public.assignments FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated submitted_assignments" ON public.submitted_assignments;
 CREATE POLICY "Allow authenticated submitted_assignments" ON public.submitted_assignments FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated exam_results" ON public.exam_results;
 CREATE POLICY "Allow authenticated exam_results" ON public.exam_results FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated certificates" ON public.certificates;
 CREATE POLICY "Allow authenticated certificates" ON public.certificates FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated activity_logs" ON public.activity_logs;
 CREATE POLICY "Allow authenticated activity_logs" ON public.activity_logs FOR ALL USING (true);
 
 -- Storage Buckets Configuration Note:
