@@ -21,25 +21,35 @@ const Login = () => {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotError, setForgotError] = useState('');
 
-  const { login } = useAuth();
+  const { login, currentUser, userRole } = useAuth();
 
   // Determine role based on URL path
   const role = location.pathname === '/login-trainer' ? 'instructor' : 'student';
 
+  useEffect(() => {
+    if (currentUser) {
+      if (userRole === 'admin') navigate('/admin-dashboard', { replace: true });
+      else if (userRole === 'instructor') navigate('/instructor-dashboard', { replace: true });
+      else navigate('/dashboard', { replace: true });
+    }
+  }, [currentUser, userRole, navigate]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      await login(email, password, role);
+      await login(email.trim(), password, role);
       if (role === 'student') {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       } else {
-        navigate('/instructor-dashboard');
+        navigate('/instructor-dashboard', { replace: true });
       }
     } catch (err) {
+      console.error("Login error:", err);
       if (err.message === 'role_mismatch') {
         setError(role === 'student' ? t('login.notStudent') : t('login.notInstructor'));
       } else {
-        setError(t('login.invalidCredentials'));
+        setError(err.message || t('login.invalidCredentials'));
       }
     }
   };
