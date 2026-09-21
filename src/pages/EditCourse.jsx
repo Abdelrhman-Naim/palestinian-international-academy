@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useCategories } from "../context/CategoriesContext";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { doc, getDoc, updateDoc, db } from "../firebase/config";
 import CustomSelect from "../components/CustomSelect";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";

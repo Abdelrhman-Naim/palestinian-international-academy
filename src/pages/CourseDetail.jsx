@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { doc, setDoc, getDoc, updateDoc, increment, serverTimestamp, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { doc, setDoc, getDoc, updateDoc, increment, serverTimestamp, collection, query, where, getDocs, onSnapshot, db } from '../firebase/config';
 import { useCourses } from '../context/CoursesContext';
 import { useAuth } from '../context/AuthContext';
 import { autoEnrollStudentInCourseGroup, getOrCreateDirectChat } from '../services/chatService';

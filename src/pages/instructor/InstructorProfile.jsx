@@ -3,8 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../../utils/courseUtils';
-import { auth, db, storage } from '../../firebase/config';
-import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db, storage, doc, updateDoc } from '../../firebase/config';
 import { 
   updatePassword, 
   EmailAuthProvider, 

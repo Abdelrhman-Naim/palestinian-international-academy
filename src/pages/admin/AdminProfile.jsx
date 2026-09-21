@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { auth, db, storage } from '../../firebase/config';
-import { doc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { auth, db, storage, doc, updateDoc, collection, getDocs } from '../../firebase/config';
 import { 
   updatePassword, 
   EmailAuthProvider, 

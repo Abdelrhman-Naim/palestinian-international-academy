@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { supabase } from '../../supabase/client';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import CertificateModal from '../../components/CertificateModal';
@@ -17,17 +16,38 @@ export default function StudentCertificates() {
 
   useEffect(() => {
     if (!currentUser) return;
-    const q = query(collection(db, 'certificates'), where('studentId', '==', currentUser.uid));
-    const unsub = onSnapshot(q, (snap) => {
-      setCertificates(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    }, (err) => {
-      console.warn('Certificates fetch error:', err);
-      setLoading(false);
-    });
+    
+    async function fetchCertificates() {
+      try {
+        const { data, error } = await supabase
+          .from('certificates')
+          .select('*')
+          .eq('student_id', currentUser.id || currentUser.uid);
 
-    return () => unsub();
-  }, [currentUser]);
+        if (error) {
+          console.warn('Certificates fetch error:', error);
+          setCertificates([]);
+        } else {
+          const mapped = (data || []).map(cert => ({
+            ...cert,
+            id: cert.id,
+            certificateId: cert.certificate_number || cert.certificateId || cert.id,
+            courseTitle: cert.course_title || cert.courseTitle,
+            studentName: cert.student_name || cert.studentName,
+            instructorName: cert.instructor_name || cert.instructorName || '—',
+            formattedDate: cert.issue_date ? new Date(cert.issue_date).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US') : ''
+          }));
+          setCertificates(mapped);
+        }
+      } catch (err) {
+        console.warn('Certificates fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCertificates();
+  }, [currentUser, isRtl]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">

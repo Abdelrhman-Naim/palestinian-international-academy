@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { collection, query, where, getDocs, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { notifyInstructor } from '../services/notificationService';
@@ -23,101 +22,95 @@ const StudentAssignments = () => {
   const [coursesMap, setCoursesMap] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const userId = currentUser?.uid || currentUser?.id;
+
   useEffect(() => {
-    if (!currentUser) return;
-    
-    // 1. Get enrollments
-    const qEnrollments = query(collection(db, 'enrollments'), where('uid', '==', currentUser.uid));
-    
-    const unsubscribe = onSnapshot(qEnrollments, async (enrollmentsSnap) => {
-      const courseIds = enrollmentsSnap.docs.map(d => d.data().courseId);
-      
-      if (courseIds.length === 0) {
-        setAssignments([]);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch assignments
-      const assignmentsSnap = await getDocs(collection(db, 'assignments'));
-      
-      const coursesSnap = await getDocs(collection(db, 'courses'));
-      const coursesData = {};
-      coursesSnap.forEach(doc => { coursesData[doc.id] = doc.data(); });
-      setCoursesMap(coursesData);
-
-      // 3. Fetch submissions for current user to know status
-      const qSubmissions = query(collection(db, 'submissions'), where('studentId', '==', currentUser.uid));
-      const submissionsSnap = await getDocs(qSubmissions);
-      const userSubmissions = {};
-      submissionsSnap.forEach(doc => { 
-        userSubmissions[doc.data().assignmentId] = doc.data(); 
-      });
-
-      const allAssignments = assignmentsSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(a => courseIds.includes(a.courseId))
-        .map(a => {
-          const sub = userSubmissions[a.id];
-          return {
-            ...a,
-            course: coursesData[a.courseId]?.title || 'دورة',
-            instructor: coursesData[a.courseId]?.instructor || 'المدرب', 
-            deadline: a.dueDate || a.date,
-            status: sub ? (sub.grade ? 'graded' : 'submitted') : 'pending',
-            grade: sub?.grade || null,
-          };
-        });
-        
-      setAssignments(allAssignments);
+    if (!userId) {
       setLoading(false);
-    });
+      return;
+    }
 
-    return () => unsubscribe();
-  }, [currentUser]);
+    const fetchData = async () => {
+      try {
+        const { data: requests } = await supabase
+          .from('course_requests')
+          .select('course_id')
+          .eq('student_id', userId);
+
+        const courseIds = (requests || []).map(r => r.course_id).filter(Boolean);
+
+        if (courseIds.length === 0) {
+          setAssignments([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data: assignmentsData } = await supabase.from('assignments').select('*');
+        const { data: coursesData } = await supabase.from('courses').select('*');
+        const { data: submissionsData } = await supabase.from('submitted_assignments').select('*').eq('student_id', userId);
+
+        const cMap = {};
+        (coursesData || []).forEach(c => { cMap[c.id] = c; });
+        setCoursesMap(cMap);
+
+        const subMap = {};
+        (submissionsData || []).forEach(s => { subMap[s.assignment_id] = s; });
+
+        const filteredAssignments = (assignmentsData || [])
+          .filter(a => courseIds.includes(a.course_id))
+          .map(a => {
+            const sub = subMap[a.id];
+            return {
+              ...a,
+              courseId: a.course_id,
+              course: cMap[a.course_id]?.title || 'دورة',
+              instructor: cMap[a.course_id]?.instructor_name || 'المدرب',
+              deadline: a.due_date ? new Date(a.due_date).toLocaleDateString('ar-EG') : '—',
+              status: sub ? (sub.grade ? 'graded' : 'submitted') : 'pending',
+              grade: sub?.grade || null,
+            };
+          });
+
+        setAssignments(filteredAssignments);
+      } catch (err) {
+        console.error('Error fetching student assignments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId]);
 
   const handleSubmit = async () => {
     if (!submitText.trim() && !submitFileName) return;
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'submissions'), {
-        assignmentId: submitModal.id,
-        assignment: submitModal.title,
-        courseId: submitModal.courseId,
-        studentId: currentUser.uid,
-        student: currentUser.name || currentUser.displayName || 'طالب',
-        content: submitText,
-        fileName: submitFileName,
-        date: new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }),
-        timestamp: serverTimestamp(),
-      });
-      
-      // Update local state temporarily so user sees change immediately
+      await supabase.from('submitted_assignments').insert([{
+        assignment_id: submitModal.id,
+        student_id: userId,
+        student_name: currentUser.name || currentUser.email || 'طالب',
+        notes: submitText,
+        file_url: submitFileName,
+        submitted_at: new Date()
+      }]);
+
       setAssignments(prev => prev.map(a => 
         a.id === submitModal.id ? { ...a, status: 'submitted' } : a
       ));
 
-      // Notify the course instructor in real-time
       try {
-        const studentName = currentUser.name || currentUser.displayName || 'طالب';
+        const studentName = currentUser.name || currentUser.email || 'طالب';
         await notifyInstructor(submitModal.courseId, {
           title: 'تسليم واجب جديد',
           title_en: 'New Assignment Submission',
-          message: `قام الطالب «${studentName}» بتسليم حل واجب «${submitModal.title}» في دورة «${submitModal.course || 'دورتك'}».`,
+          message: `قام الطالب «${studentName}» بتسليم حل واجب «${submitModal.title}».`,
           message_en: `Student "${studentName}" submitted assignment "${submitModal.title}".`,
           type: 'submission',
-          link: `/instructor-dashboard/submissions/${submitModal.courseId}`,
-          courseId: submitModal.courseId,
-          metadata: {
-            assignmentId: submitModal.id,
-            studentName,
-            studentId: currentUser.uid,
-            courseId: submitModal.courseId,
-            courseTitle: submitModal.course
-          }
+          link: `/instructor-dashboard/submissions/${submitModal.courseId}`
         });
       } catch (notifErr) {
-        console.warn('Could not notify instructor of submission:', notifErr);
+        console.warn('Notification error:', notifErr);
       }
       
       setSubmitModal(null);
@@ -155,7 +148,6 @@ const StudentAssignments = () => {
           </span>
         </div>
 
-        {/* Active Course Filter Banner */}
         {courseIdFilter && (
           <div className="bg-[#FAF7F2] dark:bg-gray-800 border border-[#D4AF37]/50 dark:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap shadow-xs">
             <div className="flex items-center gap-3">
@@ -182,7 +174,6 @@ const StudentAssignments = () => {
           </div>
         )}
 
-        {/* Filter Tabs */}
         <div className="flex gap-2 flex-wrap">
           {[
             { key: 'all', label: t('studentAssignments.all') },
@@ -204,7 +195,6 @@ const StudentAssignments = () => {
           ))}
         </div>
 
-        {/* Assignments List */}
         <div className="space-y-4">
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center rounded-2xl bg-[#F3EFE6]/50 dark:bg-gray-800/50 border-2 border-dashed border-[#E8E2D5] py-16 text-gray-400 dark:border-gray-700 dark:text-gray-500 text-center px-4">
@@ -286,7 +276,6 @@ const StudentAssignments = () => {
         </div>
       </div>
 
-      {/* ================= Preview Modal ================= */}
       {previewModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4 backdrop-blur-sm dark:bg-black/60"
@@ -332,37 +321,6 @@ const StudentAssignments = () => {
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{t('studentAssignments.description')}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-7">{previewModal.description}</p>
               </div>
-              {previewModal.imageName && (
-                <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{t('submittedAssignments.attachments')}</p>
-                  <button 
-                    onClick={() => {
-                        const blob = new Blob([t('studentAssignments.demoImage')], { type: "image/png" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = previewModal.imageName;
-                        a.click();
-                    }}
-                    className="flex items-center gap-2 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    <i className="fa-solid fa-image"></i>
-                    {previewModal.imageName}
-                    <i className="fa-solid fa-download ml-1 text-xs"></i>
-                  </button>
-                </div>
-              )}
-              <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{t('adminInstructors.status')}</p>
-                <span className={`text-[11px] px-2.5 py-1 rounded-lg font-bold ${statusMap[previewModal.status].color}`}>
-                  {statusMap[previewModal.status].label}
-                </span>
-                {previewModal.grade && (
-                  <span className="mr-2 text-[11px] px-2.5 py-1 rounded-lg font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                    {t('studentAssignments.grade')} {previewModal.grade}
-                  </span>
-                )}
-              </div>
             </div>
 
             <div className="mt-6 flex justify-center">
@@ -377,7 +335,6 @@ const StudentAssignments = () => {
         </div>
       )}
 
-      {/* ================= Submit Assignment Modal ================= */}
       {submitModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4 backdrop-blur-sm dark:bg-black/60"
@@ -404,7 +361,6 @@ const StudentAssignments = () => {
             <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">{submitModal.title}</p>
 
             <div className="space-y-4">
-              {/* Text Content */}
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">{t('studentAssignments.answerContent')}</label>
                 <textarea
@@ -416,7 +372,6 @@ const StudentAssignments = () => {
                 />
               </div>
 
-              {/* File Upload */}
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">{t('studentAssignments.attachFile')}</label>
                 <label

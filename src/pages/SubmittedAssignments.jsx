@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { collection, query, where, onSnapshot, doc, updateDoc, db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from '../context/LanguageContext';
 import { getOrCreateDirectChat } from '../services/chatService';

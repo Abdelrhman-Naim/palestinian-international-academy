@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, getDoc, db } from "../firebase/config";
 import { useLanguage } from '../context/LanguageContext';
 import { notifyEnrolledStudents } from '../services/notificationService';
 import CustomDatePicker from '../components/CustomDatePicker';

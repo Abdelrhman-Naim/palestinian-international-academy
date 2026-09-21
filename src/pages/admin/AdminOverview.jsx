@@ -3,8 +3,7 @@ import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { useCourses } from '../../context/CoursesContext';
 import { useLibrary } from '../../context/LibraryContext';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { collection, onSnapshot, db } from '../../firebase/config';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDateTime } from '../../utils/formatDate';
 

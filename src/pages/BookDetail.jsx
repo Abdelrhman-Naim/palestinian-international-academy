@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLibrary } from '../context/LibraryContext';
-import { doc, updateDoc, increment } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { doc, updateDoc, increment, db } from '../firebase/config';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import screenImg from '../assets/screen.png';

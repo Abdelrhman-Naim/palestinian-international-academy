@@ -5,8 +5,7 @@ import Footer from '../components/Footer';
 import PageLoader from '../components/PageLoader';
 import { getCertificateByCode } from '../services/certificateService';
 import { useLanguage } from '../context/LanguageContext';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { doc, getDoc, updateDoc, db } from '../firebase/config';
 import CertificateModal from '../components/CertificateModal';
 
 export default function CertificateVerificationPage() {

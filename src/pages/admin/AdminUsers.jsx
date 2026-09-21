@@ -1,8 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AdminPageShell from './AdminPageShell';
-import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { collection, query, where, onSnapshot, doc, deleteDoc, db } from '../../firebase/config';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDate } from '../../utils/formatDate';
 
