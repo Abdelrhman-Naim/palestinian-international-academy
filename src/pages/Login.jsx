@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase/config';
@@ -46,10 +46,15 @@ const Login = () => {
       }
     } catch (err) {
       console.error("Login error:", err);
-      if (err.message === 'role_mismatch') {
+      const errMsg = err.message || '';
+      if (errMsg === 'role_mismatch') {
         setError(role === 'student' ? t('login.notStudent') : t('login.notInstructor'));
+      } else if (errMsg.includes('Email not confirmed')) {
+        setError(dir === 'rtl' ? 'يرجى تفعيل حسابك من خلال رابط التفعيل المرسل إلى بريدك الإلكتروني.' : 'Please confirm your email via the link sent to your inbox.');
+      } else if (errMsg.includes('Invalid login credentials')) {
+        setError(dir === 'rtl' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
       } else {
-        setError(err.message || t('login.invalidCredentials'));
+        setError(errMsg || t('login.invalidCredentials'));
       }
     }
   };
