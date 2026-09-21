@@ -28,28 +28,33 @@ export default function MobileBottomNav() {
 
   const navItems = [
     {
+      id: 'nav-home',
       to: '/',
       label: isRtl ? 'الرئيسية' : 'Home',
       icon: 'home',
       exact: true,
     },
     {
+      id: 'nav-courses',
       to: '/courses',
       label: isRtl ? 'الكورسات' : 'Courses',
       icon: 'school',
     },
     {
+      id: 'nav-library',
       to: '/library',
       label: isRtl ? 'المكتبة' : 'Library',
       icon: 'local_library',
     },
     {
+      id: 'nav-messages',
       to: messagesRoute,
       label: isRtl ? 'الرسائل' : 'Messages',
       icon: 'chat',
       badge: unreadTotal,
     },
     {
+      id: 'nav-profile',
       to: profileRoute,
       label: isRtl ? 'حسابي' : 'Profile',
       icon: 'person',
@@ -66,7 +71,7 @@ export default function MobileBottomNav() {
 
           return (
             <NavLink
-              key={item.to}
+              key={item.id}
               to={item.to}
               className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-full transition-all duration-300 grow text-center ${
                 isActive

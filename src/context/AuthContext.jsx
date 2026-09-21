@@ -30,28 +30,35 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const applyUserSession = async (user) => {
+    if (!user) {
+      setCurrentUser(null);
+      setUserRole(null);
+      setUserStatus(null);
+      setUserData(null);
+      return;
+    }
+
+    setCurrentUser(user);
+    const profile = await fetchUserProfile(user.id);
+
+    const roleFromMeta = user.user_metadata?.role || 'student';
+    const nameFromMeta = user.user_metadata?.full_name || user.email;
+    const statusFromMeta = user.user_metadata?.status || 'active';
+
+    const role = profile?.role || roleFromMeta;
+    const status = profile?.status || statusFromMeta;
+
+    setUserRole(role);
+    setUserStatus(status);
+    setUserData(profile ? { ...profile, uid: profile.id, name: profile.full_name || nameFromMeta } : { uid: user.id, id: user.id, email: user.email, role, status, name: nameFromMeta });
+  };
+
   useEffect(() => {
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setCurrentUser(session.user);
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) {
-            setUserRole(profile.role || 'student');
-            setUserStatus(profile.status || 'active');
-            setUserData({ ...profile, uid: profile.id, name: profile.full_name });
-          } else {
-            setUserRole('student');
-            setUserStatus('active');
-            setUserData({ uid: session.user.id, email: session.user.email });
-          }
-        } else {
-          setCurrentUser(null);
-          setUserRole(null);
-          setUserStatus(null);
-          setUserData(null);
-        }
+        await applyUserSession(session?.user || null);
       } catch (err) {
         console.error("Auth init error:", err);
       } finally {
@@ -61,25 +68,8 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setCurrentUser(session.user);
-        const profile = await fetchUserProfile(session.user.id);
-        if (profile) {
-          setUserRole(profile.role || 'student');
-          setUserStatus(profile.status || 'active');
-          setUserData({ ...profile, uid: profile.id, name: profile.full_name });
-        } else {
-          setUserRole('student');
-          setUserStatus('active');
-          setUserData({ uid: session.user.id, email: session.user.email });
-        }
-      } else {
-        setCurrentUser(null);
-        setUserRole(null);
-        setUserStatus(null);
-        setUserData(null);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      await applyUserSession(session?.user || null);
       setLoading(false);
     });
 
@@ -99,13 +89,15 @@ export function AuthProvider({ children }) {
     }
 
     const profile = await fetchUserProfile(data.user.id);
-    const actualRole = profile?.role || 'student';
+    const roleFromMeta = data.user.user_metadata?.role || 'student';
+    const actualRole = profile?.role || roleFromMeta;
 
     if (requestedRole && actualRole !== requestedRole) {
       await supabase.auth.signOut();
       throw new Error('role_mismatch');
     }
 
+    await applyUserSession(data.user);
     return { userCredential: { user: data.user }, role: actualRole };
   };
 
@@ -129,17 +121,25 @@ export function AuthProvider({ children }) {
     }
 
     if (data.user) {
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        full_name: fullName,
-        email: email,
-        role: role,
-        status: status,
-        updated_at: new Date()
-      });
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: fullName,
+          email: email,
+          role: role,
+          status: status,
+          updated_at: new Date()
+        });
+      } catch (e) {
+        console.warn('Upsert profile notice:', e);
+      }
+
+      if (data.session) {
+        await applyUserSession(data.user);
+      }
     }
 
-    return { user: data.user };
+    return { user: data.user, session: data.session };
   };
 
   const logout = async () => {
