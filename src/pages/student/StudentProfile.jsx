@@ -2,15 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { auth, db, storage, doc, updateDoc } from '../../firebase/config';
-import { 
-  updatePassword, 
-  EmailAuthProvider, 
-  reauthenticateWithCredential,
-  updateProfile,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage, doc, updateDoc } from '../../supabase/db';
+import { supabase } from '../../supabase/client';
 import { Link } from 'react-router-dom';
 
 export default function StudentProfile() {
@@ -141,24 +134,47 @@ export default function StudentProfile() {
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !currentUser?.uid) return;
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!file || !userId) return;
 
     setPhotoUploading(true);
+    setInfoError('');
     try {
-      const storageRef = ref(storage, `profiles/${currentUser.uid}_${Date.now()}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      let downloadURL = '';
+      try {
+        const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
+        const filePath = `${userId}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, { upsert: true });
 
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, { photoURL: downloadURL });
-
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { photoURL: downloadURL });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          downloadURL = urlData?.publicUrl || '';
+        }
+      } catch (storageErr) {
+        console.warn('Falling back to Data URL for avatar:', storageErr);
       }
 
-      setFormData(prev => ({ ...prev, photoURL: downloadURL }));
-      setInfoSuccess(isRtl ? 'تم تحديث الصورة الشخصية بنجاح' : 'Profile photo updated');
-      setTimeout(() => setInfoSuccess(''), 4000);
+      if (!downloadURL) {
+        downloadURL = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (downloadURL) {
+        await supabase.from('profiles').update({ avatar_url: downloadURL }).eq('id', userId);
+        try {
+          await supabase.auth.updateUser({ data: { avatar_url: downloadURL } });
+        } catch (authErr) {}
+
+        setFormData(prev => ({ ...prev, photoURL: downloadURL }));
+        setInfoSuccess(isRtl ? 'تم تحديث الصورة الشخصية بنجاح' : 'Profile photo updated');
+        setTimeout(() => setInfoSuccess(''), 4000);
+      }
     } catch (err) {
       console.error('Error uploading photo:', err);
       setInfoError(isRtl ? 'فشل رفع الصورة.' : 'Failed to upload photo.');
@@ -173,11 +189,13 @@ export default function StudentProfile() {
     setResetEmailSuccess('');
 
     try {
-      await sendPasswordResetEmail(auth, currentUser.email);
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(currentUser.email);
+      if (resetErr) throw resetErr;
       setResetEmailSuccess(isRtl ? 'تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.' : 'Reset email sent.');
       setTimeout(() => setResetEmailSuccess(''), 5000);
     } catch (err) {
       console.error('Error sending reset email:', err);
+      setInfoError(isRtl ? 'فشل إرسال رابط التعيين.' : 'Failed to send reset email.');
     } finally {
       setResetEmailSending(false);
     }

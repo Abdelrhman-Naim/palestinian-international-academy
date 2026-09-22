@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { doc, setDoc, getDoc, updateDoc, increment, serverTimestamp, collection, query, where, getDocs, onSnapshot, db } from '../firebase/config';
+import { doc, setDoc, getDoc, updateDoc, increment, serverTimestamp, collection, query, where, getDocs, onSnapshot, db } from '../supabase/db';
 import { supabase } from '../supabase/client';
 import { useCourses } from '../context/CoursesContext';
 import { useAuth } from '../context/AuthContext';

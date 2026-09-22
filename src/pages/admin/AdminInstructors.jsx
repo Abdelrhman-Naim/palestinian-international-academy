@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getOrCreateDirectChat } from '../../services/chatService';
 import AdminPageShell from './AdminPageShell';
 import { supabase } from '../../supabase/client';
-import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../firebase/config';
+import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../supabase/db';
 import { useLanguage } from '../../context/LanguageContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import Pagination from '../../components/Pagination';

@@ -1,16 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { auth, db, storage, doc, updateDoc, collection, getDocs } from '../../firebase/config';
+import { auth, db, storage, doc, updateDoc, collection, getDocs } from '../../supabase/db';
 import { supabase } from '../../supabase/client';
-import { 
-  updatePassword, 
-  EmailAuthProvider, 
-  reauthenticateWithCredential,
-  updateProfile,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function AdminProfile() {
   const { t, dir } = useLanguage();

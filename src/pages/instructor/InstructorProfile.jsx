@@ -3,15 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../../utils/courseUtils';
-import { auth, db, storage, doc, updateDoc } from '../../firebase/config';
-import { 
-  updatePassword, 
-  EmailAuthProvider, 
-  reauthenticateWithCredential,
-  updateProfile,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage, doc, updateDoc } from '../../supabase/db';
 import { Link } from 'react-router-dom';
 
 export default function InstructorProfile() {

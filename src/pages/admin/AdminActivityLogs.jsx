@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
-import { collection, onSnapshot, query, limit, db } from '../../firebase/config';
+import { collection, onSnapshot, query, limit, db } from '../../supabase/db';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDateTime } from '../../utils/formatDate';
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useCategories } from "../context/CategoriesContext";
 import { useCourses } from "../context/CoursesContext";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs, db } from "../firebase/config";
+import { collection, query, where, getDocs, db } from '../supabase/db';
 import CustomSelect from "../components/CustomSelect";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from '../context/LanguageContext';

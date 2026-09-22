@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, increment, db } from '../../firebase/config';
+import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, increment, db } from '../../supabase/db';
 import AdminPageShell from './AdminPageShell';
 import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';

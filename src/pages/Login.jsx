@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
@@ -21,7 +19,7 @@ const Login = () => {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotError, setForgotError] = useState('');
 
-  const { login, currentUser, userRole } = useAuth();
+  const { login, currentUser, userRole, resetPassword } = useAuth();
 
   // Determine role based on URL path
   const role = location.pathname === '/login-trainer' ? 'instructor' : 'student';
@@ -72,7 +70,8 @@ const Login = () => {
 
     setForgotLoading(true);
     try {
-      await sendPasswordResetEmail(auth, targetEmail);
+      const { error: resetErr } = await resetPassword(targetEmail);
+      if (resetErr) throw resetErr;
       setForgotSuccess(
         dir === 'rtl'
           ? 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح.'
@@ -80,13 +79,11 @@ const Login = () => {
       );
     } catch (err) {
       console.error('Error resetting password:', err);
-      if (err.code === 'auth/invalid-email') {
-        setForgotError(dir === 'rtl' ? 'عنوان البريد الإلكتروني غير صحيح.' : 'Invalid email address.');
-      } else if (err.code === 'auth/user-not-found') {
-        setForgotError(dir === 'rtl' ? 'لم يتم العثور على حساب بهذا البريد.' : 'No account found with this email.');
-      } else {
-        setForgotError(dir === 'rtl' ? 'حدث خطأ أثناء إرسال البريد. يرجى المحاولة لاحقاً.' : 'Failed to send reset link.');
-      }
+      setForgotError(
+        dir === 'rtl'
+          ? 'حدث خطأ أثناء إرسال البريد. يرجى التأكد من صحة البريد والمحاولة لاحقاً.'
+          : (err.message || 'Failed to send reset link.')
+      );
     } finally {
       setForgotLoading(false);
     }

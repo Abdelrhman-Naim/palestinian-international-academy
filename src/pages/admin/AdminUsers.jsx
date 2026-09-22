@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import AdminPageShell from './AdminPageShell';
 import { supabase } from '../../supabase/client';
-import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../firebase/config';
+import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../supabase/db';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { getOrCreateDirectChat } from '../../services/chatService';

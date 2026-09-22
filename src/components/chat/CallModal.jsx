@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { doc, updateDoc, arrayUnion } from '../../firebase/config';
+import { doc, updateDoc, arrayUnion } from '../../supabase/db';
 
 export default function CallModal({
   isOpen,

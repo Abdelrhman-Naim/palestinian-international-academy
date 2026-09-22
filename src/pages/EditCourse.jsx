@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCategories } from "../context/CategoriesContext";
 import { useCourses } from "../context/CoursesContext";
-import { doc, getDoc, updateDoc, db } from "../firebase/config";
+import { doc, getDoc, updateDoc, db } from '../supabase/db';
 import { supabase } from "../supabase/client";
 import CustomSelect from "../components/CustomSelect";
 import { AnimatePresence, motion } from "framer-motion";
@@ -166,7 +166,7 @@ export default function EditCourse() {
         return () => { isMounted = false; };
     }, [id, courses]);
 
-    const handleSaveToFirestore = async () => {
+    const handleSaveCourse = async () => {
         if (!id) return;
         setSaving(true);
         const updateData = {
@@ -774,7 +774,7 @@ export default function EditCourse() {
                                         <button
                                             type="button"
                                             disabled={saving}
-                                            onClick={handleSaveToFirestore}
+                                            onClick={handleSaveCourse}
                                             className="flex-1 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-500"
                                         >
                                             {saving ? (dir === 'rtl' ? 'جارٍ الحفظ...' : 'Saving...') : t('adminAddBook.confirmSaveBtn')}

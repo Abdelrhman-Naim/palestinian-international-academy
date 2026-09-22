@@ -7,8 +7,8 @@
  *    (Arabic name, English name, full name, display name, and raw originalData).
  * 
  * @param {Object} course - Course object (may be translated or raw)
- * @param {Object} currentUser - Firebase Auth user object
- * @param {Object} userData - Firestore user data object
+ * @param {Object} currentUser - Supabase Auth user object
+ * @param {Object} userData - Supabase user profile object
  * @returns {boolean}
  */
 export function isCourseOwnedByInstructor(course, currentUser, userData) {

@@ -1,4 +1,4 @@
-import { supabase } from '../supabase/client';
+import { supabase } from './client';
 
 // Map legacy table names to Supabase tables
 const mapTableName = (table) => {
@@ -73,7 +73,6 @@ const mapDocData = (d) => {
   };
 };
 
-// Supabase compatibility bridge for legacy Firebase references
 export const db = {
   collection: (name) => ({ _table: mapTableName(name) }),
   doc: (col, id) => ({ _table: mapTableName(col), _id: id }),
@@ -141,7 +140,6 @@ export const getDocs = async (target) => {
       data = res.data;
       error = res.error;
 
-      // Fallback if PostgREST query with filters fails (e.g. status=eq.pending HTTP 400 when column isn't in DB yet)
       if (error) {
         console.warn(`[Supabase Bridge] Filtering on table ${table} failed, falling back to client-side filtering:`, error.message);
         const fallbackRes = await supabase.from(table).select('*');

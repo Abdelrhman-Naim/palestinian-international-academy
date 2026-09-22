@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { doc, getDoc, updateDoc, db } from '../firebase/config';
+import { doc, getDoc, updateDoc, db } from '../supabase/db';
 
 export default function CertificateModal({ certificate, onClose }) {
   const { t, dir } = useLanguage();
