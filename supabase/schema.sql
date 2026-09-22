@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name TEXT,
   email TEXT,
   role TEXT DEFAULT 'student' CHECK (role IN ('student', 'instructor', 'admin')),
+  status TEXT DEFAULT 'active',
   avatar_url TEXT,
   bio TEXT,
   phone TEXT,
@@ -21,21 +22,26 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure status column exists if table was created previously
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+
 -- Automatic trigger to create profile when auth.users is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email, role, avatar_url)
+  INSERT INTO public.profiles (id, full_name, email, role, status, avatar_url)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
     new.email,
     COALESCE(new.raw_user_meta_data->>'role', 'student'),
+    COALESCE(new.raw_user_meta_data->>'status', 'active'),
     new.raw_user_meta_data->>'avatar_url'
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
-    role = EXCLUDED.role;
+    role = EXCLUDED.role,
+    status = EXCLUDED.status;
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

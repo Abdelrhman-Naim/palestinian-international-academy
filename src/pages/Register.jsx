@@ -56,10 +56,15 @@ const Register = () => {
         setTimeout(() => navigate('/login-trainer'), 1500);
       }
     } catch (err) {
-      if (err.code === 'auth/email-already-in-use') {
+      const errMsg = err?.message || '';
+      if (err?.status === 429 || errMsg.includes('429') || errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('too many requests')) {
+        setError(dir === 'rtl' 
+          ? 'تم تجاوز عدد محاولات التسجيل المسموح بها حالياً (Rate Limit). يرجى الانتظار لدقيقة واحدة ثم المحاولة مجدداً أو تعطيل Rate Limit من لوحة Supabase.' 
+          : 'Rate limit exceeded for signups. Please wait a minute before trying again.');
+      } else if (err.code === 'auth/email-already-in-use' || errMsg.toLowerCase().includes('already registered')) {
         setError(t('register.emailExists'));
       } else {
-        setError(dir === 'rtl' ? 'حدث خطأ أثناء التسجيل. يرجى المحاولة لاحقاً.' : 'An error occurred during registration. Please try again.');
+        setError(errMsg || (dir === 'rtl' ? 'حدث خطأ أثناء التسجيل. يرجى المحاولة لاحقاً.' : 'An error occurred during registration. Please try again.'));
       }
     } finally {
       setLoading(false);

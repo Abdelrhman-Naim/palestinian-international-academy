@@ -1,9 +1,23 @@
 import { supabase } from '../supabase/client';
 
+// Map legacy table names to Supabase tables
+const mapTableName = (table) => (table === 'users' ? 'profiles' : table);
+
+const mapDocData = (d) => {
+  if (!d) return {};
+  return {
+    ...d,
+    id: d.id,
+    uid: d.id,
+    name: d.name || d.full_name || d.email,
+    fullName: d.full_name || d.name || d.email,
+  };
+};
+
 // Supabase compatibility bridge for legacy Firebase references
 export const db = {
-  collection: (name) => ({ _table: name }),
-  doc: (col, id) => ({ _table: col, _id: id }),
+  collection: (name) => ({ _table: mapTableName(name) }),
+  doc: (col, id) => ({ _table: mapTableName(col), _id: id }),
 };
 
 export const auth = {
@@ -22,21 +36,21 @@ export const storage = {
 
 export const collection = (dbObj, tableName) => {
   const table = typeof dbObj === 'string' ? dbObj : tableName;
-  return { _table: table || 'courses' };
+  return { _table: mapTableName(table || 'courses') };
 };
 
 export const doc = (dbObj, tableName, id) => {
   if (typeof dbObj === 'string' && tableName) {
-    return { _table: dbObj, _id: tableName };
+    return { _table: mapTableName(dbObj), _id: tableName };
   }
   if (dbObj && dbObj._table) {
-    return { _table: dbObj._table, _id: tableName };
+    return { _table: mapTableName(dbObj._table), _id: tableName };
   }
-  return { _table: tableName || 'courses', _id: id };
+  return { _table: mapTableName(tableName || 'courses'), _id: id };
 };
 
 export const query = (target, ...clauses) => {
-  const table = target?._table || 'courses';
+  const table = mapTableName(target?._table || 'courses');
   const filters = (clauses || []).filter(c => c && c.type === 'where');
   return { _table: table, filters };
 };
@@ -50,7 +64,8 @@ export const arrayUnion = (...items) => items;
 export const arrayRemove = (...items) => items;
 
 export const getDocs = async (target) => {
-  const table = target?._table || 'courses';
+  const rawTable = target?._table || 'courses';
+  const table = mapTableName(rawTable);
   try {
     let q = supabase.from(table).select('*');
     if (target?.filters) {
@@ -62,11 +77,14 @@ export const getDocs = async (target) => {
     }
     const { data, error } = await q;
     if (error) throw error;
-    const docs = (data || []).map(d => ({
-      id: d.id,
-      data: () => d,
-      exists: () => true
-    }));
+    const docs = (data || []).map(d => {
+      const mapped = mapDocData(d);
+      return {
+        id: mapped.id,
+        data: () => mapped,
+        exists: () => true
+      };
+    });
     return {
       size: docs.length,
       empty: docs.length === 0,
@@ -79,14 +97,16 @@ export const getDocs = async (target) => {
 };
 
 export const getDoc = async (target) => {
-  const table = target?._table || 'courses';
+  const rawTable = target?._table || 'courses';
+  const table = mapTableName(rawTable);
   const id = target?._id;
   try {
     const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
     if (error) throw error;
+    const mapped = mapDocData(data);
     return {
       exists: () => Boolean(data),
-      data: () => data || {},
+      data: () => mapped,
       id
     };
   } catch (e) {
@@ -113,12 +133,16 @@ export const onSnapshot = (target, callback, errorCb) => {
 };
 
 export const setDoc = async (docRef, data) => {
-  const table = docRef?._table;
+  const rawTable = docRef?._table;
+  const table = mapTableName(rawTable);
   const id = docRef?._id;
   if (!table) return { ok: false };
   try {
     const record = { ...data };
     if (id) record.id = id;
+    if (table === 'profiles' && record.name && !record.full_name) {
+      record.full_name = record.name;
+    }
     const { error } = await supabase.from(table).upsert(record);
     if (error) throw error;
     return { ok: true };
@@ -129,11 +153,16 @@ export const setDoc = async (docRef, data) => {
 };
 
 export const updateDoc = async (docRef, data) => {
-  const table = docRef?._table;
+  const rawTable = docRef?._table;
+  const table = mapTableName(rawTable);
   const id = docRef?._id;
   if (!table || !id) return { ok: false };
   try {
-    const { error } = await supabase.from(table).update(data).eq('id', id);
+    const record = { ...data };
+    if (table === 'profiles' && record.name && !record.full_name) {
+      record.full_name = record.name;
+    }
+    const { error } = await supabase.from(table).update(record).eq('id', id);
     if (error) throw error;
     return { ok: true };
   } catch (e) {
@@ -143,7 +172,8 @@ export const updateDoc = async (docRef, data) => {
 };
 
 export const deleteDoc = async (docRef) => {
-  const table = docRef?._table;
+  const rawTable = docRef?._table;
+  const table = mapTableName(rawTable);
   const id = docRef?._id;
   if (!table || !id) return { ok: false };
   try {
@@ -157,7 +187,8 @@ export const deleteDoc = async (docRef) => {
 };
 
 export const addDoc = async (colRef, data) => {
-  const table = colRef?._table;
+  const rawTable = colRef?._table;
+  const table = mapTableName(rawTable);
   if (!table) return { id: 'error' };
   try {
     const { data: res, error } = await supabase.from(table).insert(data).select('id').single();
