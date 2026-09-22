@@ -85,14 +85,19 @@ export default function ManageAssignments() {
         try {
             await addDoc(collection(db, 'assignments'), {
                 courseId: id,
+                course_id: id,
                 title: assignmentTitle,
                 description: newAssignment.description.trim(),
                 imageName: newAssignment.imageName,
+                image_name: newAssignment.imageName,
                 dueDate: formattedDueDate,
+                due_date: formattedDueDate,
                 rawDueDate: newAssignment.dueDate,
+                raw_due_date: newAssignment.dueDate,
                 date: formattedDueDate,
                 submissions: 0,
                 createdAt: new Date().toISOString(),
+                created_at: new Date().toISOString(),
             });
 
             // Notify enrolled students in real-time

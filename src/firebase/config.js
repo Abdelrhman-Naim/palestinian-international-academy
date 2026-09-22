@@ -1,7 +1,26 @@
 import { supabase } from '../supabase/client';
 
 // Map legacy table names to Supabase tables
-const mapTableName = (table) => (table === 'users' ? 'profiles' : table);
+const mapTableName = (table) => {
+  if (table === 'users') return 'profiles';
+  if (table === 'submissions') return 'submitted_assignments';
+  return table;
+};
+
+const mapFieldToColumn = (table, field) => {
+  if (field === 'courseId') return 'course_id';
+  if (field === 'instructorId') return 'instructor_id';
+  if (field === 'studentId') return 'student_id';
+  if (field === 'assignmentId') return 'assignment_id';
+  if (field === 'createdAt') return 'created_at';
+  if (field === 'dueDate') return 'due_date';
+  if (field === 'rawDueDate') return 'raw_due_date';
+  if (field === 'imageName') return 'image_name';
+  if (field === 'fileUrl') return 'file_url';
+  if (field === 'fullName') return 'full_name';
+  if (field === 'isApproved') return 'is_approved';
+  return field;
+};
 
 const mapDocData = (d) => {
   if (!d) return {};
@@ -18,6 +37,20 @@ const mapDocData = (d) => {
     is_approved: isApproved,
     name: d.name || d.full_name || d.email,
     fullName: d.full_name || d.name || d.email,
+    courseId: d.course_id || d.courseId,
+    course_id: d.course_id || d.courseId,
+    instructorId: d.instructor_id || d.instructorId,
+    studentId: d.student_id || d.studentId,
+    assignmentId: d.assignment_id || d.assignmentId,
+    dueDate: d.due_date || d.dueDate || d.date,
+    date: d.due_date || d.date || d.dueDate,
+    createdAt: d.created_at || d.createdAt,
+    submittedAt: d.submitted_at || d.submittedAt,
+    fileUrl: d.file_url || d.fileUrl || d.fileName,
+    studentName: d.student_name || d.studentName || d.student,
+    student: d.student_name || d.student || d.studentName,
+    assignment: d.assignment_title || d.assignment || d.title,
+    content: d.notes || d.content,
   };
 };
 
@@ -80,9 +113,10 @@ export const getDocs = async (target) => {
 
     if (target?.filters && target.filters.length > 0) {
       target.filters.forEach(f => {
-        if (f.op === '==') q = q.eq(f.field, f.value);
-        if (f.op === '!=') q = q.neq(f.field, f.value);
-        if (f.op === 'in') q = q.in(f.field, f.value);
+        const colName = mapFieldToColumn(table, f.field);
+        if (f.op === '==') q = q.eq(colName, f.value);
+        if (f.op === '!=') q = q.neq(colName, f.value);
+        if (f.op === 'in') q = q.in(colName, f.value);
       });
       const res = await q;
       data = res.data;
@@ -97,9 +131,10 @@ export const getDocs = async (target) => {
           data = fallbackRes.data.filter(item => {
             const mapped = mapDocData(item);
             return target.filters.every(f => {
-              if (f.op === '==') return mapped[f.field] === f.value;
-              if (f.op === '!=') return mapped[f.field] !== f.value;
-              if (f.op === 'in') return Array.isArray(f.value) && f.value.includes(mapped[f.field]);
+              const val = mapped[f.field] ?? mapped[mapFieldToColumn(table, f.field)];
+              if (f.op === '==') return val === f.value;
+              if (f.op === '!=') return val !== f.value;
+              if (f.op === 'in') return Array.isArray(f.value) && f.value.includes(val);
               return true;
             });
           });
@@ -202,6 +237,11 @@ export const updateDoc = async (docRef, data) => {
       if (record.status === 'rejected' || record.status === 'pending') record.is_approved = false;
       delete record.status;
     }
+    if (record.courseId && !record.course_id) record.course_id = record.courseId;
+    if (record.dueDate && !record.due_date) record.due_date = record.dueDate;
+    if (record.studentId && !record.student_id) record.student_id = record.studentId;
+    if (record.assignmentId && !record.assignment_id) record.assignment_id = record.assignmentId;
+
     const { error } = await supabase.from(table).update(record).eq('id', id);
     if (error) throw error;
     return { ok: true };
@@ -231,8 +271,37 @@ export const addDoc = async (colRef, data) => {
   const table = mapTableName(rawTable);
   if (!table) return { id: 'error' };
   try {
-    const { data: res, error } = await supabase.from(table).insert(data).select('id').single();
-    if (error) throw error;
+    const record = { ...data };
+    if (record.courseId && !record.course_id) record.course_id = record.courseId;
+    if (record.dueDate && !record.due_date) record.due_date = record.dueDate;
+    if (record.rawDueDate && !record.raw_due_date) record.raw_due_date = record.rawDueDate;
+    if (record.imageName && !record.image_name) record.image_name = record.imageName;
+    if (record.createdAt && !record.created_at) record.created_at = record.createdAt;
+    if (record.studentId && !record.student_id) record.student_id = record.studentId;
+    if (record.assignmentId && !record.assignment_id) record.assignment_id = record.assignmentId;
+    if (record.studentName && !record.student_name) record.student_name = record.studentName;
+    if (record.fileUrl && !record.file_url) record.file_url = record.fileUrl;
+
+    const { data: res, error } = await supabase.from(table).insert(record).select('id').single();
+    if (error) {
+      console.warn(`[Supabase Bridge] addDoc insert error on ${table}, attempting clean fallback insert:`, error.message);
+      const cleanRecord = {};
+      if (record.course_id) cleanRecord.course_id = record.course_id;
+      if (record.title) cleanRecord.title = record.title;
+      if (record.description) cleanRecord.description = record.description;
+      if (record.due_date) cleanRecord.due_date = record.due_date;
+      if (record.student_id) cleanRecord.student_id = record.student_id;
+      if (record.assignment_id) cleanRecord.assignment_id = record.assignment_id;
+      if (record.student_name) cleanRecord.student_name = record.student_name;
+      if (record.notes) cleanRecord.notes = record.notes;
+      if (record.file_url) cleanRecord.file_url = record.file_url;
+      if (record.created_at) cleanRecord.created_at = record.created_at;
+      if (record.submissions !== undefined) cleanRecord.submissions = record.submissions;
+
+      const retryRes = await supabase.from(table).insert(cleanRecord).select('id').single();
+      if (retryRes.error) throw retryRes.error;
+      return { id: retryRes.data?.id || 'new-id' };
+    }
     return { id: res?.id || 'new-id' };
   } catch (e) {
     console.warn(`[Supabase Bridge] addDoc error on table ${table}:`, e);
