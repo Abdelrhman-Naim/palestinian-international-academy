@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { auth, db, storage, doc, updateDoc, collection, getDocs } from '../../firebase/config';
+import { supabase } from '../../supabase/client';
 import { 
   updatePassword, 
   EmailAuthProvider, 
@@ -61,19 +62,53 @@ export default function AdminProfile() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const coursesSnap = await getDocs(collection(db, 'courses'));
-        const booksSnap = await getDocs(collection(db, 'library'));
+        // Fetch profiles from Supabase + Firestore fallback
+        const { data: profiles } = await supabase.from('profiles').select('*');
+        let firestoreUsers = [];
+        try {
+          const uSnap = await getDocs(collection(db, 'users'));
+          firestoreUsers = uSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {}
 
-        let pending = 0;
-        usersSnap.forEach(d => {
-          if (d.data()?.status === 'pending') pending++;
+        const mergedUsers = new Map();
+        (profiles || []).forEach(p => {
+          const key = p.id || p.email;
+          if (key) mergedUsers.set(key, p);
+        });
+        firestoreUsers.forEach(fu => {
+          const key = fu.id || fu.email;
+          if (key && !mergedUsers.has(key)) mergedUsers.set(key, fu);
         });
 
+        let pending = 0;
+        mergedUsers.forEach(u => {
+          if (u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)) {
+            pending++;
+          }
+        });
+
+        // Fetch courses count
+        const { data: coursesData } = await supabase.from('courses').select('id');
+        let firestoreCoursesCount = 0;
+        try {
+          const cSnap = await getDocs(collection(db, 'courses'));
+          firestoreCoursesCount = cSnap.size;
+        } catch (e) {}
+        const totalCourses = Math.max(coursesData?.length || 0, firestoreCoursesCount);
+
+        // Fetch books count
+        const { data: booksData } = await supabase.from('books').select('id');
+        let firestoreBooksCount = 0;
+        try {
+          const bSnap = await getDocs(collection(db, 'books'));
+          firestoreBooksCount = bSnap.size;
+        } catch (e) {}
+        const totalBooks = Math.max(booksData?.length || 0, firestoreBooksCount);
+
         setStats({
-          usersCount: usersSnap.size,
-          coursesCount: coursesSnap.size,
-          booksCount: booksSnap.size,
+          usersCount: mergedUsers.size,
+          coursesCount: totalCourses,
+          booksCount: totalBooks,
           pendingInstructors: pending
         });
       } catch (e) {

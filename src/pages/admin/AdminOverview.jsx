@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { useCourses } from '../../context/CoursesContext';
 import { useLibrary } from '../../context/LibraryContext';
-import { collection, onSnapshot, db } from '../../firebase/config';
+import { collection, getDocs, db } from '../../firebase/config';
+import { supabase } from '../../supabase/client';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDateTime } from '../../utils/formatDate';
 
@@ -13,31 +14,105 @@ export default function AdminOverview() {
   const { courses } = useCourses();
   const { books } = useLibrary();
   const [usersInfo, setUsersInfo] = useState({ students: 0, instructors: 0, pending: 0 });
+  const [enrollmentsCount, setEnrollmentsCount] = useState(0);
 
-  const totalEnrollments = courses.reduce((acc, curr) => acc + (curr.students || 0), 0);
+  const fetchUsersInfo = async () => {
+    try {
+      // 1. Fetch Supabase profiles
+      const { data: profiles } = await supabase.from('profiles').select('*');
 
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+      // 2. Fetch Firestore users as fallback
+      let firestoreUsers = [];
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        firestoreUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (err) {
+        console.warn('Firestore users fetch fallback notice:', err);
+      }
+
+      // Merge unique users (prefer profiles, add non-duplicate firestore users)
+      const mergedMap = new Map();
+      (profiles || []).forEach(p => {
+        const key = p.id || p.email;
+        if (key) mergedMap.set(key, p);
+      });
+      firestoreUsers.forEach(fu => {
+        const key = fu.id || fu.email;
+        if (key && !mergedMap.has(key)) {
+          mergedMap.set(key, fu);
+        }
+      });
+
       let stu = 0;
       let inst = 0;
       let pend = 0;
-      snapshot.forEach(doc => {
-        const role = doc.data().role;
-        const status = doc.data().status;
-        if (role === 'student') stu++;
-        if (role === 'instructor') inst++;
-        if (status === 'pending') pend++;
+
+      mergedMap.forEach(u => {
+        const role = u.role;
+        const status = u.status;
+        const isApproved = u.is_approved;
+
+        if (role === 'student') {
+          stu++;
+        } else if (role === 'instructor') {
+          if (status === 'pending' || isApproved === false || isApproved === null) {
+            pend++;
+          } else {
+            inst++;
+          }
+        }
       });
+
       setUsersInfo({ students: stu, instructors: inst, pending: pend });
-    });
-    return () => unsub();
-  }, []);
+    } catch (err) {
+      console.warn('Error fetching users info for overview:', err);
+    }
+  };
+
+  const fetchEnrollments = async () => {
+    try {
+      const { data } = await supabase.from('enrollments').select('id');
+      let firestoreCount = 0;
+      try {
+        const snap = await getDocs(collection(db, 'enrollments'));
+        firestoreCount = snap.size;
+      } catch (e) {}
+      const courseStudentSum = courses.reduce((acc, curr) => acc + (curr.students || 0), 0);
+      setEnrollmentsCount(Math.max(data?.length || 0, firestoreCount, courseStudentSum));
+    } catch (e) {
+      console.warn('Error fetching enrollments count:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsersInfo();
+    fetchEnrollments();
+
+    // Subscribe to realtime changes on profiles table
+    const channel = supabase
+      .channel('admin-overview-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          fetchUsersInfo();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(fetchUsersInfo, 4000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [courses]);
 
   const stats = [
     {
       label: t('adminOverview.totalStudentAccounts'),
       value: usersInfo.students.toString(),
-      subValue: `${totalEnrollments} ${t('adminOverview.courseEnrollments')}`,
+      subValue: `${enrollmentsCount} ${t('adminOverview.courseEnrollments')}`,
       subtitle: t('adminOverview.studentAccountsSubtitle'),
       icon: 'groups',
       tone: 'primary',
@@ -192,4 +267,3 @@ export default function AdminOverview() {
     </AdminPageShell>
   );
 }
-
