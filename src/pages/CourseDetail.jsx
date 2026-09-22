@@ -103,8 +103,9 @@ export default function CourseDetail() {
 
     const enrollRef = doc(db, 'enrollments', `${uid}_${id}`);
     const unsub = onSnapshot(enrollRef, async (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
+      const isExist = Boolean(snap && typeof snap.exists === 'function' ? snap.exists() : false);
+      if (isExist) {
+        const data = snap.data ? snap.data() : {};
         setEnrolled(true);
         const doneList = Array.isArray(data.completedLessons) ? data.completedLessons : [];
         setCompletedLessons(doneList);
@@ -264,20 +265,32 @@ export default function CourseDetail() {
 
       // 1. Write to course_requests table in Supabase
       try {
-        await supabase.from('course_requests').upsert({
-          student_id: studentUid,
-          student_name: studentName,
-          student_email: currentUser.email,
-          course_id: id,
-          course_title: course.title,
-          instructor_id: course.instructorId || null,
-          instructor_name: course.instructor || null,
-          status: 'approved',
-          payment_method: 'free',
-          created_at: new Date()
-        });
+        const { data: existingReq } = await supabase
+          .from('course_requests')
+          .select('id')
+          .eq('student_id', studentUid)
+          .eq('course_id', id)
+          .maybeSingle();
+
+        if (existingReq?.id) {
+          await supabase
+            .from('course_requests')
+            .update({ status: 'approved' })
+            .eq('id', existingReq.id);
+        } else {
+          await supabase.from('course_requests').insert([{
+            student_id: studentUid,
+            student_name: studentName,
+            student_email: currentUser.email,
+            course_id: id,
+            course_title: course.title,
+            status: 'approved',
+            payment_method: 'free',
+            created_at: new Date().toISOString()
+          }]);
+        }
       } catch (reqErr) {
-        console.warn('course_requests upsert error:', reqErr);
+        console.warn('course_requests insert error:', reqErr);
       }
 
       // 2. Write to enrollments table

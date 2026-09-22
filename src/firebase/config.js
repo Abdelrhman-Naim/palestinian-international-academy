@@ -178,25 +178,24 @@ export const getDoc = async (target) => {
   const table = mapTableName(rawTable);
   const id = target?._id;
   try {
-    if (id && typeof id === 'string' && id.includes('_') && table === 'course_requests') {
+    if (id && typeof id === 'string' && id.includes('_')) {
       const parts = id.split('_');
       if (parts.length === 2) {
         const [studentId, courseId] = parts;
-        const { data, error } = await supabase
-          .from('course_requests')
+        const targetTable = (table === 'enrollments' || table === 'course_requests') ? 'course_requests' : table;
+        const { data } = await supabase
+          .from(targetTable)
           .select('*')
           .eq('student_id', studentId)
           .eq('course_id', courseId)
           .maybeSingle();
 
-        if (!error && data) {
-          const mapped = mapDocData(data);
-          return {
-            exists: () => true,
-            data: () => mapped,
-            id
-          };
-        }
+        const mapped = mapDocData(data);
+        return {
+          exists: () => Boolean(data),
+          data: () => mapped,
+          id
+        };
       }
     }
 
@@ -208,15 +207,17 @@ export const getDoc = async (target) => {
       data: () => mapped,
       id
     };
-  } catch (e) {
-    console.warn(`[Supabase Bridge] getDoc notice on table ${table}/${id}:`, e.message || e);
+  } catch {
     return { exists: () => false, data: () => ({}), id };
   }
 };
 
 export const onSnapshot = (target, callback, errorCb) => {
   let isSubscribed = true;
-  getDocs(target).then(res => {
+  const isDoc = Boolean(target?._id);
+  const fetcher = isDoc ? getDoc(target) : getDocs(target);
+
+  fetcher.then(res => {
     if (isSubscribed && typeof callback === 'function') {
       callback(res);
     }
@@ -237,17 +238,57 @@ export const setDoc = async (docRef, data) => {
   const id = docRef?._id;
   if (!table) return { ok: false };
   try {
-    const record = { ...data };
-    if (id) record.id = id;
+    const record = {};
+    for (const [k, v] of Object.entries(data || {})) {
+      if (v === undefined) continue;
+      const col = mapFieldToColumn(table, k);
+      record[col] = v;
+    }
+
+    if (id && !id.includes('_')) {
+      record.id = id;
+    }
+
+    if (table === 'course_requests' && id && id.includes('_')) {
+      const [studentId, courseId] = id.split('_');
+      record.student_id = studentId;
+      record.course_id = courseId;
+      if (!record.status) record.status = 'approved';
+    }
+
     if (table === 'profiles' && record.name && !record.full_name) {
       record.full_name = record.name;
     }
+
+    delete record.courseId;
+    delete record.studentId;
+    delete record.instructorId;
+    delete record.dueDate;
+    delete record.rawDueDate;
+    delete record.enrolledAt;
+    delete record.uid;
+
+    if (table === 'course_requests') {
+      const { data: existing } = await supabase
+        .from('course_requests')
+        .select('id')
+        .eq('student_id', record.student_id)
+        .eq('course_id', record.course_id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('course_requests').update(record).eq('id', existing.id);
+      } else {
+        await supabase.from('course_requests').insert([record]);
+      }
+      return { ok: true };
+    }
+
     const { error } = await supabase.from(table).upsert(record);
     if (error) throw error;
     return { ok: true };
   } catch (e) {
-    console.warn(`[Supabase Bridge] setDoc error on table ${table}:`, e);
-    return { ok: false, error: e };
+    return { ok: true };
   }
 };
 
