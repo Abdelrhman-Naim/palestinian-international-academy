@@ -104,12 +104,12 @@ export default function AdminUsers() {
     try {
       const adminUser = {
         uid: currentUser.uid,
-        name: userData?.name || userData?.fullName || t('navbar.admin'),
+        name: userData?.name || userData?.fullName || (isRtl ? 'مسؤول' : 'Admin'),
         role: 'admin'
       };
       const studentUser = {
         uid: student.id,
-        name: student.name || student.fullName || t('adminUsers.student'),
+        name: student.name || student.fullName || (isRtl ? 'طالب' : 'Student'),
         role: 'student'
       };
       const chatId = await getOrCreateDirectChat(adminUser, studentUser);
@@ -122,12 +122,12 @@ export default function AdminUsers() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm(t('adminUsers.deleteConfirm'))) {
+    if (window.confirm(isRtl ? 'هل أنت تأكد من حذف هذا الطالب؟' : 'Are you sure you want to delete this student?')) {
       try {
         await deleteDoc(doc(db, 'users', id));
         fetchStudents();
       } catch (err) {
-        alert(t('adminUsers.deleteError'));
+        alert(isRtl ? 'حدث خطأ أثناء حذف الطالب' : 'Error deleting student');
         console.error(err);
       }
     }
@@ -230,9 +230,9 @@ export default function AdminUsers() {
 
   return (
     <AdminPageShell
-      parent={t('adminUsers.parent')}
-      title={t('adminUsers.title')}
-      subtitle={t('adminUsers.subtitle')}
+      parent={isRtl ? 'إدارة الطلاب' : 'Students Management'}
+      title={isRtl ? 'جميع الطلاب' : 'All Students'}
+      subtitle={isRtl ? 'ابحث عن الطلاب وتابع حالة حساباتهم' : 'Search students and track their account status'}
       icon="group"
     >
       {/* ===== Advanced Filter & Search Bar ===== */}
@@ -308,13 +308,13 @@ export default function AdminUsers() {
         <div className="hidden grid-cols-12 gap-4 border-b border-[#E8E2D5] bg-[#FAF7F2] px-6 py-3 text-xs font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400 md:grid">
           <span className="col-span-3">{isRtl ? 'الطالب' : 'Student'}</span>
           <span className="col-span-3">{isRtl ? 'تاريخ الانضمام' : 'Joined Date'}</span>
-          <span className="col-span-2">{t('adminUsers.courses')}</span>
-          <span className="col-span-2">{t('adminUsers.status')}</span>
+          <span className="col-span-2">{isRtl ? 'الدورات' : 'Courses'}</span>
+          <span className="col-span-2">{isRtl ? 'الحالة' : 'Status'}</span>
           <span className="col-span-2 text-left rtl:text-right">{isRtl ? 'الإجراءات' : 'Actions'}</span>
         </div>
 
         {loading ? (
-          <div className="p-10 text-center text-sm font-bold text-gray-400">{t('common.loading')}</div>
+          <div className="p-10 text-center text-sm font-bold text-gray-400">{isRtl ? 'جاري التحميل...' : 'Loading...'}</div>
         ) : filteredStudents.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-primary dark:bg-orange-950/40">
@@ -343,7 +343,7 @@ export default function AdminUsers() {
             {paginatedStudents.map((student) => {
               const dateDisplay = student.created_at 
                 ? formatCustomDate(student.created_at) 
-                : (student.createdAt ? formatCustomDate(student.createdAt) : t('adminUsers.notSpecified'));
+                : (student.createdAt ? formatCustomDate(student.createdAt) : (isRtl ? 'غير محدد' : 'N/A'));
 
               return (
                 <div
@@ -353,7 +353,7 @@ export default function AdminUsers() {
                   {/* Student Column */}
                   <div className="col-span-3 flex flex-col">
                     <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{isRtl ? 'الطالب' : 'Student'}</span>
-                    <p className="font-bold text-dark dark:text-white">{student.name || student.fullName || t('adminUsers.student')}</p>
+                    <p className="font-bold text-dark dark:text-white">{student.name || student.fullName || (isRtl ? 'طالب' : 'Student')}</p>
                     {student.email && <p className="text-xs text-gray-400">{student.email}</p>}
                   </div>
 
@@ -365,7 +365,7 @@ export default function AdminUsers() {
 
                   {/* Courses Column */}
                   <div className="col-span-2 flex flex-col">
-                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{t('adminUsers.courses')}</span>
+                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{isRtl ? 'الدورات' : 'Courses'}</span>
                     <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                       {student.coursesCount} {isRtl ? 'دورة' : 'courses'}
                     </p>
@@ -373,16 +373,16 @@ export default function AdminUsers() {
 
                   {/* Status Column */}
                   <div className="col-span-2 flex flex-col">
-                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{t('adminUsers.status')}</span>
+                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{isRtl ? 'الحالة' : 'Status'}</span>
                     <div>
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                          student.status !== 'inactive' && student.status !== t('adminUsers.inactive')
+                          student.status !== 'inactive' && student.status !== 'غير نشط'
                             ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800'
                             : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
                         }`}
                       >
-                        {student.status || t('adminUsers.active')}
+                        {student.status || (isRtl ? 'نشط' : 'Active')}
                       </span>
                     </div>
                   </div>
@@ -405,8 +405,8 @@ export default function AdminUsers() {
 
                       <button
                         onClick={() => handleDelete(student.id)}
-                        title={t('adminUsers.deleteStudent')}
-                        aria-label={t('adminUsers.deleteStudent')}
+                        title={isRtl ? 'حذف الطالب' : 'Delete Student'}
+                        aria-label={isRtl ? 'حذف الطالب' : 'Delete Student'}
                         className="text-rose-500 hover:text-rose-700 transition-colors flex items-center justify-center p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-lg">delete</span>
