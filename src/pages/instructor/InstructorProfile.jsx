@@ -179,31 +179,31 @@ export default function InstructorProfile() {
     setSavingProfile(true);
     setProfileMessage({ type: '', text: '' });
 
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!userId) return;
+
     try {
       const updatePayload = {
-        name: formData.fullName.trim(),
-        fullName: formData.fullName.trim(),
-        name_en: formData.fullName_en.trim(),
-        fullName_en: formData.fullName_en.trim(),
+        full_name: formData.fullName.trim(),
         phone: formData.phone.trim(),
-        field: formData.field.trim(),
+        specialization: formData.field.trim(),
         bio: formData.bio.trim(),
-        photoURL: formData.photoURL || '',
-        updatedAt: new Date().toISOString()
+        avatar_url: formData.photoURL || '',
+        updated_at: new Date().toISOString()
       };
 
-      await updateDoc(doc(db, 'users', currentUser.uid), updatePayload);
+      const { error } = await supabase
+        .from('profiles')
+        .update(updatePayload)
+        .eq('id', userId);
 
-      // Also update Firebase Auth displayName
-      if (auth.currentUser) {
-        try {
-          await updateProfile(auth.currentUser, {
-            displayName: formData.fullName.trim()
-          });
-        } catch (authErr) {
-          console.warn('Could not update displayName on auth currentUser:', authErr);
-        }
-      }
+      if (error) throw error;
+
+      try {
+        await supabase.auth.updateUser({
+          data: { full_name: formData.fullName.trim(), avatar_url: formData.photoURL || '' }
+        });
+      } catch (authErr) {}
 
       setProfileMessage({
         type: 'success',
@@ -226,14 +226,6 @@ export default function InstructorProfile() {
     e.preventDefault();
     setPasswordMessage({ type: '', text: '' });
 
-    if (!pwdData.currentPassword) {
-      setPasswordMessage({
-        type: 'error',
-        text: isRtl ? 'يرجى إدخال كلمة المرور الحالية' : 'Current password is required'
-      });
-      return;
-    }
-
     if (pwdData.newPassword.length < 6) {
       setPasswordMessage({
         type: 'error',
@@ -253,15 +245,11 @@ export default function InstructorProfile() {
     setSavingPassword(true);
 
     try {
-      const user = auth.currentUser;
-      if (!user || !user.email) throw new Error('No authenticated user');
+      const { error } = await supabase.auth.updateUser({
+        password: pwdData.newPassword
+      });
 
-      // Reauthenticate user before changing password
-      const credential = EmailAuthProvider.credential(user.email, pwdData.currentPassword);
-      await reauthenticateWithCredential(user, credential);
-
-      // Update password
-      await updatePassword(user, pwdData.newPassword);
+      if (error) throw error;
 
       setPasswordMessage({
         type: 'success',
@@ -271,22 +259,10 @@ export default function InstructorProfile() {
       setTimeout(() => setPasswordMessage({ type: '', text: '' }), 5000);
     } catch (err) {
       console.error('Error updating password:', err);
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setPasswordMessage({
-          type: 'error',
-          text: t('instructorProfile.wrongPassword')
-        });
-      } else if (err.code === 'auth/too-many-requests') {
-        setPasswordMessage({
-          type: 'error',
-          text: isRtl ? 'محاولات كثيرة خاطئة، يرجى الانتظار قليلاً' : 'Too many attempts, please wait a moment'
-        });
-      } else {
-        setPasswordMessage({
-          type: 'error',
-          text: err.message || (isRtl ? 'فشل تغيير كلمة المرور' : 'Failed to change password')
-        });
-      }
+      setPasswordMessage({
+        type: 'error',
+        text: err.message || (isRtl ? 'حدث خطأ أثناء تغيير كلمة المرور' : 'Error updating password')
+      });
     } finally {
       setSavingPassword(false);
     }

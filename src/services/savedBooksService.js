@@ -10,7 +10,7 @@ export async function toggleSaveBook(userId, book) {
     .select('id')
     .eq('user_id', userId)
     .eq('book_id', book.id)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     await supabase.from('saved_books').delete().eq('id', existing.id);
@@ -35,7 +35,7 @@ export async function isBookSaved(userId, bookId) {
     .select('id')
     .eq('user_id', userId)
     .eq('book_id', bookId)
-    .single();
+    .maybeSingle();
 
   return Boolean(data);
 }
@@ -57,7 +57,13 @@ export function listenToUserSavedBooks(userId, callback) {
       .select('*')
       .eq('user_id', userId);
 
-    callback(data || []);
+    const formatted = (data || []).map(item => ({
+      ...item,
+      bookId: item.book_id || item.bookId || item.id,
+      id: item.id
+    }));
+
+    callback(formatted);
   };
 
   fetchSaved();

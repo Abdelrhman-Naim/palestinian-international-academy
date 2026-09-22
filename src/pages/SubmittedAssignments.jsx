@@ -21,10 +21,16 @@ export default function SubmittedAssignments() {
     setMessagingStudentId(sub.id);
     try {
       const instructorName = userData?.name || userData?.fullName || currentUser.displayName || 'المدرب';
-      const chatId = await getOrCreateDirectChat(
-        { uid: currentUser.uid, name: instructorName, role: 'instructor' },
-        { uid: sub.studentId, name: sub.student || 'طالب', role: 'student' }
+      const userId = currentUser.id || currentUser.uid;
+      const res = await getOrCreateDirectChat(
+        userId,
+        sub.studentId,
+        instructorName,
+        sub.studentName || sub.student || 'طالب',
+        'instructor',
+        'student'
       );
+      const chatId = typeof res === 'object' ? res?.id : res;
       navigate(`/instructor-dashboard/messages?chatId=${chatId}`);
     } catch (err) {
       console.error('Error starting chat with student:', err);

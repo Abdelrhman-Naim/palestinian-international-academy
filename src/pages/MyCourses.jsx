@@ -17,11 +17,10 @@ export default function MyCourses() {
     if (!currentUser) return;
     setLoadingGroupCourseId(course.id);
     try {
-      const chatId = await createCourseGroupChat(course, {
-        uid: currentUser.uid,
-        name: userData?.name || userData?.fullName || currentUser.email,
-        role: 'instructor'
-      });
+      const userId = currentUser.id || currentUser.uid;
+      const userName = userData?.name || userData?.fullName || currentUser.email;
+      const res = await createCourseGroupChat(course.id, course.title, userId, userName);
+      const chatId = typeof res === 'object' ? res.id : res;
       navigate(`/instructor-dashboard/messages?chatId=${chatId}`);
     } catch (err) {
       console.error('Error creating or opening course group chat:', err);

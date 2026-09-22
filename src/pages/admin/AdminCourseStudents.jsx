@@ -139,9 +139,9 @@ export default function AdminCourseStudents() {
         const cleanQuery = queryStr.startsWith('#') ? queryStr.slice(1) : queryStr;
         const matchSearch =
           !queryStr ||
-          st.name.toLowerCase().includes(queryStr) ||
-          st.email.toLowerCase().includes(queryStr) ||
-          st.uid.toLowerCase().includes(cleanQuery);
+          (st.name && st.name.toLowerCase().includes(queryStr)) ||
+          (st.email && st.email.toLowerCase().includes(queryStr)) ||
+          (st.uid && String(st.uid).toLowerCase().includes(cleanQuery));
 
         let matchStatus = true;
         if (statusFilter === 'certified') {
@@ -486,18 +486,18 @@ export default function AdminCourseStudents() {
                     <div className="md:col-span-5 flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 font-bold text-sm border border-amber-200 dark:border-amber-800/40">
                         {st.avatar ? (
-                          <img src={st.avatar} alt={st.name} className="h-full w-full rounded-xl object-cover" />
+                          <img src={st.avatar} alt={st.name || ''} className="h-full w-full rounded-xl object-cover" />
                         ) : (
-                          st.name.charAt(0).toUpperCase()
+                          (st.name?.charAt(0) || 'S').toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-sm text-dark dark:text-white truncate" title={st.name}>
-                            {st.name}
+                          <h4 className="font-bold text-sm text-dark dark:text-white truncate" title={st.name || ''}>
+                            {st.name || t('adminCourseStudents.student')}
                           </h4>
                           <span className="rounded bg-stone-100 dark:bg-gray-700 px-1.5 py-0.2 text-[10px] font-mono text-gray-500 dark:text-gray-300 border border-stone-200 dark:border-gray-600">
-                            #{st.uid.slice(0, 6)}
+                            #{st.uid ? st.uid.slice(0, 6) : st.id ? String(st.id).slice(0, 6) : '—'}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={st.email}>

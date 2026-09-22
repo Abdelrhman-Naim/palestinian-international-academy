@@ -70,28 +70,28 @@ export default function StudentProfile() {
 
   const handleInfoSubmit = async (e) => {
     e.preventDefault();
-    if (!currentUser?.uid) return;
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!userId) return;
 
     setInfoSaving(true);
     setInfoSuccess('');
     setInfoError('');
 
     try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, {
-        name: formData.fullName.trim(),
-        fullName: formData.fullName.trim(),
-        fullName_en: formData.fullName_en.trim(),
+      const { error } = await supabase.from('profiles').update({
+        full_name: formData.fullName.trim(),
         phone: formData.phone.trim(),
         bio: formData.bio.trim(),
-        updatedAt: new Date().toISOString()
-      });
+        updated_at: new Date().toISOString()
+      }).eq('id', userId);
 
-      if (auth.currentUser && formData.fullName.trim() !== auth.currentUser.displayName) {
-        await updateProfile(auth.currentUser, {
-          displayName: formData.fullName.trim()
+      if (error) throw error;
+
+      try {
+        await supabase.auth.updateUser({
+          data: { full_name: formData.fullName.trim() }
         });
-      }
+      } catch (authErr) {}
 
       setInfoSuccess(isRtl ? 'تم حفظ التعديلات بنجاح' : 'Profile updated successfully');
       setTimeout(() => setInfoSuccess(''), 4000);
@@ -105,8 +105,6 @@ export default function StudentProfile() {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    if (!currentUser?.email) return;
-
     setPwdSaving(true);
     setPwdSuccess('');
     setPwdError('');
@@ -124,21 +122,18 @@ export default function StudentProfile() {
     }
 
     try {
-      const user = auth.currentUser;
-      const credential = EmailAuthProvider.credential(user.email, pwdData.currentPassword);
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, pwdData.newPassword);
+      const { error } = await supabase.auth.updateUser({
+        password: pwdData.newPassword
+      });
+
+      if (error) throw error;
 
       setPwdSuccess(isRtl ? 'تم تغيير كلمة المرور بنجاح.' : 'Password changed successfully.');
       setPwdData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setPwdSuccess(''), 4000);
     } catch (err) {
       console.error('Error updating password:', err);
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setPwdError(isRtl ? 'كلمة المرور الحالية غير صحيحة.' : 'Current password is incorrect.');
-      } else {
-        setPwdError(isRtl ? 'فشل تغيير كلمة المرور. يرجى المحاولة لاحقاً.' : 'Failed to change password.');
-      }
+      setPwdError(err.message || (isRtl ? 'فشل تغيير كلمة المرور. يرجى المحاولة لاحقاً.' : 'Failed to change password.'));
     } finally {
       setPwdSaving(false);
     }

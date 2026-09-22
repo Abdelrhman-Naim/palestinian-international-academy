@@ -175,8 +175,8 @@ export default function AdminInstructors() {
           return b.studentsCount - a.studentsCount;
         }
         if (sortBy === 'newest') {
-          const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          const dateA = new Date(a.created_at || a.createdAt || 0).getTime();
+          const dateB = new Date(b.created_at || b.createdAt || 0).getTime();
           return dateB - dateA;
         }
         // default name_asc
@@ -340,12 +340,14 @@ export default function AdminInstructors() {
                 <div className="col-span-2 flex items-center justify-between mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[#E8E2D5] dark:border-gray-700 md:border-0">
                   <span
                     className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                      item.status !== t('adminInstructors.pending')
+                      (item.status === 'active' || item.is_approved === true)
                         ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
                         : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
                     }`}
                   >
-                    {item.status || t('adminInstructors.active')}
+                    {(item.status === 'active' || item.is_approved === true)
+                      ? t('adminInstructors.active')
+                      : t('adminInstructors.pending')}
                   </span>
                   <div className="flex items-center gap-1.5 mr-2">
                     <button

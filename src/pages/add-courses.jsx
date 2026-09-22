@@ -212,7 +212,11 @@ export default function AddCourse() {
             sessions,
             lecturesCount,
             imageName: 'screen.png',
-            level: level === t('addCourse.beginner') ? 'BEGINNER' : level === t('addCourse.intermediate') ? 'INTERMEDIATE' : 'ADVANCED',
+            level: (level === 'مبتدئ' || level === 'Beginner' || level === t('addCourse.beginner'))
+                ? 'BEGINNER' 
+                : (level === 'متوسط' || level === 'Intermediate' || level === t('addCourse.intermediate'))
+                ? 'INTERMEDIATE' 
+                : 'ADVANCED',
             price: 'Free',
             rating: 0,
             status: status,

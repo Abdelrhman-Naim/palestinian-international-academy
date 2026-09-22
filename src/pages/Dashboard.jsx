@@ -104,13 +104,13 @@ const Dashboard = () => {
         {/* Navigation Links */}
         <nav className="flex-1 py-4 px-3 space-y-2">
           {/* Dashboard Overview */}
-          <NavLink to="/dashboard" end className={navItemClass}>
-            <i className="fa-solid fa-border-all w-6 text-center ml-2"></i>
+          <NavLink to="/dashboard" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+            <i className="fa-solid fa-gauge-high w-6 text-center ml-2 group-hover:text-primary transition-colors"></i>
             {t('instructorDashboard.overview')}
           </NavLink>
 
-          <NavLink to="/dashboard/messages" className={navItemClass}>
-            <span className="material-symbols-outlined ml-2 text-lg">forum</span>
+          <NavLink to="/dashboard/messages" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+            <i className="fa-regular fa-comments w-6 text-center ml-2 group-hover:text-primary transition-colors"></i>
             <span className="flex-1">{t('chat.conversations')}</span>
             {unreadTotal > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[11px] font-black shadow-xs animate-pulse">
@@ -120,7 +120,7 @@ const Dashboard = () => {
           </NavLink>
           
           {/* Profile */}
-          <NavLink to="/dashboard/profile" className={navItemClass}>
+          <NavLink to="/dashboard/profile" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
             <i className="fa-regular fa-user w-6 text-center ml-2 group-hover:text-primary transition-colors"></i>
             {t('instructorDashboard.profile')}
           </NavLink>
@@ -144,19 +144,19 @@ const Dashboard = () => {
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="space-y-1 pr-2 border-r-2 border-[#E8E2D5] dark:border-gray-700 mr-2 mt-1 overflow-hidden"
                 >
-                  <NavLink to="/dashboard/browse-courses" className={navItemClass}>
+                  <NavLink to="/dashboard/browse-courses" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <i className="fa-solid fa-magnifying-glass w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.browseCourses')}
                   </NavLink>
-                  <NavLink to="/dashboard/my-courses" className={navItemClass}>
+                  <NavLink to="/dashboard/my-courses" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <i className="fa-solid fa-graduation-cap w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('submittedAssignments.myCourses')}
                   </NavLink>
-                  <NavLink to="/dashboard/assignments" className={navItemClass}>
+                  <NavLink to="/dashboard/assignments" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <i className="fa-regular fa-file-lines w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentMyCourses.assignments')}
                   </NavLink>
-                  <NavLink to="/dashboard/saved-books" className={navItemClass}>
+                  <NavLink to="/dashboard/saved-books" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <i className="fa-solid fa-bookmark w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {dir === 'rtl' ? 'الكتب المحفوظة' : 'Saved Books'}
                   </NavLink>

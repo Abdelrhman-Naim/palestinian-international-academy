@@ -38,7 +38,7 @@ const AdminDashboard = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/admin-login', { replace: true });
+      navigate('/login-admin', { replace: true });
     } catch (err) {
       console.error('Logout error:', err);
     }

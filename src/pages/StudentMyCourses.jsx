@@ -250,7 +250,7 @@ const StudentMyCourses = () => {
 
                     <div className="mt-4 flex gap-2 flex-wrap items-center">
                       <Link
-                        to={`/dashboard/messages?chatId=course_group_${enroll.courseId}`}
+                        to={`/dashboard/messages?chatId=group_${enroll.courseId}`}
                         className="bg-primary text-white hover:bg-secondary px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5 shadow-xs"
                       >
                         <span className="material-symbols-outlined text-base">forum</span>

@@ -14,8 +14,9 @@ export function useSavedBooks() {
       return;
     }
 
+    const userId = currentUser.id || currentUser.uid;
     setLoading(true);
-    const unsub = listenToUserSavedBooks(currentUser.uid, (list) => {
+    const unsub = listenToUserSavedBooks(userId, (list) => {
       setSavedList(list);
       setLoading(false);
     });
@@ -24,7 +25,7 @@ export function useSavedBooks() {
   }, [currentUser]);
 
   const savedBookIds = useMemo(() => {
-    return new Set(savedList.map((item) => item.bookId));
+    return new Set(savedList.map((item) => item.bookId || item.book_id));
   }, [savedList]);
 
   const isSaved = (bookId) => {
@@ -34,12 +35,14 @@ export function useSavedBooks() {
 
   const handleToggleSave = async (book) => {
     if (!currentUser || !book) return { saved: false };
-    return await toggleSaveBook(currentUser.uid, book);
+    const userId = currentUser.id || currentUser.uid;
+    return await toggleSaveBook(userId, book);
   };
 
   const handleRemove = async (bookId) => {
     if (!currentUser || !bookId) return;
-    await removeSavedBook(currentUser.uid, bookId);
+    const userId = currentUser.id || currentUser.uid;
+    await removeSavedBook(userId, bookId);
   };
 
   return {

@@ -125,30 +125,32 @@ export default function AdminProfile() {
     }
   }, [userData, currentUser, isRtl]);
 
-  // Handle Info Submit
-  const handleInfoSubmit = async (e) => {
+  // Handle Profile Submit
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!currentUser?.uid) return;
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!userId) return;
 
     setInfoSaving(true);
     setInfoSuccess('');
     setInfoError('');
 
     try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, {
-        name: formData.fullName.trim(),
-        fullName: formData.fullName.trim(),
-        fullName_en: formData.fullName_en.trim(),
+      const { error } = await supabase.from('profiles').update({
+        full_name: formData.fullName.trim(),
         phone: formData.phone.trim(),
         bio: formData.bio.trim(),
-        updatedAt: new Date().toISOString()
-      });
+        updated_at: new Date().toISOString()
+      }).eq('id', userId);
 
-      if (auth.currentUser && formData.fullName.trim() !== auth.currentUser.displayName) {
-        await updateProfile(auth.currentUser, {
-          displayName: formData.fullName.trim()
+      if (error) throw error;
+
+      try {
+        await supabase.auth.updateUser({
+          data: { full_name: formData.fullName.trim() }
         });
+      } catch (authErr) {
+        console.warn('Could not update metadata on auth user:', authErr);
       }
 
       setInfoSuccess(isRtl ? 'تم تحديث بيانات الملف الشخصي بنجاح' : 'Profile updated successfully');
@@ -164,7 +166,8 @@ export default function AdminProfile() {
   // Handle Image Upload
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !currentUser?.uid) return;
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!file || !userId) return;
 
     if (!file.type.startsWith('image/')) {
       setInfoError(isRtl ? 'يرجى اختيار ملف صورة صالح' : 'Please select a valid image file');
@@ -178,20 +181,41 @@ export default function AdminProfile() {
     setPhotoUploading(true);
     setInfoError('');
     try {
-      const storageRef = ref(storage, `avatars/${currentUser.uid}_${Date.now()}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      let downloadURL = '';
+      try {
+        const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
+        const filePath = `${userId}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, { upsert: true });
 
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, { photoURL: downloadURL });
-
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { photoURL: downloadURL });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          downloadURL = urlData?.publicUrl || '';
+        }
+      } catch (storageErr) {
+        console.warn('Falling back to Data URL for avatar:', storageErr);
       }
 
-      setFormData(prev => ({ ...prev, photoURL: downloadURL }));
-      setInfoSuccess(isRtl ? 'تم تحديث الصورة الشخصية بنجاح' : 'Avatar updated successfully');
-      setTimeout(() => setInfoSuccess(''), 4000);
+      if (!downloadURL) {
+        downloadURL = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (downloadURL) {
+        await supabase.from('profiles').update({ avatar_url: downloadURL }).eq('id', userId);
+        try {
+          await supabase.auth.updateUser({ data: { avatar_url: downloadURL } });
+        } catch (authErr) {}
+
+        setFormData(prev => ({ ...prev, photoURL: downloadURL }));
+        setInfoSuccess(isRtl ? 'تم تحديث الصورة الشخصية بنجاح' : 'Avatar updated successfully');
+        setTimeout(() => setInfoSuccess(''), 4000);
+      }
     } catch (err) {
       console.error('Avatar upload failed:', err);
       setInfoError(isRtl ? 'حدث خطأ أثناء رفع الصورة' : 'Failed to upload photo');
@@ -217,24 +241,18 @@ export default function AdminProfile() {
 
     setPwdSaving(true);
     try {
-      const user = auth.currentUser;
-      if (!user || !user.email) throw new Error('No user logged in');
+      const { error } = await supabase.auth.updateUser({
+        password: pwdData.newPassword
+      });
 
-      const credential = EmailAuthProvider.credential(user.email, pwdData.currentPassword);
-      await reauthenticateWithCredential(user, credential);
-
-      await updatePassword(user, pwdData.newPassword);
+      if (error) throw error;
 
       setPwdSuccess(isRtl ? 'تم تغيير كلمة المرور بنجاح' : 'Password updated successfully');
       setPwdData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setPwdSuccess(''), 4000);
     } catch (err) {
       console.error('Password change error:', err);
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setPwdError(isRtl ? 'كلمة المرور الحالية غير صحيحة' : 'Current password is incorrect');
-      } else {
-        setPwdError(isRtl ? 'فشل تغيير كلمة المرور. حاول مرة أخرى.' : 'Failed to change password. Please try again.');
-      }
+      setPwdError(err.message || (isRtl ? 'فشل تغيير كلمة المرور. حاول مرة أخرى.' : 'Failed to change password. Please try again.'));
     } finally {
       setPwdSaving(false);
     }
@@ -242,12 +260,14 @@ export default function AdminProfile() {
 
   // Send Password Reset Email
   const handleSendResetEmail = async () => {
-    if (!currentUser?.email) return;
+    const userEmail = currentUser?.email || userData?.email;
+    if (!userEmail) return;
     setResetEmailSending(true);
     setResetEmailSuccess('');
     try {
-      await sendPasswordResetEmail(auth, currentUser.email);
-      setResetEmailSuccess(isRtl ? `تم إرسال رابط إعادة الضبط إلى ${currentUser.email}` : `Reset link sent to ${currentUser.email}`);
+      const { error } = await supabase.auth.resetPasswordForEmail(userEmail);
+      if (error) throw error;
+      setResetEmailSuccess(isRtl ? `تم إرسال رابط إعادة الضبط إلى ${userEmail}` : `Reset link sent to ${userEmail}`);
       setTimeout(() => setResetEmailSuccess(''), 5000);
     } catch (err) {
       console.error('Reset email error:', err);
@@ -361,7 +381,7 @@ export default function AdminProfile() {
             </div>
           )}
 
-          <form onSubmit={handleInfoSubmit} className="space-y-4">
+          <form onSubmit={handleSaveProfile} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
                 {isRtl ? 'الاسم الكامل (عربي)' : 'Full Name (Arabic)'}
