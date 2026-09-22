@@ -5,10 +5,12 @@ const mapTableName = (table) => (table === 'users' ? 'profiles' : table);
 
 const mapDocData = (d) => {
   if (!d) return {};
+  const status = d.status || (d.role === 'instructor' && (d.is_approved === false || d.is_approved === null) ? 'pending' : 'active');
   return {
     ...d,
     id: d.id,
     uid: d.id,
+    status: status,
     name: d.name || d.full_name || d.email,
     fullName: d.full_name || d.name || d.email,
   };
@@ -68,15 +70,44 @@ export const getDocs = async (target) => {
   const table = mapTableName(rawTable);
   try {
     let q = supabase.from(table).select('*');
-    if (target?.filters) {
+    let data;
+    let error;
+
+    if (target?.filters && target.filters.length > 0) {
       target.filters.forEach(f => {
         if (f.op === '==') q = q.eq(f.field, f.value);
         if (f.op === '!=') q = q.neq(f.field, f.value);
         if (f.op === 'in') q = q.in(f.field, f.value);
       });
+      const res = await q;
+      data = res.data;
+      error = res.error;
+
+      // Fallback if PostgREST query with filters fails (e.g. status=eq.pending HTTP 400 when column isn't in DB yet)
+      if (error) {
+        console.warn(`[Supabase Bridge] Filtering on table ${table} failed, falling back to client-side filtering:`, error.message);
+        const fallbackRes = await supabase.from(table).select('*');
+        if (!fallbackRes.error && fallbackRes.data) {
+          error = null;
+          data = fallbackRes.data.filter(item => {
+            const mapped = mapDocData(item);
+            return target.filters.every(f => {
+              if (f.op === '==') return mapped[f.field] === f.value;
+              if (f.op === '!=') return mapped[f.field] !== f.value;
+              if (f.op === 'in') return Array.isArray(f.value) && f.value.includes(mapped[f.field]);
+              return true;
+            });
+          });
+        }
+      }
+    } else {
+      const res = await q;
+      data = res.data;
+      error = res.error;
     }
-    const { data, error } = await q;
+
     if (error) throw error;
+
     const docs = (data || []).map(d => {
       const mapped = mapDocData(d);
       return {
@@ -85,6 +116,7 @@ export const getDocs = async (target) => {
         exists: () => true
       };
     });
+
     return {
       size: docs.length,
       empty: docs.length === 0,
@@ -159,8 +191,10 @@ export const updateDoc = async (docRef, data) => {
   if (!table || !id) return { ok: false };
   try {
     const record = { ...data };
-    if (table === 'profiles' && record.name && !record.full_name) {
-      record.full_name = record.name;
+    if (table === 'profiles') {
+      if (record.name && !record.full_name) record.full_name = record.name;
+      if (record.status === 'active') record.is_approved = true;
+      if (record.status === 'rejected') record.is_approved = false;
     }
     const { error } = await supabase.from(table).update(record).eq('id', id);
     if (error) throw error;
