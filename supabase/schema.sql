@@ -209,6 +209,20 @@ CREATE POLICY "Allow public read books" ON public.books FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow public read categories" ON public.categories;
 CREATE POLICY "Allow public read categories" ON public.categories FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow all on categories" ON public.categories;
+CREATE POLICY "Allow all on categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
+
+-- Default categories for Courses and Library
+INSERT INTO public.categories (name, description, slug) VALUES
+  ('برمجة', 'Programming', 'courses'),
+  ('تصميم', 'Design', 'courses'),
+  ('أمن سيبراني', 'Cybersecurity', 'courses'),
+  ('إدارة أعمال', 'Business', 'courses'),
+  ('كتب برمجية', 'Programming Books', 'library'),
+  ('تصميم', 'Design', 'library'),
+  ('شبكات', 'Networking', 'library')
+ON CONFLICT DO NOTHING;
+
 DROP POLICY IF EXISTS "Allow public read profiles" ON public.profiles;
 CREATE POLICY "Allow public read profiles" ON public.profiles FOR SELECT USING (true);
 

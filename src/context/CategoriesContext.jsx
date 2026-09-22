@@ -23,20 +23,27 @@ export function CategoriesProvider({ children }) {
         .from('categories')
         .select('*');
 
-      if (error || !data || data.length === 0) {
+      if (!error && data && data.length > 0) {
+        const courseItems = data.filter(c => c.slug === 'courses' || c.slug === 'course' || (!c.slug && c.name !== 'كتب برمجية' && c.name !== 'شبكات'));
+        const libItems = data.filter(c => c.slug === 'library' || (!c.slug && (c.name === 'كتب برمجية' || c.name === 'شبكات')));
+
+        const courseCats = courseItems.map(c => c.name);
+        const courseCatsEn = courseItems.map(c => c.description || c.name);
+        const libCats = libItems.map(c => c.name);
+        const libCatsEn = libItems.map(c => c.description || c.name);
+
+        setRawCategories(prev => ({
+          courses: courseCats.length ? Array.from(new Set(courseCats)) : prev.courses,
+          courses_en: courseCatsEn.length ? Array.from(new Set(courseCatsEn)) : prev.courses_en,
+          library: libCats.length ? Array.from(new Set(libCats)) : prev.library,
+          library_en: libCatsEn.length ? Array.from(new Set(libCatsEn)) : prev.library_en
+        }));
+      } else {
         // Fallback to localStorage or defaults if DB categories table is empty
         const saved = localStorage.getItem('app_categories');
         if (saved) {
           try { setRawCategories(JSON.parse(saved)); } catch (e) {}
         }
-      } else {
-        const courseCats = data.map(c => c.name);
-        const courseCatsEn = data.map(c => c.name_en || c.name);
-        setRawCategories(prev => ({
-          ...prev,
-          courses: courseCats,
-          courses_en: courseCatsEn
-        }));
       }
     } catch (err) {
       console.warn('Categories fetch error:', err.message);
@@ -47,6 +54,17 @@ export function CategoriesProvider({ children }) {
 
   useEffect(() => {
     fetchCategories();
+
+    const channel = supabase
+      .channel('categories_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchCategories();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const categories = {
@@ -78,11 +96,18 @@ export function CategoriesProvider({ children }) {
       [type + '_en']: [...(rawCategories[type + '_en'] || []), name_en]
     };
     
-    try {
-      await supabase.from('categories').insert([{ name: trimmed, description: name_en }]);
-    } catch (e) {}
-
     saveState(newCategories);
+
+    try {
+      await supabase.from('categories').insert([{
+        name: trimmed,
+        description: name_en,
+        slug: type === 'courses' ? 'courses' : 'library'
+      }]);
+    } catch (e) {
+      console.warn('Category insert in Supabase notice:', e);
+    }
+
     return { ok: true };
   };
 
@@ -129,6 +154,15 @@ export function CategoriesProvider({ children }) {
     };
 
     saveState(newCategories);
+
+    try {
+      await supabase.from('categories')
+        .update({ name: trimmedNew, description: name_en })
+        .eq('name', trimmedOld);
+    } catch (e) {
+      console.warn('Category update in Supabase notice:', e);
+    }
+
     return { ok: true };
   };
 
@@ -150,6 +184,14 @@ export function CategoriesProvider({ children }) {
       [type + '_en']: newArrEn
     };
     saveState(newCategories);
+
+    try {
+      await supabase.from('categories')
+        .delete()
+        .eq('name', name);
+    } catch (e) {
+      console.warn('Category delete in Supabase notice:', e);
+    }
   };
 
   return (

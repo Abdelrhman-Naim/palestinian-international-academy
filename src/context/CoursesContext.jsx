@@ -71,18 +71,55 @@ export function CoursesProvider({ children }) {
         remoteCourses = data.map(item => sanitizeObject(item));
       }
 
-      // Merge remote + local custom courses
+      // Merge remote + local custom courses avoiding duplicates by id or title
       const mergedMap = new Map();
+      const existingTitles = new Set();
+
       remoteCourses.forEach(rc => {
         if (rc.id) mergedMap.set(rc.id, rc);
+        if (rc.title) existingTitles.add(rc.title.trim().toLowerCase());
       });
+
+      const unsyncedCourses = [];
       localCourses.forEach(lc => {
-        if (lc.id && !mergedMap.has(lc.id)) {
+        const titleKey = (lc.title || '').trim().toLowerCase();
+        if (lc.id && !mergedMap.has(lc.id) && !existingTitles.has(titleKey)) {
           mergedMap.set(lc.id, sanitizeObject(lc));
+          existingTitles.add(titleKey);
+          unsyncedCourses.push(lc);
         }
       });
 
       setRawCourses(Array.from(mergedMap.values()));
+
+      // Auto-sync unsynced local courses to Supabase in background
+      if (unsyncedCourses.length > 0) {
+        (async () => {
+          for (const c of unsyncedCourses) {
+            try {
+              const payload = {
+                title: c.title,
+                description: c.description || c.title || '',
+                price: isNaN(Number(c.price)) ? 0 : Number(c.price),
+                category_name: c.category || c.category_name || '',
+                category: c.category || c.category_name || '',
+                instructor_name: c.instructor || c.instructor_name || '',
+                instructor: c.instructor || c.instructor_name || '',
+                image_url: c.image_url || c.imageUrl || '',
+                level: c.level || 'beginner',
+                is_published: c.is_published !== false,
+                status: c.status || 'مستمرة',
+                lessons: c.lessons || c.lectures || [],
+                lectures: c.lessons || c.lectures || [],
+                created_at: c.created_at || new Date().toISOString()
+              };
+              await supabase.from('courses').insert([payload]);
+            } catch (syncErr) {
+              console.warn('Auto-sync course error:', syncErr);
+            }
+          }
+        })();
+      }
     } catch (err) {
       console.warn('Courses fetch error:', err.message);
     } finally {

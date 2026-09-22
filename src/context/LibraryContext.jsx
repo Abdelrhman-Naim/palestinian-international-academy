@@ -71,18 +71,50 @@ export function LibraryProvider({ children }) {
         remoteBooks = data.map(item => sanitizeObject(item));
       }
 
-      // Merge remote + local custom books
+      // Merge remote + local custom books avoiding duplicates by id or title
       const mergedMap = new Map();
+      const existingTitles = new Set();
+
       remoteBooks.forEach(rb => {
         if (rb.id) mergedMap.set(rb.id, rb);
+        if (rb.title) existingTitles.add(rb.title.trim().toLowerCase());
       });
+
+      const unsyncedBooks = [];
       localBooks.forEach(lb => {
-        if (lb.id && !mergedMap.has(lb.id)) {
+        const titleKey = (lb.title || '').trim().toLowerCase();
+        if (lb.id && !mergedMap.has(lb.id) && !existingTitles.has(titleKey)) {
           mergedMap.set(lb.id, sanitizeObject(lb));
+          existingTitles.add(titleKey);
+          unsyncedBooks.push(lb);
         }
       });
 
       setRawBooks(Array.from(mergedMap.values()));
+
+      // Auto-sync unsynced local books to Supabase in background
+      if (unsyncedBooks.length > 0) {
+        (async () => {
+          for (const b of unsyncedBooks) {
+            try {
+              await supabase.from('books').insert([{
+                title: b.title,
+                description: b.description || b.title || '',
+                author: b.author || '',
+                category_name: b.category_name || b.category || '',
+                pdf_url: b.pdf_url || b.link || '',
+                cover_url: b.cover_url || b.coverUrl || '',
+                pages: parseInt(b.pages, 10) || 120,
+                downloads_count: parseInt(b.downloads_count ?? b.downloads, 10) || 0,
+                rating: Number(b.rating) || 5.0,
+                created_at: b.created_at || new Date().toISOString()
+              }]);
+            } catch (syncErr) {
+              console.warn('Auto-sync book error:', syncErr);
+            }
+          }
+        })();
+      }
     } catch (err) {
       console.warn('Books fetch error:', err.message);
     } finally {
