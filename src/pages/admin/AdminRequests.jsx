@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
-import { collection, query, where, onSnapshot, doc, updateDoc, db } from '../../firebase/config';
+import { supabase } from '../../supabase/client';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -10,17 +10,37 @@ export default function AdminRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const q = query(collection(db, 'users'), where('status', '==', 'pending'));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const pendingUsers = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }));
-      setRequests(pendingUsers);
+  const fetchRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (error) {
+        console.warn('Fetch profiles notice:', error.message);
+        setRequests([]);
+      } else {
+        const pendingUsers = (data || []).filter(u => 
+          u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
+        ).map(u => ({
+          ...u,
+          id: u.id,
+          name: u.full_name || u.name || u.email,
+          email: u.email,
+          field: u.specialization || u.bio || t('adminRequests.unspecifiedSpecialization'),
+          experience: u.experience || t('adminRequests.unspecified'),
+        }));
+        setRequests(pendingUsers);
+      }
+    } catch (err) {
+      console.error('Error fetching pending requests:', err);
+    } finally {
       setLoading(false);
-    });
-    return () => unsub();
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
   }, []);
 
   const decide = async (id, action) => {
@@ -28,12 +48,21 @@ export default function AdminRequests() {
     if (!item) return;
     try {
       if (action === 'accept') {
-        await updateDoc(doc(db, 'users', id), { status: 'active', role: 'instructor' });
+        const { error } = await supabase
+          .from('profiles')
+          .update({ status: 'active', is_approved: true, role: 'instructor' })
+          .eq('id', id);
+        if (error) throw error;
         showToast(`${t('adminRequests.accepted')} ${item.name}`, 'success');
       } else {
-        await updateDoc(doc(db, 'users', id), { status: 'rejected' });
+        const { error } = await supabase
+          .from('profiles')
+          .update({ status: 'rejected', is_approved: false, role: 'student' })
+          .eq('id', id);
+        if (error) throw error;
         showToast(`${t('adminRequests.rejected')} ${item.name}`, 'info');
       }
+      fetchRequests();
     } catch (err) {
       console.error(err);
       showToast(t('adminInstructors.deleteError') || 'حدث خطأ', 'error');
@@ -74,7 +103,7 @@ export default function AdminRequests() {
                   <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold text-gray-500 dark:text-gray-400">
                     <span>{request.email}</span>
                     <span>{t('adminRequests.experience')} {request.experience || t('adminRequests.unspecified')}</span>
-                    <span>{request.createdAt?.seconds ? new Date(request.createdAt.seconds * 1000).toLocaleDateString() : t('adminRequests.notSpecified')}</span>
+                    <span>{request.created_at ? new Date(request.created_at).toLocaleDateString() : t('adminRequests.notSpecified')}</span>
                   </div>
                 </div>
               </div>
@@ -82,14 +111,14 @@ export default function AdminRequests() {
                 <button
                   type="button"
                   onClick={() => decide(request.id, 'accept')}
-                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 md:flex-none shadow-sm shadow-primary/20"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 md:flex-none shadow-sm shadow-primary/20 cursor-pointer"
                 >
                   {t('adminRequests.accept')}
                 </button>
                 <button
                   type="button"
                   onClick={() => decide(request.id, 'reject')}
-                  className="flex-1 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/40 md:flex-none border border-rose-200 dark:border-rose-900/50"
+                  className="flex-1 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/40 md:flex-none border border-rose-200 dark:border-rose-900/50 cursor-pointer"
                 >
                   {t('adminRequests.reject')}
                 </button>
@@ -101,4 +130,3 @@ export default function AdminRequests() {
     </AdminPageShell>
   );
 }
-

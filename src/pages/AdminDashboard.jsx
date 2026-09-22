@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, onSnapshot, db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { AnimatePresence, motion } from 'framer-motion';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
@@ -45,12 +45,21 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), where('status', '==', 'pending'));
-    const unsub = onSnapshot(q, (snap) => setPendingCount(snap.size), (err) => {
-      console.warn('Admin pending count snapshot error:', err.message);
-    });
-    return () => unsub();
-  }, []);
+    async function fetchPendingCount() {
+      try {
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (!error && data) {
+          const pending = data.filter(u => 
+            u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
+          );
+          setPendingCount(pending.length);
+        }
+      } catch (err) {
+        console.warn('Pending count fetch error:', err);
+      }
+    }
+    fetchPendingCount();
+  }, [location.pathname]);
 
   const toggleMenu = (menu) => {
 
