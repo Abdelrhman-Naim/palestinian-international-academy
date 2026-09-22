@@ -10,14 +10,13 @@ export async function getCourseExam(courseId) {
   try {
     const { data, error } = await supabase
       .from('courses')
-      .select('exam_data')
+      .select('lessons')
       .eq('id', courseId)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
-    return data.exam_data || null;
-  } catch (err) {
-    console.error('Error fetching course exam:', err);
+    return data.lessons?.exam || data.exam_data || null;
+  } catch {
     return null;
   }
 }

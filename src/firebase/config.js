@@ -4,13 +4,14 @@ import { supabase } from '../supabase/client';
 const mapTableName = (table) => {
   if (table === 'users') return 'profiles';
   if (table === 'submissions') return 'submitted_assignments';
+  if (table === 'enrollments') return 'course_requests';
   return table;
 };
 
 const mapFieldToColumn = (table, field) => {
   if (field === 'courseId') return 'course_id';
   if (field === 'instructorId') return 'instructor_id';
-  if (field === 'studentId') return 'student_id';
+  if (field === 'studentId' || field === 'uid') return 'student_id';
   if (field === 'assignmentId') return 'assignment_id';
   if (field === 'createdAt') return 'created_at';
   if (field === 'dueDate') return 'due_date';
@@ -31,16 +32,17 @@ const mapDocData = (d) => {
   return {
     ...d,
     id: d.id,
-    uid: d.id,
+    uid: d.student_id || d.uid || d.id,
     role: d.role || 'student',
     status: status,
     is_approved: isApproved,
-    name: d.name || d.full_name || d.email,
-    fullName: d.full_name || d.name || d.email,
+    name: d.name || d.full_name || d.student_name || d.email,
+    fullName: d.full_name || d.name || d.student_name || d.email,
     courseId: d.course_id || d.courseId,
     course_id: d.course_id || d.courseId,
+    courseTitle: d.course_title || d.courseTitle,
     instructorId: d.instructor_id || d.instructorId,
-    studentId: d.student_id || d.studentId,
+    studentId: d.student_id || d.studentId || d.uid,
     assignmentId: d.assignment_id || d.assignmentId,
     dueDate: d.due_date || d.dueDate || d.date,
     date: d.due_date || d.date || d.dueDate,
@@ -52,6 +54,8 @@ const mapDocData = (d) => {
     assignment: d.assignment_title || d.assignment || d.title,
     content: d.notes || d.content,
     submissions: d.submissions !== undefined ? d.submissions : 0,
+    progress: d.details?.progress || d.progress || 0,
+    completedLessons: d.details?.completedLessons || d.completedLessons || [],
   };
 };
 

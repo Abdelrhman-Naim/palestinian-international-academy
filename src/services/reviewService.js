@@ -94,26 +94,38 @@ export function listenToTargetReviews(targetType, targetId, callback) {
   }
 
   const fetchReviews = async () => {
-    const { data } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('target_type', targetType)
-      .eq('target_id', targetId)
-      .order('updated_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('target_type', targetType)
+        .eq('target_id', targetId)
+        .order('updated_at', { ascending: false });
 
-    callback(data || []);
+      if (error) {
+        callback([]);
+        return;
+      }
+      callback(data || []);
+    } catch {
+      callback([]);
+    }
   };
 
   fetchReviews();
 
-  const channel = supabase
-    .channel(`reviews_${targetType}_${targetId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
-      fetchReviews();
-    })
-    .subscribe();
+  try {
+    const channel = supabase
+      .channel(`reviews_${targetType}_${targetId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
+        fetchReviews();
+      })
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch {
+    return () => {};
+  }
 }
