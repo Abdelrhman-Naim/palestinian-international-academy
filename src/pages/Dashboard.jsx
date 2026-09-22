@@ -60,10 +60,18 @@ const Dashboard = () => {
       {/* BEGIN: Sidebar */}
       <aside className={`w-72 bg-[#F3EFE6] dark:bg-gray-900 text-dark dark:text-white border-e border-[#E8E2D5] dark:border-gray-800 flex flex-col h-full shrink-0 z-50 shadow-lg overflow-y-auto custom-scrollbar fixed md:relative transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'} right-0`}>
         {/* Logo */}
-        <div className="h-24 flex items-center justify-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
-          <Link to="/" className="flex items-center justify-center group">
+        <div className="h-24 flex items-center justify-center relative px-6 border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
+          <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center justify-center group">
             <img src={logo} alt="Logo" className="h-14 w-auto object-contain rounded-xl drop-shadow-md transition-transform duration-300 group-hover:scale-105" />
           </Link>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="absolute end-4 md:hidden w-8 h-8 rounded-xl flex items-center justify-center text-gray-500 hover:text-dark dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            aria-label="Close Sidebar"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
         </div>
         
         {/* User Profile Snippet */}
