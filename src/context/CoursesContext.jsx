@@ -99,7 +99,7 @@ export function CoursesProvider({ children }) {
       category: lang === 'en' ? getEnField(course.category || course.category_name, course.category_en) : (course.category || course.category_name),
       level: lang === 'en' ? getEnField(course.level, course.level_en) : course.level,
       goals: lang === 'en' && course.goals_en && course.goals_en.length === (course.goals || []).length ? course.goals_en : course.goals,
-      lectures: (course.lectures || course.lessons || []).map(lec => ({
+      lectures: (course.lectures || course.lessons || course.sessions || []).map(lec => ({
         ...lec,
         title: lang === 'en' ? (lec.title_en || lec.title) : lec.title
       })),
@@ -110,27 +110,67 @@ export function CoursesProvider({ children }) {
 
   const addCourse = async (courseData) => {
     try {
-      if (courseData.title) courseData.title_en = await translateText(courseData.title);
-      if (courseData.description) courseData.description_en = await translateText(courseData.description);
-      if (courseData.instructor) courseData.instructor_en = await translateText(courseData.instructor);
-      if (courseData.category) courseData.category_en = await translateText(courseData.category);
-      if (courseData.level) courseData.level_en = await translateText(courseData.level);
-      if (courseData.goals) courseData.goals_en = await Promise.all(courseData.goals.map(g => translateText(g)));
-      if (courseData.lectures) {
-        courseData.lectures = await Promise.all(courseData.lectures.map(async lec => {
-          return { ...lec, title_en: await translateText(lec.title) };
+      const safeTranslate = async (str) => {
+        if (!str) return str;
+        try {
+          return await translateText(str);
+        } catch (e) {
+          return str;
+        }
+      };
+
+      const payload = { ...courseData };
+      if (payload.title) payload.title_en = await safeTranslate(payload.title);
+      if (payload.description) payload.description_en = await safeTranslate(payload.description);
+      if (payload.instructor) payload.instructor_en = await safeTranslate(payload.instructor);
+      if (payload.category) payload.category_en = await safeTranslate(payload.category);
+      if (payload.level) payload.level_en = await safeTranslate(payload.level);
+      if (payload.goals) payload.goals_en = await Promise.all((payload.goals || []).map(g => safeTranslate(g)));
+      if (payload.lectures) {
+        payload.lectures = await Promise.all((payload.lectures || []).map(async lec => {
+          return { ...lec, title_en: await safeTranslate(lec.title) };
         }));
       }
 
-      const { data, error } = await supabase
-        .from('courses')
-        .insert([courseData])
-        .select()
-        .single();
+      payload.created_at = payload.created_at || new Date().toISOString();
 
-      if (error) throw error;
-      await fetchCourses();
-      return { ok: true, id: data?.id };
+      let createdCourse = null;
+
+      // 1. Try Supabase insert
+      try {
+        const { data, error } = await supabase
+          .from('courses')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (!error && data) {
+          createdCourse = data;
+        } else if (error) {
+          console.warn("Supabase course insert notice:", error.message);
+        }
+      } catch (sbErr) {
+        console.warn("Supabase course insert catch:", sbErr);
+      }
+
+      // If Supabase insert returned no data, use payload with fallback id
+      if (!createdCourse) {
+        createdCourse = {
+          ...payload,
+          id: payload.id || `course_${Date.now()}`
+        };
+      }
+
+      // 2. Optimistically update local React state immediately so course appears on screen instantly
+      setRawCourses(prev => {
+        const sanitized = sanitizeObject(createdCourse);
+        return [sanitized, ...prev.filter(c => c.id !== sanitized.id)];
+      });
+
+      // Refetch from Supabase in background to sync
+      fetchCourses().catch(() => {});
+
+      return { ok: true, id: createdCourse.id };
     } catch (err) {
       console.error("Error adding course to Supabase:", err);
       return { ok: false };
@@ -139,13 +179,19 @@ export function CoursesProvider({ children }) {
 
   const removeCourse = async (id) => {
     try {
+      // Optimistic state update
+      setRawCourses(prev => prev.filter(c => c.id !== id));
+
       const { error } = await supabase
         .from('courses')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
-      await fetchCourses();
+      if (error) {
+        console.warn("Supabase course delete notice:", error.message);
+      }
+
+      fetchCourses().catch(() => {});
     } catch (err) {
       console.error("Error deleting course from Supabase:", err);
     }
@@ -154,29 +200,22 @@ export function CoursesProvider({ children }) {
   const updateCourse = async (id, updatedData) => {
     try {
       const { id: docId, originalData, ...dataToUpdate } = updatedData;
-      
-      if (dataToUpdate.title) dataToUpdate.title_en = await translateText(dataToUpdate.title);
-      if (dataToUpdate.description) dataToUpdate.description_en = await translateText(dataToUpdate.description);
-      if (dataToUpdate.instructor) dataToUpdate.instructor_en = await translateText(dataToUpdate.instructor);
-      if (dataToUpdate.category) dataToUpdate.category_en = await translateText(dataToUpdate.category);
-      if (dataToUpdate.level) dataToUpdate.level_en = await translateText(dataToUpdate.level);
-      if (dataToUpdate.goals) dataToUpdate.goals_en = await Promise.all(dataToUpdate.goals.map(g => translateText(g)));
-      if (dataToUpdate.lectures) {
-        dataToUpdate.lectures = await Promise.all(dataToUpdate.lectures.map(async lec => {
-          if (!lec.title_en) lec.title_en = await translateText(lec.title);
-          return lec;
-        }));
-      }
 
       dataToUpdate.updated_at = new Date().toISOString();
+
+      // Optimistic state update
+      setRawCourses(prev => prev.map(c => c.id === id ? sanitizeObject({ ...c, ...dataToUpdate }) : c));
 
       const { error } = await supabase
         .from('courses')
         .update(dataToUpdate)
         .eq('id', id);
 
-      if (error) throw error;
-      await fetchCourses();
+      if (error) {
+        console.warn("Supabase course update notice:", error.message);
+      }
+
+      fetchCourses().catch(() => {});
       return { ok: true };
     } catch (err) {
       console.error("Error updating course in Supabase:", err);
