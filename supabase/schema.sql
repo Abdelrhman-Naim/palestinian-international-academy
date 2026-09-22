@@ -28,20 +28,36 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active
 -- Automatic trigger to create profile when auth.users is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  u_role TEXT;
+  u_status TEXT;
+  u_approved BOOLEAN;
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email, role, status, avatar_url)
+  u_role := COALESCE(new.raw_user_meta_data->>'role', 'student');
+  
+  IF u_role = 'instructor' THEN
+    u_status := COALESCE(new.raw_user_meta_data->>'status', 'pending');
+    u_approved := FALSE;
+  ELSE
+    u_status := 'active';
+    u_approved := TRUE;
+  END IF;
+
+  INSERT INTO public.profiles (id, full_name, email, role, status, is_approved, avatar_url)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'full_name', new.email),
     new.email,
-    COALESCE(new.raw_user_meta_data->>'role', 'student'),
-    COALESCE(new.raw_user_meta_data->>'status', 'active'),
+    u_role,
+    u_status,
+    u_approved,
     new.raw_user_meta_data->>'avatar_url'
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     role = EXCLUDED.role,
-    status = EXCLUDED.status;
+    status = EXCLUDED.status,
+    is_approved = EXCLUDED.is_approved;
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

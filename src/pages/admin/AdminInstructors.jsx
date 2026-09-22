@@ -35,13 +35,12 @@ export default function AdminInstructors() {
       setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    // Fetch instructors
+    // Fetch instructors (only active / approved ones)
     const q = query(collection(db, 'users'), where('role', '==', 'instructor'));
     const unsub = onSnapshot(q, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const usersData = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(u => u.status === 'active' || u.is_approved === true);
       setInstructors(usersData);
       setLoading(false);
     });
