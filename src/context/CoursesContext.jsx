@@ -6,6 +6,23 @@ import { sanitizeObject } from '../utils/sanitize';
 
 const CoursesContext = createContext(null);
 
+const LOCAL_STORAGE_KEY = 'local_custom_courses';
+
+const getStoredLocalCourses = () => {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const saveLocalCourses = (coursesArr) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(coursesArr));
+  } catch (e) {}
+};
+
 export function CoursesProvider({ children }) {
   const [rawCourses, setRawCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,12 +44,27 @@ export function CoursesProvider({ children }) {
         .select('*')
         .order('created_at', { ascending: false });
 
+      const localCourses = getStoredLocalCourses();
+      let remoteCourses = [];
+
       if (error) {
         console.warn('Error fetching courses from Supabase:', error.message);
       } else if (data) {
-        const sanitized = data.map(item => sanitizeObject(item));
-        setRawCourses(sanitized);
+        remoteCourses = data.map(item => sanitizeObject(item));
       }
+
+      // Merge remote + local custom courses
+      const mergedMap = new Map();
+      remoteCourses.forEach(rc => {
+        if (rc.id) mergedMap.set(rc.id, rc);
+      });
+      localCourses.forEach(lc => {
+        if (lc.id && !mergedMap.has(lc.id)) {
+          mergedMap.set(lc.id, sanitizeObject(lc));
+        }
+      });
+
+      setRawCourses(Array.from(mergedMap.values()));
     } catch (err) {
       console.warn('Courses fetch error:', err.message);
     } finally {
@@ -119,95 +151,97 @@ export function CoursesProvider({ children }) {
         }
       };
 
-      const payload = { ...courseData };
-      delete payload.avatar;
-      delete payload.sessions;
+      const fullCourseObj = {
+        ...courseData,
+        id: courseData.id || `course_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+      };
 
-      if (payload.title) payload.title_en = await safeTranslate(payload.title);
-      if (payload.description) payload.description_en = await safeTranslate(payload.description);
-      if (payload.instructor) payload.instructor_en = await safeTranslate(payload.instructor);
-      if (payload.category) payload.category_en = await safeTranslate(payload.category);
-      if (payload.level) payload.level_en = await safeTranslate(payload.level);
-      if (payload.goals) payload.goals_en = await Promise.all((payload.goals || []).map(g => safeTranslate(g)));
-      if (payload.lectures) {
-        payload.lectures = await Promise.all((payload.lectures || []).map(async lec => {
+      if (fullCourseObj.title) fullCourseObj.title_en = await safeTranslate(fullCourseObj.title);
+      if (fullCourseObj.description) fullCourseObj.description_en = await safeTranslate(fullCourseObj.description);
+      if (fullCourseObj.instructor) fullCourseObj.instructor_en = await safeTranslate(fullCourseObj.instructor);
+      if (fullCourseObj.category) fullCourseObj.category_en = await safeTranslate(fullCourseObj.category);
+      if (fullCourseObj.level) fullCourseObj.level_en = await safeTranslate(fullCourseObj.level);
+      if (fullCourseObj.goals) fullCourseObj.goals_en = await Promise.all((fullCourseObj.goals || []).map(g => safeTranslate(g)));
+      if (fullCourseObj.lectures) {
+        fullCourseObj.lectures = await Promise.all((fullCourseObj.lectures || []).map(async lec => {
           return { ...lec, title_en: await safeTranslate(lec.title) };
         }));
       }
 
-      payload.created_at = payload.created_at || new Date().toISOString();
+      fullCourseObj.created_at = fullCourseObj.created_at || new Date().toISOString();
+
+      // Dynamic Auto-Repair Insert Loop for Supabase
+      let currentPayload = { ...fullCourseObj };
+      delete currentPayload.avatar;
+      delete currentPayload.sessions;
+      delete currentPayload.instructorId;
+      delete currentPayload.lecturesCount;
+      delete currentPayload.imageName;
+
+      if (!currentPayload.instructor_id && fullCourseObj.instructorId) {
+        currentPayload.instructor_id = fullCourseObj.instructorId;
+      }
 
       let createdCourse = null;
 
-      // 1. Try Supabase insert
-      try {
-        const { data, error } = await supabase
-          .from('courses')
-          .insert([payload])
-          .select()
-          .single();
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from('courses')
+            .insert([currentPayload])
+            .select()
+            .single();
 
-        if (!error && data) {
-          createdCourse = data;
-        } else if (error) {
-          console.warn("Supabase course insert notice:", error.message);
-          // If error is schema column error, retry with clean standard schema payload
-          if (error.message?.includes('column')) {
-            const cleanPayload = {
-              title: payload.title,
-              title_en: payload.title_en,
-              description: payload.description,
-              description_en: payload.description_en,
-              instructor: payload.instructor,
-              instructor_id: payload.instructor_id || payload.instructorId,
-              category: payload.category,
-              icon: payload.icon || 'code',
-              level: payload.level,
-              goals: payload.goals,
-              lectures: payload.lectures,
-              price: payload.price || 'Free',
-              status: payload.status || 'published',
-              students: payload.students || 0,
-              created_at: payload.created_at
-            };
-            const retryRes = await supabase.from('courses').insert([cleanPayload]).select().single();
-            if (!retryRes.error && retryRes.data) {
-              createdCourse = retryRes.data;
+          if (!error && data) {
+            createdCourse = { ...fullCourseObj, ...data };
+            break;
+          }
+
+          if (error) {
+            console.warn(`[addCourse attempt ${attempt + 1}] Notice:`, error.message);
+            // Dynamic column stripping if PostgREST complains about unknown columns
+            const match = error.message?.match(/Could not find the '([^']+)' column/i);
+            if (match && match[1]) {
+              const badCol = match[1];
+              delete currentPayload[badCol];
+              continue; // Retry loop without the missing column!
+            } else {
+              break;
             }
           }
+        } catch (e) {
+          console.warn('[addCourse insert catch]:', e);
+          break;
         }
-      } catch (sbErr) {
-        console.warn("Supabase course insert catch:", sbErr);
       }
 
-      // If Supabase insert returned no data, use payload with fallback id
       if (!createdCourse) {
-        createdCourse = {
-          ...payload,
-          id: payload.id || `course_${Date.now()}`
-        };
+        createdCourse = fullCourseObj;
       }
 
-      // 2. Optimistically update local React state immediately so course appears on screen instantly
+      // Save to local storage for local persistence guarantee
+      const existingLocals = getStoredLocalCourses();
+      saveLocalCourses([createdCourse, ...existingLocals.filter(c => c.id !== createdCourse.id)]);
+
+      // Optimistically update React state immediately
       setRawCourses(prev => {
         const sanitized = sanitizeObject(createdCourse);
         return [sanitized, ...prev.filter(c => c.id !== sanitized.id)];
       });
 
-      // Refetch from Supabase in background to sync
-      fetchCourses().catch(() => {});
-
       return { ok: true, id: createdCourse.id };
     } catch (err) {
-      console.error("Error adding course to Supabase:", err);
+      console.error("Error adding course:", err);
       return { ok: false };
     }
   };
 
   const removeCourse = async (id) => {
     try {
-      // Optimistic state update
+      // Optimistic state update & local storage update
       setRawCourses(prev => prev.filter(c => c.id !== id));
+      const existingLocals = getStoredLocalCourses();
+      saveLocalCourses(existingLocals.filter(c => c.id !== id));
 
       const { error } = await supabase
         .from('courses')
@@ -227,15 +261,23 @@ export function CoursesProvider({ children }) {
   const updateCourse = async (id, updatedData) => {
     try {
       const { id: docId, originalData, ...dataToUpdate } = updatedData;
-
       dataToUpdate.updated_at = new Date().toISOString();
 
-      // Optimistic state update
+      // Optimistic state update & local storage update
       setRawCourses(prev => prev.map(c => c.id === id ? sanitizeObject({ ...c, ...dataToUpdate }) : c));
+      const existingLocals = getStoredLocalCourses();
+      saveLocalCourses(existingLocals.map(c => c.id === id ? { ...c, ...dataToUpdate } : c));
+
+      // Payload cleanup for Supabase
+      const payload = { ...dataToUpdate };
+      delete payload.avatar;
+      delete payload.sessions;
+      delete payload.instructorId;
+      delete payload.lecturesCount;
 
       const { error } = await supabase
         .from('courses')
-        .update(dataToUpdate)
+        .update(payload)
         .eq('id', id);
 
       if (error) {
