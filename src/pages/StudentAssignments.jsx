@@ -4,6 +4,7 @@ import { supabase } from '../supabase/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { notifyInstructor } from '../services/notificationService';
+import Pagination from '../components/Pagination';
 
 const StudentAssignments = () => {
   const { t, dir } = useLanguage();
@@ -12,6 +13,8 @@ const StudentAssignments = () => {
   const courseIdFilter = searchParams.get('courseId');
 
   const [filter, setFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   const [previewModal, setPreviewModal] = useState(null);
   const [submitModal, setSubmitModal] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -189,6 +192,13 @@ const StudentAssignments = () => {
 
   const selectedCourseName = coursesMap[courseIdFilter]?.title || assignments.find(a => a.courseId === courseIdFilter)?.course || '';
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, courseIdFilter]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const paginatedAssignments = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -247,91 +257,171 @@ const StudentAssignments = () => {
           ))}
         </div>
 
-        <div className="space-y-4">
-          {filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-[#F3EFE6]/50 dark:bg-gray-800/50 border-2 border-dashed border-[#E8E2D5] py-16 text-gray-400 dark:border-gray-700 dark:text-gray-500 text-center px-4">
-              <i className="fa-regular fa-file-lines text-5xl mb-4"></i>
-              <p className="text-lg font-bold">
-                {courseIdFilter
-                  ? (dir === 'rtl' ? 'لا توجد واجبات لهذه الدورة حالياً' : 'No assignments for this course yet')
-                  : t('studentAssignments.noAssignments')}
-              </p>
-              {courseIdFilter && (
-                <button
-                  onClick={() => setSearchParams({})}
-                  className="mt-4 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-secondary transition-colors shadow-xs cursor-pointer"
-                >
-                  {dir === 'rtl' ? 'عرض واجبات كافة الدورات' : 'View All Assignments'}
-                </button>
-              )}
+        {/* ===== Assignments Table ===== */}
+        {loading ? (
+          <div className="overflow-hidden rounded-2xl border border-[#E8E2D5] bg-white p-12 text-center text-sm font-bold text-gray-400 dark:border-gray-700 dark:bg-gray-800">
+            {dir === 'rtl' ? 'جاري تحميل الواجبات...' : 'Loading assignments...'}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-[#F3EFE6]/50 dark:bg-gray-800/50 border-2 border-dashed border-[#E8E2D5] py-16 text-gray-400 dark:border-gray-700 dark:text-gray-500 text-center px-4">
+            <i className="fa-regular fa-file-lines text-5xl mb-4"></i>
+            <p className="text-lg font-bold">
+              {courseIdFilter
+                ? (dir === 'rtl' ? 'لا توجد واجبات لهذه الدورة حالياً' : 'No assignments for this course yet')
+                : t('studentAssignments.noAssignments')}
+            </p>
+            {courseIdFilter && (
+              <button
+                onClick={() => setSearchParams({})}
+                className="mt-4 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-secondary transition-colors shadow-xs cursor-pointer"
+              >
+                {dir === 'rtl' ? 'عرض واجبات كافة الدورات' : 'View All Assignments'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-[#E8E2D5] bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            {/* Desktop Table Header */}
+            <div className="hidden grid-cols-12 gap-4 border-b border-[#E8E2D5] bg-[#FAF7F2] px-6 py-3.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400 md:grid">
+              <span className="col-span-3">{dir === 'rtl' ? 'الواجب' : 'Assignment'}</span>
+              <span className="col-span-2">{dir === 'rtl' ? 'الدورة' : 'Course'}</span>
+              <span className="col-span-2">{dir === 'rtl' ? 'تاريخ التسليم' : 'Due Date'}</span>
+              <span className="col-span-2">{dir === 'rtl' ? 'المرفقات' : 'Attachments'}</span>
+              <span className="col-span-2">{dir === 'rtl' ? 'الحالة' : 'Status'}</span>
+              <span className="col-span-1 text-center">{dir === 'rtl' ? 'الإجراءات' : 'Actions'}</span>
             </div>
-          )}
 
-          {filtered.map((assignment) => (
-            <div
-              key={assignment.id}
-              className="group rounded-2xl border border-[#E8E2D5] bg-white p-5 transition-all hover:border-[#D4AF37] hover:shadow-sm dark:border-gray-700 dark:bg-gray-800/60"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex-1 text-right">
-                  <div className="flex items-center gap-3 mb-1 flex-wrap">
-                    <h3 className="text-lg font-bold text-dark dark:text-white">{assignment.title}</h3>
-                    <span className={`text-[11px] px-2.5 py-1 rounded-lg font-bold ${statusMap[assignment.status].color}`}>
-                      {statusMap[assignment.status].label}
-                    </span>
-                    {assignment.grade && (
-                      <span className="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                        {t('studentAssignments.grade')} {assignment.grade}
-                      </span>
-                    )}
-                  </div>
+            {/* Table Rows */}
+            <div className="divide-y divide-[#E8E2D5] dark:divide-gray-700">
+              {paginatedAssignments.map((assignment) => {
+                const hasAttachment = Boolean(assignment.file_url || assignment.fileUrl || assignment.image_name || assignment.imageName);
+                const attachmentUrl = assignment.file_url || assignment.fileUrl;
+                const attachmentName = assignment.image_name || assignment.imageName || (attachmentUrl ? (dir === 'rtl' ? 'صورة مرفقة' : 'Attachment') : '');
 
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-6">{assignment.description}</p>
-
-                  <div className="mt-3 flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400 flex-wrap">
-                    <span className="flex items-center gap-1">
-                      <i className="fa-solid fa-book text-gray-400"></i>
-                      {assignment.course}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <i className="fa-solid fa-chalkboard-user text-gray-400"></i>
-                      {assignment.instructor}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <i className="fa-regular fa-calendar text-gray-400"></i>
-                      {assignment.deadline}
-                    </span>
-                    {(assignment.file_url || assignment.fileUrl || assignment.image_name || assignment.imageName) && (
-                      <span className="flex items-center gap-1 text-secondary dark:text-amber-400 bg-secondary/5 dark:bg-amber-500/10 px-2 py-0.5 rounded-md">
-                        <i className="fa-solid fa-paperclip text-xs"></i>
-                        <span>{dir === 'rtl' ? 'صورة مرفقة' : 'Attachment'}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 shrink-0">
-                  {assignment.status === 'pending' && (
-                    <button
-                      onClick={() => { setSubmitModal(assignment); setSubmitText(''); setSubmitFileName(''); setSubmitFileData(''); }}
-                      className="bg-secondary/10 text-secondary hover:bg-secondary hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
-                    >
-                      <i className="fa-solid fa-upload ml-1 text-xs"></i>
-                      {t('studentAssignments.submit')}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setPreviewModal(assignment)}
-                    className="bg-[#FAF7F2] text-gray-700 border border-[#E8E2D5] hover:bg-[#F3EFE6] dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                return (
+                  <div
+                    key={assignment.id}
+                    className="flex flex-col gap-3 px-6 py-4 hover:bg-[#FAF7F2] dark:hover:bg-gray-700/50 transition-colors md:grid md:grid-cols-12 md:items-center md:gap-4"
                   >
-                    <i className="fa-solid fa-eye ml-1 text-xs"></i>
-                    {t('studentAssignments.details')}
-                  </button>
-                </div>
-              </div>
+                    {/* Assignment Column */}
+                    <div className="col-span-3 flex flex-col">
+                      <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'الواجب' : 'Assignment'}</span>
+                      <p className="font-bold text-dark dark:text-white text-sm">{assignment.title}</p>
+                      {assignment.description && (
+                        <p className="text-xs text-gray-400 truncate mt-0.5" title={assignment.description}>
+                          {assignment.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Course Column */}
+                    <div className="col-span-2 flex flex-col">
+                      <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'الدورة' : 'Course'}</span>
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{assignment.course}</p>
+                      <p className="text-xs text-gray-400">{assignment.instructor}</p>
+                    </div>
+
+                    {/* Due Date Column */}
+                    <div className="col-span-2 flex flex-col">
+                      <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'تاريخ التسليم' : 'Due Date'}</span>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                        <i className="fa-regular fa-calendar text-gray-400 text-xs"></i>
+                        <span>{assignment.deadline}</span>
+                      </div>
+                    </div>
+
+                    {/* Attachments Column */}
+                    <div className="col-span-2 flex flex-col">
+                      <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'المرفقات' : 'Attachments'}</span>
+                      {hasAttachment ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {attachmentUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setLightboxImage({ url: attachmentUrl, name: attachmentName })}
+                              title={dir === 'rtl' ? 'معاينة الصورة' : 'Preview Image'}
+                              aria-label={dir === 'rtl' ? 'معاينة الصورة' : 'Preview Image'}
+                              className="text-primary hover:text-white bg-primary/10 hover:bg-primary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-base">visibility</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAttachment(attachmentUrl, attachmentName)}
+                            title={dir === 'rtl' ? 'تحميل المرفق' : 'Download Attachment'}
+                            aria-label={dir === 'rtl' ? 'تحميل المرفق' : 'Download Attachment'}
+                            className="text-secondary hover:text-white bg-secondary/10 hover:bg-secondary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-base">download</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </div>
+
+                    {/* Status Column */}
+                    <div className="col-span-2 flex flex-col">
+                      <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'الحالة' : 'Status'}</span>
+                      <div>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                            assignment.status === 'graded'
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                              : assignment.status === 'submitted'
+                              ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                              : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                          }`}
+                        >
+                          {statusMap[assignment.status].label}
+                          {assignment.grade && ` (${assignment.grade})`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions Column */}
+                    <div className="col-span-1 flex items-center justify-between md:justify-center gap-1.5 mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[#E8E2D5] dark:border-gray-700 md:border-0">
+                      <span className="md:hidden text-xs text-gray-400 font-bold">{dir === 'rtl' ? 'الإجراءات' : 'Actions'}</span>
+                      <div className="flex items-center gap-1.5">
+                        {assignment.status === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={() => { setSubmitModal(assignment); setSubmitText(''); setSubmitFileName(''); setSubmitFileData(''); }}
+                            title={t('studentAssignments.submit')}
+                            aria-label={t('studentAssignments.submit')}
+                            className="text-secondary hover:text-white bg-secondary/10 hover:bg-secondary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-lg">upload</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setPreviewModal(assignment)}
+                          title={t('studentAssignments.details')}
+                          aria-label={t('studentAssignments.details')}
+                          className="text-primary hover:text-white bg-primary/10 hover:bg-primary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-lg">info</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+
+            {/* Pagination Component with Footer Summary */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filtered.length}
+              itemsPerPage={itemsPerPage}
+              itemName={dir === 'rtl' ? 'واجب' : 'assignments'}
+            />
+          </div>
+        )}
       </div>
 
       {previewModal && (

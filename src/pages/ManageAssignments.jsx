@@ -5,6 +5,7 @@ import { supabase } from '../supabase/client';
 import { useLanguage } from '../context/LanguageContext';
 import { notifyEnrolledStudents } from '../services/notificationService';
 import CustomDatePicker from '../components/CustomDatePicker';
+import Pagination from '../components/Pagination';
 
 export default function ManageAssignments() {
   const { t, dir } = useLanguage();
@@ -17,8 +18,17 @@ export default function ManageAssignments() {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [assignments, setAssignments] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
 
     const [courseTitle, setCourseTitle] = useState('');
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [id]);
+
+    const totalPages = Math.ceil(assignments.length / itemsPerPage) || 1;
+    const paginatedAssignments = assignments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
         if (!id) return;
@@ -234,74 +244,141 @@ export default function ManageAssignments() {
                 <p className="mt-1 text-sm text-gray-400">{t('manageAssignments.addDeleteHint')}</p>
             </div>
 
-            {/* Assignments List */}
-            <div className="space-y-4">
-                {assignments.length === 0 && (
-                    <div className="flex flex-col items-center justify-center rounded-2xl bg-[#F3EFE6]/50 dark:bg-gray-800/50 border-2 border-dashed border-[#E8E2D5] py-16 text-gray-400 dark:border-gray-700 dark:text-gray-500">
-                        <i className="fa-solid fa-clipboard-list text-5xl mb-4"></i>
-                        <p className="text-lg font-bold">{t('manageAssignments.noAssignments')}</p>
-                        <p className="text-sm mt-1">{t('manageAssignments.noAssignmentsHint')}</p>
+            {/* Assignments Table / List */}
+            {assignments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-[#F3EFE6]/50 dark:bg-gray-800/50 border-2 border-dashed border-[#E8E2D5] py-16 text-gray-400 dark:border-gray-700 dark:text-gray-500 text-center px-4">
+                    <i className="fa-solid fa-clipboard-list text-5xl mb-4"></i>
+                    <p className="text-lg font-bold">{t('manageAssignments.noAssignments')}</p>
+                    <p className="text-sm mt-1">{t('manageAssignments.noAssignmentsHint')}</p>
+                </div>
+            ) : (
+                <div className="overflow-hidden rounded-2xl border border-[#E8E2D5] bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    {/* Desktop Table Header */}
+                    <div className="hidden grid-cols-12 gap-4 border-b border-[#E8E2D5] bg-[#FAF7F2] px-6 py-3.5 text-xs font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400 md:grid">
+                        <span className="col-span-4">{dir === 'rtl' ? 'الواجب' : 'Assignment'}</span>
+                        <span className="col-span-2">{dir === 'rtl' ? 'تاريخ التسليم' : 'Due Date'}</span>
+                        <span className="col-span-2">{dir === 'rtl' ? 'المرفقات' : 'Attachments'}</span>
+                        <span className="col-span-2">{dir === 'rtl' ? 'التسليمات' : 'Submissions'}</span>
+                        <span className="col-span-2 text-center">{dir === 'rtl' ? 'الإجراءات' : 'Actions'}</span>
                     </div>
-                )}
 
-                {assignments.map((assignment) => (
-                    <div
-                        key={assignment.id}
-                        className="group rounded-2xl border border-[#E8E2D5] bg-white p-5 transition-all hover:border-[#D4AF37] hover:shadow-sm dark:border-gray-700 dark:bg-gray-800/60 dark:hover:border-indigo-500/30"
-                    >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex-1 text-start">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                    {assignment.title}
-                                </h3>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 leading-6">
-                                    {assignment.description}
-                                </p>
-                                <div className="mt-3 flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400 flex-wrap">
-                                    <span className="flex items-center gap-1">
-                                        <i className="fa-regular fa-calendar text-gray-400"></i>
-                                        {t('manageAssignments.dueDate')} {assignment.dueDate || assignment.date}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        <i className="fa-solid fa-users text-gray-400"></i>
-                                        {assignment.submissions} {t('manageAssignments.submissions')}
-                                    </span>
-                                    {(assignment.file_url || assignment.fileUrl || assignment.image_name || assignment.imageName) && (
-                                        <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 rounded-md font-semibold">
-                                            <i className="fa-solid fa-paperclip text-xs"></i>
-                                            <span>{dir === 'rtl' ? 'صورة مرفقة' : 'Attachment'}</span>
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+                    {/* Table Rows */}
+                    <div className="divide-y divide-[#E8E2D5] dark:divide-gray-700">
+                        {paginatedAssignments.map((assignment) => {
+                            const hasAttachment = Boolean(assignment.file_url || assignment.fileUrl || assignment.image_name || assignment.imageName);
+                            const attachmentUrl = assignment.file_url || assignment.fileUrl;
+                            const attachmentName = assignment.image_name || assignment.imageName || (attachmentUrl ? (dir === 'rtl' ? 'صورة مرفقة' : 'Attachment') : '');
+                            const formattedDate = formatDueDate(assignment.dueDate || assignment.date, dir === 'rtl') || assignment.dueDate || assignment.date || '—';
 
-                            <div className="flex items-center gap-2 shrink-0">
-                                {(assignment.file_url || assignment.fileUrl) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setLightboxImage({
-                                            url: assignment.file_url || assignment.fileUrl,
-                                            name: assignment.image_name || assignment.imageName || assignment.title
-                                        })}
-                                        className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm font-bold text-indigo-600 transition hover:bg-indigo-100 dark:border-indigo-800/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50 cursor-pointer shadow-xs"
-                                        title={dir === 'rtl' ? 'معاينة الصورة المرفقة' : 'Preview Image'}
-                                    >
-                                        <i className="fa-solid fa-eye text-xs"></i>
-                                        <span>{dir === 'rtl' ? 'معاينة الصورة' : 'Preview'}</span>
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setShowDeleteModal(assignment.id)}
-                                    className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/50 cursor-pointer"
+                            return (
+                                <div
+                                    key={assignment.id}
+                                    className="flex flex-col gap-3 px-6 py-4 hover:bg-[#FAF7F2] dark:hover:bg-gray-700/50 transition-colors md:grid md:grid-cols-12 md:items-center md:gap-4"
                                 >
-                                    <i className="fa-regular fa-trash-can"></i>
-                                    {t('common.delete')}
-                                </button>
-                            </div>
-                        </div>
+                                    {/* Assignment (col-span-4) */}
+                                    <div className="col-span-4 flex flex-col text-start">
+                                        <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'الواجب' : 'Assignment'}</span>
+                                        <p className="font-bold text-dark dark:text-white text-sm hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                            {assignment.title}
+                                        </p>
+                                        {assignment.description && (
+                                            <p className="text-xs text-gray-400 truncate mt-0.5" title={assignment.description}>
+                                                {assignment.description}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Due Date (col-span-2) */}
+                                    <div className="col-span-2 flex flex-col text-start">
+                                        <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'تاريخ التسليم' : 'Due Date'}</span>
+                                        <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                            <i className="fa-regular fa-calendar text-gray-400 text-xs"></i>
+                                            <span>{formattedDate}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Attachments (col-span-2) */}
+                                    <div className="col-span-2 flex flex-col text-start">
+                                        <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'المرفقات' : 'Attachments'}</span>
+                                        {hasAttachment ? (
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {attachmentUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setLightboxImage({ url: attachmentUrl, name: attachmentName })}
+                                                        title={dir === 'rtl' ? 'معاينة الصورة' : 'Preview Image'}
+                                                        aria-label={dir === 'rtl' ? 'معاينة الصورة' : 'Preview Image'}
+                                                        className="text-primary hover:text-white bg-primary/10 hover:bg-primary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                                                    >
+                                                        <span className="material-symbols-outlined text-base">visibility</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDownloadAttachment(attachmentUrl, attachmentName)}
+                                                    title={dir === 'rtl' ? 'تحميل المرفق' : 'Download Attachment'}
+                                                    aria-label={dir === 'rtl' ? 'تحميل المرفق' : 'Download Attachment'}
+                                                    className="text-secondary hover:text-white bg-secondary/10 hover:bg-secondary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                                                >
+                                                    <span className="material-symbols-outlined text-base">download</span>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">—</span>
+                                        )}
+                                    </div>
+
+                                    {/* Submissions (col-span-2) */}
+                                    <div className="col-span-2 flex flex-col text-start">
+                                        <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{dir === 'rtl' ? 'التسليمات' : 'Submissions'}</span>
+                                        <div>
+                                            <Link
+                                                to={`/instructor-dashboard/submissions/${id}`}
+                                                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition-colors"
+                                                title={dir === 'rtl' ? 'عرض حلول الطلاب' : 'View Student Submissions'}
+                                            >
+                                                <i className="fa-solid fa-users text-xs"></i>
+                                                <span>{assignment.submissions || 0} {t('manageAssignments.submissions')}</span>
+                                            </Link>
+                                        </div>
+                                    </div>
+
+                                    {/* Actions (col-span-2) */}
+                                    <div className="col-span-2 flex items-center justify-end md:justify-center gap-2">
+                                        <Link
+                                            to={`/instructor-dashboard/submissions/${id}`}
+                                            className="p-2 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-600 dark:hover:text-white rounded-xl transition-all shadow-xs flex items-center justify-center cursor-pointer"
+                                            title={dir === 'rtl' ? 'متابعة التسليمات' : 'Submissions'}
+                                            aria-label={dir === 'rtl' ? 'متابعة التسليمات' : 'Submissions'}
+                                        >
+                                            <span className="material-symbols-outlined text-base">assignment_turned_in</span>
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeleteModal(assignment.id)}
+                                            className="p-2 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white rounded-xl transition-all shadow-xs flex items-center justify-center cursor-pointer"
+                                            title={t('common.delete')}
+                                            aria-label={t('common.delete')}
+                                        >
+                                            <span className="material-symbols-outlined text-base">delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                ))}
-            </div>
+
+                    {/* Pagination Footer */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={assignments.length}
+                        itemsPerPage={itemsPerPage}
+                        itemName={dir === 'rtl' ? 'واجب' : 'assignments'}
+                    />
+                </div>
+            )}
 
             {/* ================= Add Assignment Modal ================= */}
             {showAddModal && (
