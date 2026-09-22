@@ -13,26 +13,42 @@ export default function AdminOverview() {
   const isRtl = dir === 'rtl';
   const { courses } = useCourses();
   const { books } = useLibrary();
-  const [usersInfo, setUsersInfo] = useState({ students: 0, instructors: 0, pending: 0 });
-  const [enrollmentsCount, setEnrollmentsCount] = useState(0);
 
-  const fetchUsersInfo = async () => {
+  // Instant cache initialization from sessionStorage
+  const [usersInfo, setUsersInfo] = useState(() => {
     try {
-      // 1. Fetch Supabase profiles
-      const { data: profiles } = await supabase.from('profiles').select('*');
+      const cached = sessionStorage.getItem('admin_overview_users_info');
+      return cached ? JSON.parse(cached) : { students: 0, instructors: 0, pending: 0 };
+    } catch (e) {
+      return { students: 0, instructors: 0, pending: 0 };
+    }
+  });
 
-      // 2. Fetch Firestore users as fallback
-      let firestoreUsers = [];
-      try {
-        const snapshot = await getDocs(collection(db, 'users'));
-        firestoreUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      } catch (err) {
-        console.warn('Firestore users fetch fallback notice:', err);
-      }
+  const [enrollmentsCount, setEnrollmentsCount] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('admin_overview_enrollments');
+      return cached ? JSON.parse(cached) : 0;
+    } catch (e) {
+      return 0;
+    }
+  });
 
-      // Merge unique users (prefer profiles, add non-duplicate firestore users)
+  // Optimized parallel fetch
+  const fetchAllData = async () => {
+    try {
+      const [profilesRes, firestoreUsersSnap, enrollmentsRes, firestoreEnrollmentsSnap] = await Promise.all([
+        supabase.from('profiles').select('id, email, role, status, is_approved'),
+        getDocs(collection(db, 'users')).catch(() => ({ docs: [] })),
+        supabase.from('enrollments').select('id'),
+        getDocs(collection(db, 'enrollments')).catch(() => ({ size: 0 }))
+      ]);
+
+      const profiles = profilesRes.data || [];
+      const firestoreUsers = firestoreUsersSnap.docs ? firestoreUsersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) : [];
+
+      // Merge unique users
       const mergedMap = new Map();
-      (profiles || []).forEach(p => {
+      profiles.forEach(p => {
         const key = p.id || p.email;
         if (key) mergedMap.set(key, p);
       });
@@ -63,44 +79,32 @@ export default function AdminOverview() {
         }
       });
 
-      setUsersInfo({ students: stu, instructors: inst, pending: pend });
-    } catch (err) {
-      console.warn('Error fetching users info for overview:', err);
-    }
-  };
+      const newUsersInfo = { students: stu, instructors: inst, pending: pend };
+      setUsersInfo(newUsersInfo);
+      try { sessionStorage.setItem('admin_overview_users_info', JSON.stringify(newUsersInfo)); } catch (e) {}
 
-  const fetchEnrollments = async () => {
-    try {
-      const { data } = await supabase.from('enrollments').select('id');
-      let firestoreCount = 0;
-      try {
-        const snap = await getDocs(collection(db, 'enrollments'));
-        firestoreCount = snap.size;
-      } catch (e) {}
       const courseStudentSum = courses.reduce((acc, curr) => acc + (curr.students || 0), 0);
-      setEnrollmentsCount(Math.max(data?.length || 0, firestoreCount, courseStudentSum));
-    } catch (e) {
-      console.warn('Error fetching enrollments count:', e);
+      const newEnrollments = Math.max(enrollmentsRes.data?.length || 0, firestoreEnrollmentsSnap.size || 0, courseStudentSum);
+      setEnrollmentsCount(newEnrollments);
+      try { sessionStorage.setItem('admin_overview_enrollments', JSON.stringify(newEnrollments)); } catch (e) {}
+
+    } catch (err) {
+      console.warn('Fast fetch overview error:', err);
     }
   };
 
   useEffect(() => {
-    fetchUsersInfo();
-    fetchEnrollments();
+    fetchAllData();
 
-    // Subscribe to realtime changes on profiles table
+    // Realtime listener
     const channel = supabase
-      .channel('admin-overview-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        () => {
-          fetchUsersInfo();
-        }
-      )
+      .channel('admin-overview-fast-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchAllData();
+      })
       .subscribe();
 
-    const interval = setInterval(fetchUsersInfo, 4000);
+    const interval = setInterval(fetchAllData, 8000);
 
     return () => {
       supabase.removeChannel(channel);

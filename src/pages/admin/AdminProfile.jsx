@@ -18,12 +18,14 @@ export default function AdminProfile() {
   const { currentUser, userData } = useAuth();
   const fileInputRef = useRef(null);
 
-  // Platform stats counters
-  const [stats, setStats] = useState({
-    usersCount: 0,
-    coursesCount: 0,
-    booksCount: 0,
-    pendingInstructors: 0
+  // Platform stats counters with instant sessionStorage cache
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('admin_profile_stats');
+      return cached ? JSON.parse(cached) : { usersCount: 0, coursesCount: 0, booksCount: 0, pendingInstructors: 0 };
+    } catch (e) {
+      return { usersCount: 0, coursesCount: 0, booksCount: 0, pendingInstructors: 0 };
+    }
   });
 
   // Personal info form state
@@ -58,20 +60,24 @@ export default function AdminProfile() {
   const [resetEmailSending, setResetEmailSending] = useState(false);
   const [resetEmailSuccess, setResetEmailSuccess] = useState('');
 
-  // Fetch quick stats
+  // Fast parallel stats fetch
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch profiles from Supabase + Firestore fallback
-        const { data: profiles } = await supabase.from('profiles').select('*');
-        let firestoreUsers = [];
-        try {
-          const uSnap = await getDocs(collection(db, 'users'));
-          firestoreUsers = uSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch (e) {}
+        const [profilesRes, uSnap, coursesRes, cSnap, booksRes, bSnap] = await Promise.all([
+          supabase.from('profiles').select('id, email, role, status, is_approved'),
+          getDocs(collection(db, 'users')).catch(() => ({ docs: [] })),
+          supabase.from('courses').select('id'),
+          getDocs(collection(db, 'courses')).catch(() => ({ size: 0 })),
+          supabase.from('books').select('id'),
+          getDocs(collection(db, 'books')).catch(() => ({ size: 0 }))
+        ]);
+
+        const profiles = profilesRes.data || [];
+        const firestoreUsers = uSnap.docs ? uSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) : [];
 
         const mergedUsers = new Map();
-        (profiles || []).forEach(p => {
+        profiles.forEach(p => {
           const key = p.id || p.email;
           if (key) mergedUsers.set(key, p);
         });
@@ -87,30 +93,18 @@ export default function AdminProfile() {
           }
         });
 
-        // Fetch courses count
-        const { data: coursesData } = await supabase.from('courses').select('id');
-        let firestoreCoursesCount = 0;
-        try {
-          const cSnap = await getDocs(collection(db, 'courses'));
-          firestoreCoursesCount = cSnap.size;
-        } catch (e) {}
-        const totalCourses = Math.max(coursesData?.length || 0, firestoreCoursesCount);
+        const totalCourses = Math.max(coursesRes.data?.length || 0, cSnap.size || 0);
+        const totalBooks = Math.max(booksRes.data?.length || 0, bSnap.size || 0);
 
-        // Fetch books count
-        const { data: booksData } = await supabase.from('books').select('id');
-        let firestoreBooksCount = 0;
-        try {
-          const bSnap = await getDocs(collection(db, 'books'));
-          firestoreBooksCount = bSnap.size;
-        } catch (e) {}
-        const totalBooks = Math.max(booksData?.length || 0, firestoreBooksCount);
-
-        setStats({
+        const newStats = {
           usersCount: mergedUsers.size,
           coursesCount: totalCourses,
           booksCount: totalBooks,
           pendingInstructors: pending
-        });
+        };
+
+        setStats(newStats);
+        try { sessionStorage.setItem('admin_profile_stats', JSON.stringify(newStats)); } catch (e) {}
       } catch (e) {
         console.warn('Error fetching admin profile stats:', e);
       }
