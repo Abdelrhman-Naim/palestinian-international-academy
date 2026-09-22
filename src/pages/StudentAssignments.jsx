@@ -14,8 +14,10 @@ const StudentAssignments = () => {
   const [filter, setFilter] = useState('all');
   const [previewModal, setPreviewModal] = useState(null);
   const [submitModal, setSubmitModal] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const [submitText, setSubmitText] = useState('');
   const [submitFileName, setSubmitFileName] = useState('');
+  const [submitFileData, setSubmitFileData] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [assignments, setAssignments] = useState([]);
@@ -68,6 +70,10 @@ const StudentAssignments = () => {
               deadline: a.due_date ? new Date(a.due_date).toLocaleDateString('ar-EG') : '—',
               status: sub ? (sub.grade ? 'graded' : 'submitted') : 'pending',
               grade: sub?.grade || null,
+              file_url: a.file_url || a.fileUrl || '',
+              fileUrl: a.file_url || a.fileUrl || '',
+              image_name: a.image_name || a.imageName || '',
+              imageName: a.image_name || a.imageName || '',
             };
           });
 
@@ -82,6 +88,49 @@ const StudentAssignments = () => {
     fetchData();
   }, [userId]);
 
+  const handleDownloadAttachment = async (url, customFileName) => {
+    const defaultName = dir === 'rtl' ? 'مرفق_الواجب' : 'assignment_attachment';
+    const fileName = customFileName || `${defaultName}.png`;
+
+    if (!url) {
+      const blob = new Blob([`الأكاديمية الدولية الفلسطينية\nمرفق الواجب: ${customFileName || 'ملف توضيحي'}`], { type: 'text/plain;charset=utf-8' });
+      const bUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = bUrl;
+      a.download = fileName.includes('.') ? fileName : `${fileName}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(bUrl);
+      return;
+    }
+
+    try {
+      if (url.startsWith('data:') || url.startsWith('blob:')) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const bUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = bUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(bUrl);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!submitText.trim() && !submitFileName) return;
     setIsSubmitting(true);
@@ -91,7 +140,7 @@ const StudentAssignments = () => {
         student_id: userId,
         student_name: currentUser.name || currentUser.email || 'طالب',
         notes: submitText,
-        file_url: submitFileName,
+        file_url: submitFileData || submitFileName,
         submitted_at: new Date()
       }]);
 
@@ -114,6 +163,9 @@ const StudentAssignments = () => {
       }
       
       setSubmitModal(null);
+      setSubmitText('');
+      setSubmitFileName('');
+      setSubmitFileData('');
     } catch (err) {
       console.error("Error submitting assignment:", err);
     } finally {
@@ -249,13 +301,19 @@ const StudentAssignments = () => {
                       <i className="fa-regular fa-calendar text-gray-400"></i>
                       {assignment.deadline}
                     </span>
+                    {(assignment.file_url || assignment.fileUrl || assignment.image_name || assignment.imageName) && (
+                      <span className="flex items-center gap-1 text-secondary dark:text-amber-400 bg-secondary/5 dark:bg-amber-500/10 px-2 py-0.5 rounded-md">
+                        <i className="fa-solid fa-paperclip text-xs"></i>
+                        <span>{dir === 'rtl' ? 'صورة مرفقة' : 'Attachment'}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex gap-2 shrink-0">
                   {assignment.status === 'pending' && (
                     <button
-                      onClick={() => { setSubmitModal(assignment); setSubmitText(''); setSubmitFileName(''); }}
+                      onClick={() => { setSubmitModal(assignment); setSubmitText(''); setSubmitFileName(''); setSubmitFileData(''); }}
                       className="bg-secondary/10 text-secondary hover:bg-secondary hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                     >
                       <i className="fa-solid fa-upload ml-1 text-xs"></i>
@@ -282,12 +340,12 @@ const StudentAssignments = () => {
           onClick={() => setPreviewModal(null)}
         >
           <div
-            className="relative w-full max-w-xl rounded-3xl bg-white border border-[#E8E2D5] p-6 shadow-2xl dark:border dark:border-gray-700 dark:bg-gray-800 max-h-[80vh] overflow-y-auto"
+            className="relative w-full max-w-xl rounded-3xl bg-white border border-[#E8E2D5] p-6 shadow-2xl dark:border dark:border-gray-700 dark:bg-gray-800 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setPreviewModal(null)}
-              className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+              className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300 cursor-pointer"
             >
               <i className="fa-solid fa-xmark"></i>
             </button>
@@ -321,12 +379,87 @@ const StudentAssignments = () => {
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{t('studentAssignments.description')}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-7">{previewModal.description}</p>
               </div>
+
+              {/* Attachment / Illustration Image Section */}
+              {(() => {
+                const attachmentUrl = previewModal.file_url || previewModal.fileUrl;
+                const attachmentName = previewModal.image_name || previewModal.imageName || (attachmentUrl ? (dir === 'rtl' ? 'صورة توضيحية للواجب' : 'Assignment Illustration') : '');
+                const hasAttachment = Boolean(attachmentUrl || attachmentName);
+
+                if (!hasAttachment) return null;
+
+                return (
+                  <div className="pt-3 border-t border-[#E8E2D5] dark:border-gray-700">
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+                      <i className="fa-solid fa-paperclip text-secondary"></i>
+                      <span>{t('studentAssignments.attachedImage') || 'الصورة التوضيحية المرفقة'}</span>
+                    </p>
+
+                    <div className="rounded-2xl border border-[#E8E2D5] bg-white p-3.5 shadow-xs transition hover:border-[#D4AF37]/60 dark:border-gray-700 dark:bg-gray-800/80">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {attachmentUrl ? (
+                            <div
+                              onClick={() => setLightboxImage({ url: attachmentUrl, name: attachmentName })}
+                              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer group bg-stone-100 dark:bg-gray-900"
+                              title={t('studentAssignments.previewImage') || 'معاينة الصورة'}
+                            >
+                              <img
+                                src={attachmentUrl}
+                                alt={attachmentName || 'Attachment'}
+                                className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs">
+                                <i className="fa-solid fa-magnifying-glass-plus"></i>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-secondary dark:bg-orange-950/50 dark:text-amber-400">
+                              <i className="fa-solid fa-image text-xl"></i>
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-gray-800 dark:text-gray-100" title={attachmentName}>
+                              {attachmentName || (dir === 'rtl' ? 'صورة توضيحية للواجب' : 'Assignment image')}
+                            </p>
+                            <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-semibold text-secondary dark:text-amber-400">
+                              <i className="fa-regular fa-image text-[10px]"></i>
+                              {dir === 'rtl' ? 'ملف مرفق بالواجب' : 'Attached assignment file'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                          {attachmentUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setLightboxImage({ url: attachmentUrl, name: attachmentName })}
+                              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-600 transition hover:bg-indigo-100 dark:border-indigo-800/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50 shadow-xs cursor-pointer"
+                            >
+                              <i className="fa-solid fa-eye text-xs"></i>
+                              <span>{t('studentAssignments.previewImage') || 'معاينة الصورة'}</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAttachment(attachmentUrl, attachmentName)}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-white transition hover:bg-rose-700 shadow-xs cursor-pointer"
+                          >
+                            <i className="fa-solid fa-download text-xs"></i>
+                            <span>{t('studentAssignments.downloadAttachment') || 'تحميل المرفق'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="mt-6 flex justify-center">
               <button
                 onClick={() => setPreviewModal(null)}
-                className="rounded-xl bg-secondary px-8 py-3 text-sm font-bold text-white transition hover:bg-rose-700"
+                className="rounded-xl bg-secondary px-8 py-3 text-sm font-bold text-white transition hover:bg-rose-700 cursor-pointer"
               >
                 {t('common.close')}
               </button>
@@ -391,7 +524,16 @@ const StudentAssignments = () => {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setSubmitFileName(file.name);
+                      if (file) {
+                        setSubmitFileName(file.name);
+                        try {
+                          const reader = new FileReader();
+                          reader.onload = () => setSubmitFileData(reader.result);
+                          reader.readAsDataURL(file);
+                        } catch (err) {
+                          console.warn('Could not read file:', err);
+                        }
+                      }
                     }}
                   />
                 </label>
@@ -400,18 +542,77 @@ const StudentAssignments = () => {
 
             <div className="mt-7 flex gap-3">
               <button
-                onClick={() => setSubmitModal(null)}
-                className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                onClick={() => { setSubmitModal(null); setSubmitFileName(''); setSubmitFileData(''); }}
+                className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || (!submitText.trim() && !submitFileName)}
-                className="flex-1 rounded-xl bg-secondary py-3 text-sm font-bold text-white transition hover:bg-rose-700 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-secondary py-3 text-sm font-bold text-white transition hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? t('studentAssignments.sending') : t('studentAssignments.submitSolution')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= Image Lightbox Modal ================= */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md transition-all"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative flex flex-col items-center max-w-4xl max-h-[92vh] w-full rounded-3xl bg-gray-900/95 border border-gray-700 p-4 sm:p-6 text-white shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Lightbox Header */}
+            <div className="flex w-full items-center justify-between pb-3 border-b border-gray-800 px-2">
+              <div className="flex items-center gap-2.5 truncate">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <i className="fa-regular fa-image text-sm"></i>
+                </div>
+                <span className="text-sm font-bold truncate text-gray-200">
+                  {lightboxImage.name || (dir === 'rtl' ? 'معاينة الصورة المرفقة' : 'Attachment Preview')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadAttachment(lightboxImage.url, lightboxImage.name)}
+                  className="flex items-center gap-1.5 rounded-xl bg-secondary px-3.5 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition shadow-xs cursor-pointer"
+                  title={t('studentAssignments.downloadAttachment') || 'تحميل المرفق'}
+                >
+                  <i className="fa-solid fa-download"></i>
+                  <span className="hidden sm:inline">{t('studentAssignments.downloadAttachment') || 'تحميل'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage(null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition cursor-pointer"
+                >
+                  <i className="fa-solid fa-xmark text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Lightbox Body */}
+            <div className="my-auto flex items-center justify-center p-3 overflow-auto max-h-[75vh] w-full">
+              {lightboxImage.url ? (
+                <img
+                  src={lightboxImage.url}
+                  alt={lightboxImage.name || 'Preview'}
+                  className="max-h-[72vh] max-w-full rounded-2xl object-contain shadow-2xl"
+                />
+              ) : (
+                <div className="p-8 text-center text-gray-400">
+                  <i className="fa-regular fa-file-image text-4xl mb-3 text-gray-500"></i>
+                  <p>{dir === 'rtl' ? 'لا يتوفر رابط مباشر لهذه الصورة' : 'Direct link not available for this image'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

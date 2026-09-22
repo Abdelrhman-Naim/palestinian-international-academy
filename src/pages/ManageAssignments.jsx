@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, getDoc, db } from "../firebase/config";
+import { supabase } from '../supabase/client';
 import { useLanguage } from '../context/LanguageContext';
 import { notifyEnrolledStudents } from '../services/notificationService';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -10,7 +11,9 @@ export default function ManageAssignments() {
     const { id } = useParams(); // courseId
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(null);
-    const [newAssignment, setNewAssignment] = useState({ title: "", description: "", dueDate: "", imageName: "" });
+    const [newAssignment, setNewAssignment] = useState({ title: "", description: "", dueDate: "", imageName: "", fileUrl: "", file_url: "" });
+    const [lightboxImage, setLightboxImage] = useState(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [assignments, setAssignments] = useState([]);
@@ -67,13 +70,84 @@ export default function ManageAssignments() {
     const handleCloseAddModal = () => {
         setShowAddModal(false);
         setErrors({});
-        setNewAssignment({ title: "", description: "", dueDate: "", imageName: "" });
+        setNewAssignment({ title: "", description: "", dueDate: "", imageName: "", fileUrl: "", file_url: "" });
+        setIsUploadingImage(false);
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files?.[0];
-        if (file) {
-            setNewAssignment((prev) => ({ ...prev, imageName: file.name }));
+        if (!file) return;
+
+        setIsUploadingImage(true);
+        let downloadUrl = '';
+        try {
+            const fileExt = file.name ? file.name.split('.').pop() : 'png';
+            const filePath = `assignments/${id}_${Date.now()}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+                .from('assignments')
+                .upload(filePath, file, { upsert: true });
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage.from('assignments').getPublicUrl(filePath);
+                downloadUrl = urlData?.publicUrl || '';
+            }
+        } catch (storageErr) {
+            console.warn('Supabase storage upload error, using Data URL fallback:', storageErr);
+        }
+
+        if (!downloadUrl) {
+            downloadUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(file);
+            });
+        }
+
+        setNewAssignment((prev) => ({
+            ...prev,
+            imageName: file.name,
+            fileUrl: downloadUrl,
+            file_url: downloadUrl
+        }));
+        setIsUploadingImage(false);
+    };
+
+    const handleRemoveImage = () => {
+        setNewAssignment((prev) => ({
+            ...prev,
+            imageName: "",
+            fileUrl: "",
+            file_url: ""
+        }));
+    };
+
+    const handleDownloadAttachment = async (url, customFileName) => {
+        const defaultName = dir === 'rtl' ? 'صورة_الواجب' : 'assignment_image';
+        const fileName = customFileName || `${defaultName}.png`;
+        if (!url) return;
+        try {
+            if (url.startsWith('data:') || url.startsWith('blob:')) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                return;
+            }
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const bUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = bUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(bUrl);
+        } catch {
+            window.open(url, '_blank');
         }
     };
 
@@ -90,6 +164,8 @@ export default function ManageAssignments() {
                 description: newAssignment.description.trim(),
                 imageName: newAssignment.imageName,
                 image_name: newAssignment.imageName,
+                file_url: newAssignment.fileUrl || newAssignment.file_url || '',
+                fileUrl: newAssignment.fileUrl || newAssignment.file_url || '',
                 dueDate: formattedDueDate,
                 due_date: formattedDueDate,
                 rawDueDate: newAssignment.dueDate,
@@ -181,7 +257,7 @@ export default function ManageAssignments() {
                                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 leading-6">
                                     {assignment.description}
                                 </p>
-                                <div className="mt-3 flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400">
+                                <div className="mt-3 flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400 flex-wrap">
                                     <span className="flex items-center gap-1">
                                         <i className="fa-regular fa-calendar text-gray-400"></i>
                                         {t('manageAssignments.dueDate')} {assignment.dueDate || assignment.date}
@@ -190,16 +266,38 @@ export default function ManageAssignments() {
                                         <i className="fa-solid fa-users text-gray-400"></i>
                                         {assignment.submissions} {t('manageAssignments.submissions')}
                                     </span>
+                                    {(assignment.file_url || assignment.fileUrl || assignment.image_name || assignment.imageName) && (
+                                        <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 rounded-md font-semibold">
+                                            <i className="fa-solid fa-paperclip text-xs"></i>
+                                            <span>{dir === 'rtl' ? 'صورة مرفقة' : 'Attachment'}</span>
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => setShowDeleteModal(assignment.id)}
-                                className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/50"
-                            >
-                                <i className="fa-regular fa-trash-can"></i>
-                                {t('common.delete')}
-                            </button>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {(assignment.file_url || assignment.fileUrl) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setLightboxImage({
+                                            url: assignment.file_url || assignment.fileUrl,
+                                            name: assignment.image_name || assignment.imageName || assignment.title
+                                        })}
+                                        className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm font-bold text-indigo-600 transition hover:bg-indigo-100 dark:border-indigo-800/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50 cursor-pointer shadow-xs"
+                                        title={dir === 'rtl' ? 'معاينة الصورة المرفقة' : 'Preview Image'}
+                                    >
+                                        <i className="fa-solid fa-eye text-xs"></i>
+                                        <span>{dir === 'rtl' ? 'معاينة الصورة' : 'Preview'}</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setShowDeleteModal(assignment.id)}
+                                    className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/50 cursor-pointer"
+                                >
+                                    <i className="fa-regular fa-trash-can"></i>
+                                    {t('common.delete')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -319,39 +417,73 @@ export default function ManageAssignments() {
 
                             {/* Image Upload */}
                             <div>
-                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">{t('manageAssignments.illustrationImage')}</label>
-                                <label
-                                    htmlFor="assignment-image"
-                                    className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#E8E2D5] bg-[#FAF7F2]/50 p-5 text-center transition hover:border-indigo-400 hover:bg-indigo-50/30 dark:border-gray-700 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-950/10"
-                                >
-                                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                                        <i className="fa-solid fa-image"></i>
-                                    </div>
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                        {newAssignment.imageName || t('manageAssignments.clickToChooseImage')}
-                                    </p>
-                                    <input
-                                        id="assignment-image"
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleImageChange}
-                                    />
+                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    {t('manageAssignments.illustrationImage')}
                                 </label>
+                                {newAssignment.fileUrl ? (
+                                    <div className="relative rounded-2xl border border-[#E8E2D5] bg-[#FAF7F2] p-3 dark:border-gray-700 dark:bg-gray-900/60 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <img
+                                                src={newAssignment.fileUrl}
+                                                alt="Preview"
+                                                className="h-14 w-14 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shrink-0"
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">
+                                                    {newAssignment.imageName || (dir === 'rtl' ? 'صورة توضيحية' : 'Illustration Image')}
+                                                </p>
+                                                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                                                    {dir === 'rtl' ? 'تم تجهيز الصورة للإرفاق' : 'Image ready to attach'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveImage}
+                                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 transition shrink-0 cursor-pointer"
+                                            title={dir === 'rtl' ? 'حذف الصورة' : 'Remove Image'}
+                                        >
+                                            <i className="fa-solid fa-trash text-xs"></i>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label
+                                        htmlFor="assignment-image"
+                                        className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#E8E2D5] bg-[#FAF7F2]/50 p-5 text-center transition hover:border-indigo-400 hover:bg-indigo-50/30 dark:border-gray-700 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-950/10"
+                                    >
+                                        <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                                            {isUploadingImage ? (
+                                                <i className="fa-solid fa-circle-notch fa-spin"></i>
+                                            ) : (
+                                                <i className="fa-solid fa-image"></i>
+                                            )}
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            {isUploadingImage ? (dir === 'rtl' ? 'جاري تجهيز الصورة...' : 'Processing image...') : t('manageAssignments.clickToChooseImage')}
+                                        </p>
+                                        <input
+                                            id="assignment-image"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleImageChange}
+                                        />
+                                    </label>
+                                )}
                             </div>
                         </div>
 
                         <div className="mt-7 flex gap-3">
                             <button
                                 onClick={handleCloseAddModal}
-                                className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
                             >
                                 {t('common.cancel')}
                             </button>
                             <button
                                 onClick={handleAddAssignment}
-                                disabled={isSubmitting}
-                                className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 dark:bg-indigo-600 dark:hover:bg-indigo-500"
+                                disabled={isSubmitting || isUploadingImage}
+                                className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 dark:bg-indigo-600 dark:hover:bg-indigo-500 cursor-pointer"
                             >
                                 {isSubmitting ? (
                                     <>
@@ -391,16 +523,73 @@ export default function ManageAssignments() {
                         <div className="mt-7 flex gap-3">
                             <button
                                 onClick={() => setShowDeleteModal(null)}
-                                className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
                             >
                                 {t('common.cancel')}
                             </button>
                             <button
                                 onClick={() => handleDeleteAssignment(showDeleteModal)}
-                                className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-bold text-white transition hover:bg-rose-600 dark:bg-rose-600 dark:hover:bg-rose-500"
+                                className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-bold text-white transition hover:bg-rose-600 dark:bg-rose-600 dark:hover:bg-rose-500 cursor-pointer"
                             >
                                 {t('manageAssignments.confirmDelete')}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ================= Image Lightbox Modal ================= */}
+            {lightboxImage && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md transition-all"
+                    onClick={() => setLightboxImage(null)}
+                >
+                    <div
+                        className="relative flex flex-col items-center max-w-4xl max-h-[92vh] w-full rounded-3xl bg-gray-900/95 border border-gray-700 p-4 sm:p-6 text-white shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex w-full items-center justify-between pb-3 border-b border-gray-800 px-2">
+                            <div className="flex items-center gap-2.5 truncate">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                                    <i className="fa-regular fa-image text-sm"></i>
+                                </div>
+                                <span className="text-sm font-bold truncate text-gray-200">
+                                    {lightboxImage.name || (dir === 'rtl' ? 'معاينة الصورة المرفقة' : 'Attachment Preview')}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handleDownloadAttachment(lightboxImage.url, lightboxImage.name)}
+                                    className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-xs cursor-pointer"
+                                    title={dir === 'rtl' ? 'تحميل الصورة' : 'Download Image'}
+                                >
+                                    <i className="fa-solid fa-download"></i>
+                                    <span className="hidden sm:inline">{dir === 'rtl' ? 'تحميل' : 'Download'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setLightboxImage(null)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="my-auto flex items-center justify-center p-3 overflow-auto max-h-[75vh] w-full">
+                            {lightboxImage.url ? (
+                                <img
+                                    src={lightboxImage.url}
+                                    alt={lightboxImage.name || 'Preview'}
+                                    className="max-h-[72vh] max-w-full rounded-2xl object-contain shadow-2xl"
+                                />
+                            ) : (
+                                <div className="p-8 text-center text-gray-400">
+                                    <i className="fa-regular fa-file-image text-4xl mb-3 text-gray-500"></i>
+                                    <p>{dir === 'rtl' ? 'لا يتوفر رابط مباشر لهذه الصورة' : 'Direct link not available for this image'}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
