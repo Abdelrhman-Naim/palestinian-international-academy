@@ -137,7 +137,6 @@ export function AuthProvider({ children }) {
           full_name: fullName,
           email: email,
           role: role,
-          status: status,
           is_approved: isApproved,
           updated_at: new Date()
         });

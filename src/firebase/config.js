@@ -5,12 +5,17 @@ const mapTableName = (table) => (table === 'users' ? 'profiles' : table);
 
 const mapDocData = (d) => {
   if (!d) return {};
-  const status = d.status || (d.role === 'instructor' && (d.is_approved === false || d.is_approved === null) ? 'pending' : 'active');
+  const isInstructor = d.role === 'instructor';
+  const isApproved = isInstructor ? (d.is_approved === true && d.status !== 'pending') : true;
+  const status = isInstructor ? (isApproved ? 'active' : 'pending') : (d.status || 'active');
+
   return {
     ...d,
     id: d.id,
     uid: d.id,
+    role: d.role || 'student',
     status: status,
+    is_approved: isApproved,
     name: d.name || d.full_name || d.email,
     fullName: d.full_name || d.name || d.email,
   };
@@ -194,7 +199,8 @@ export const updateDoc = async (docRef, data) => {
     if (table === 'profiles') {
       if (record.name && !record.full_name) record.full_name = record.name;
       if (record.status === 'active') record.is_approved = true;
-      if (record.status === 'rejected') record.is_approved = false;
+      if (record.status === 'rejected' || record.status === 'pending') record.is_approved = false;
+      delete record.status;
     }
     const { error } = await supabase.from(table).update(record).eq('id', id);
     if (error) throw error;

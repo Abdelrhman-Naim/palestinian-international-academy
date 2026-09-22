@@ -40,7 +40,7 @@ export default function AdminInstructors() {
     const unsub = onSnapshot(q, (snapshot) => {
       const usersData = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(u => u.status === 'active' || u.is_approved === true);
+        .filter(u => u.is_approved === true && u.status === 'active');
       setInstructors(usersData);
       setLoading(false);
     });
