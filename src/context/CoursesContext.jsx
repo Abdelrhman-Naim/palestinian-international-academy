@@ -206,9 +206,14 @@ export function CoursesProvider({ children }) {
         currentPayload.instructor_id = fullCourseObj.instructorId;
       }
 
+      // Convert non-numeric price string (like 'Free') to 0 if column is numeric
+      if (currentPayload.price === 'Free' || isNaN(Number(currentPayload.price))) {
+        currentPayload.price = 0;
+      }
+
       let createdCourse = null;
 
-      for (let attempt = 0; attempt < 6; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         try {
           const { data, error } = await supabase
             .from('courses')
@@ -229,9 +234,15 @@ export function CoursesProvider({ children }) {
               const badCol = match[1];
               delete currentPayload[badCol];
               continue; // Retry loop without the missing column!
-            } else {
-              break;
             }
+
+            // If PostgREST complains about numeric type syntax error (e.g. price)
+            if (error.message?.includes('type numeric')) {
+              delete currentPayload.price;
+              continue;
+            }
+
+            break;
           }
         } catch (e) {
           console.warn('[addCourse insert catch]:', e);
