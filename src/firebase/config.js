@@ -178,6 +178,28 @@ export const getDoc = async (target) => {
   const table = mapTableName(rawTable);
   const id = target?._id;
   try {
+    if (id && typeof id === 'string' && id.includes('_') && table === 'course_requests') {
+      const parts = id.split('_');
+      if (parts.length === 2) {
+        const [studentId, courseId] = parts;
+        const { data, error } = await supabase
+          .from('course_requests')
+          .select('*')
+          .eq('student_id', studentId)
+          .eq('course_id', courseId)
+          .maybeSingle();
+
+        if (!error && data) {
+          const mapped = mapDocData(data);
+          return {
+            exists: () => true,
+            data: () => mapped,
+            id
+          };
+        }
+      }
+    }
+
     const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
     if (error) throw error;
     const mapped = mapDocData(data);
@@ -187,7 +209,7 @@ export const getDoc = async (target) => {
       id
     };
   } catch (e) {
-    console.warn(`[Supabase Bridge] getDoc error on table ${table}/${id}:`, e);
+    console.warn(`[Supabase Bridge] getDoc notice on table ${table}/${id}:`, e.message || e);
     return { exists: () => false, data: () => ({}), id };
   }
 };

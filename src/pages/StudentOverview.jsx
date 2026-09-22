@@ -21,22 +21,12 @@ const StudentOverview = () => {
     const fetchStats = async () => {
       setLoadingStats(true);
       try {
-        const { data: reqs } = await supabase
+        const { count: cCount } = await supabase
           .from('course_requests')
-          .select('course_id')
+          .select('*', { count: 'exact', head: true })
           .eq('student_id', uid);
 
-        const { data: enrolls } = await supabase
-          .from('enrollments')
-          .select('course_id, courseId')
-          .eq('uid', uid);
-
-        const uniqueCourseIds = new Set([
-          ...(reqs || []).map(r => r.course_id).filter(Boolean),
-          ...(enrolls || []).map(e => e.course_id || e.courseId).filter(Boolean)
-        ]);
-
-        setCoursesCount(uniqueCourseIds.size);
+        setCoursesCount(cCount || 0);
 
         const { count: certC } = await supabase
           .from('certificates')

@@ -39,7 +39,7 @@ export default function AdminOverview() {
       const [profilesRes, firestoreUsersSnap, enrollmentsRes, firestoreEnrollmentsSnap] = await Promise.all([
         supabase.from('profiles').select('id, email, role, status, is_approved'),
         getDocs(collection(db, 'users')).catch(() => ({ docs: [] })),
-        supabase.from('enrollments').select('id'),
+        supabase.from('course_requests').select('id'),
         getDocs(collection(db, 'enrollments')).catch(() => ({ size: 0 }))
       ]);
 

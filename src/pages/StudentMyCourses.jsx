@@ -35,51 +35,21 @@ const StudentMyCourses = () => {
           .select('*')
           .eq('student_id', userId);
 
-        const { data: enrolls, error: enrollErr } = await supabase
-          .from('enrollments')
-          .select('*')
-          .eq('uid', userId);
-
         if (reqErr) console.warn('course_requests fetch error:', reqErr);
-        if (enrollErr) console.warn('enrollments fetch error:', enrollErr);
 
-        const mergedMap = new Map();
+        const list = (reqs || []).map(d => ({
+          id: d.id,
+          courseId: d.course_id || d.courseId,
+          courseTitle: d.course_title || d.courseTitle,
+          studentName: d.student_name || d.studentName,
+          status: d.status || 'approved',
+          progress: d.details?.progress || d.progress || 0,
+          completedLessons: d.details?.completedLessons || d.completedLessons || [],
+          instructor: d.instructor_name || d.instructor,
+          ...d
+        }));
 
-        (reqs || []).forEach(d => {
-          const cId = d.course_id || d.courseId;
-          if (cId) {
-            mergedMap.set(cId, {
-              id: d.id,
-              courseId: cId,
-              courseTitle: d.course_title || d.courseTitle,
-              studentName: d.student_name || d.studentName,
-              status: d.status || 'approved',
-              progress: d.details?.progress || d.progress || 0,
-              completedLessons: d.details?.completedLessons || d.completedLessons || [],
-              instructor: d.instructor_name || d.instructor,
-              ...d
-            });
-          }
-        });
-
-        (enrolls || []).forEach(d => {
-          const cId = d.course_id || d.courseId;
-          if (cId && !mergedMap.has(cId)) {
-            mergedMap.set(cId, {
-              id: d.id || `${userId}_${cId}`,
-              courseId: cId,
-              courseTitle: d.course_title || d.courseTitle,
-              studentName: d.student_name || d.studentName,
-              status: 'approved',
-              progress: d.progress || 0,
-              completedLessons: d.completedLessons || [],
-              instructor: d.instructor,
-              ...d
-            });
-          }
-        });
-
-        setEnrollments(Array.from(mergedMap.values()));
+        setEnrollments(list);
       } catch (err) {
         console.error('Fetch enrollments error:', err);
       } finally {
