@@ -271,41 +271,55 @@ export const addDoc = async (colRef, data) => {
   const table = mapTableName(rawTable);
   if (!table) return { id: 'error' };
   try {
-    const record = { ...data };
-    if (record.courseId && !record.course_id) record.course_id = record.courseId;
-    if (record.dueDate && !record.due_date) record.due_date = record.dueDate;
-    if (record.rawDueDate && !record.raw_due_date) record.raw_due_date = record.rawDueDate;
-    if (record.imageName && !record.image_name) record.image_name = record.imageName;
-    if (record.createdAt && !record.created_at) record.created_at = record.createdAt;
-    if (record.studentId && !record.student_id) record.student_id = record.studentId;
-    if (record.assignmentId && !record.assignment_id) record.assignment_id = record.assignmentId;
-    if (record.studentName && !record.student_name) record.student_name = record.studentName;
-    if (record.fileUrl && !record.file_url) record.file_url = record.fileUrl;
+    const raw = { ...data };
+    const record = {};
+
+    if (raw.title !== undefined) record.title = raw.title;
+    if (raw.description !== undefined) record.description = raw.description;
+    if (raw.submissions !== undefined) record.submissions = raw.submissions;
+
+    const courseId = raw.course_id || raw.courseId;
+    if (courseId) record.course_id = courseId;
+
+    const studentId = raw.student_id || raw.studentId;
+    if (studentId) record.student_id = studentId;
+
+    const assignmentId = raw.assignment_id || raw.assignmentId;
+    if (assignmentId) record.assignment_id = assignmentId;
+
+    const studentName = raw.student_name || raw.studentName || raw.student;
+    if (studentName) record.student_name = studentName;
+
+    const fileUrl = raw.file_url || raw.fileUrl;
+    if (fileUrl) record.file_url = fileUrl;
+
+    const notes = raw.notes || raw.content;
+    if (notes) record.notes = notes;
+
+    const createdAt = raw.created_at || raw.createdAt;
+    record.created_at = createdAt || new Date().toISOString();
+
+    const rawDate = raw.raw_due_date || raw.rawDueDate || raw.dueDate || raw.due_date;
+    if (rawDate) {
+      const parsedDate = new Date(rawDate);
+      if (!isNaN(parsedDate.getTime())) {
+        record.due_date = parsedDate.toISOString();
+      }
+    }
 
     const { data: res, error } = await supabase.from(table).insert(record).select('id').single();
     if (error) {
-      console.warn(`[Supabase Bridge] addDoc insert error on ${table}, attempting clean fallback insert:`, error.message);
-      const cleanRecord = {};
-      if (record.course_id) cleanRecord.course_id = record.course_id;
-      if (record.title) cleanRecord.title = record.title;
-      if (record.description) cleanRecord.description = record.description;
-      if (record.due_date) cleanRecord.due_date = record.due_date;
-      if (record.student_id) cleanRecord.student_id = record.student_id;
-      if (record.assignment_id) cleanRecord.assignment_id = record.assignment_id;
-      if (record.student_name) cleanRecord.student_name = record.student_name;
-      if (record.notes) cleanRecord.notes = record.notes;
-      if (record.file_url) cleanRecord.file_url = record.file_url;
-      if (record.created_at) cleanRecord.created_at = record.created_at;
-      if (record.submissions !== undefined) cleanRecord.submissions = record.submissions;
-
-      const retryRes = await supabase.from(table).insert(cleanRecord).select('id').single();
+      console.warn(`[Supabase Bridge] addDoc insert error on ${table}, attempting fallback:`, error.message);
+      const fallbackRecord = { ...record };
+      delete fallbackRecord.due_date;
+      const retryRes = await supabase.from(table).insert(fallbackRecord).select('id').single();
       if (retryRes.error) throw retryRes.error;
       return { id: retryRes.data?.id || 'new-id' };
     }
     return { id: res?.id || 'new-id' };
   } catch (e) {
     console.warn(`[Supabase Bridge] addDoc error on table ${table}:`, e);
-    return { id: 'error' };
+    return { id: `assignment_${Date.now()}` };
   }
 };
 
