@@ -76,30 +76,31 @@ export async function submitExamAttempt({
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= passPercentage;
 
-    await supabase.from('exam_results').insert([{
-      student_id: studentId,
-      course_id: courseId,
-      score,
-      total: totalQuestions,
-      passed
-    }]);
+    try {
+      await supabase.from('exam_results').insert([{
+        student_id: studentId,
+        course_id: courseId,
+        score
+      }]);
+    } catch (err) {
+      console.warn('exam_results insert error:', err);
+    }
 
     let certificate = null;
 
     if (passed) {
-      const certCode = generateCertificateCode();
       const realStudentName = studentName || 'طالب المنصة';
+
+      const certPayload = {
+        student_id: studentId,
+        student_name: realStudentName,
+        course_id: courseId,
+        course_title: courseTitle || 'الدورة الهندسية'
+      };
 
       const { data: certData, error: certErr } = await supabase
         .from('certificates')
-        .insert([{
-          certificate_number: certCode,
-          student_id: studentId,
-          student_name: realStudentName,
-          course_id: courseId,
-          course_title: courseTitle || 'الدورة الهندسية',
-          issue_date: new Date().toISOString()
-        }])
+        .insert([certPayload])
         .select()
         .single();
 

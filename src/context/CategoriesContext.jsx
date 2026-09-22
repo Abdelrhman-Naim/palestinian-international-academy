@@ -79,7 +79,7 @@ export function CategoriesProvider({ children }) {
     };
     
     try {
-      await supabase.from('categories').insert([{ name: trimmed, slug: name_en.toLowerCase() }]);
+      await supabase.from('categories').insert([{ name: trimmed, description: name_en }]);
     } catch (e) {}
 
     saveState(newCategories);

@@ -4,7 +4,6 @@ import { supabase } from './client';
 const mapTableName = (table) => {
   if (table === 'users') return 'profiles';
   if (table === 'submissions') return 'submitted_assignments';
-  if (table === 'enrollments') return 'course_requests';
   return table;
 };
 
@@ -20,6 +19,14 @@ const mapFieldToColumn = (table, field) => {
   if (field === 'fileUrl') return 'file_url';
   if (field === 'fullName') return 'full_name';
   if (field === 'isApproved') return 'is_approved';
+  if (field === 'pdfUrl' || field === 'link') return 'pdf_url';
+  if (field === 'coverUrl') return 'cover_url';
+  if (field === 'downloads' || field === 'downloadsCount') return 'downloads_count';
+  if (field === 'categoryName' || (table === 'books' && field === 'category')) return 'category_name';
+  if (field === 'categoryId') return 'category_id';
+  if (field === 'completedLessons') return 'completed_lessons';
+  if (field === 'courseTitle') return 'course_title';
+  if (field === 'studentName') return 'student_name';
   return field;
 };
 
@@ -58,7 +65,16 @@ const mapDocData = (d) => {
     content: d.notes || d.content,
     submissions: d.submissions !== undefined ? d.submissions : 0,
     progress: d.details?.progress || d.progress || 0,
-    completedLessons: d.details?.completedLessons || d.completedLessons || [],
+    completedLessons: d.completed_lessons || d.details?.completedLessons || d.completedLessons || [],
+    completed_lessons: d.completed_lessons || d.details?.completedLessons || d.completedLessons || [],
+    downloads: d.downloads_count !== undefined ? d.downloads_count : (d.downloads || 0),
+    downloads_count: d.downloads_count !== undefined ? d.downloads_count : (d.downloads || 0),
+    pdf_url: d.pdf_url || d.file_url || d.link || '',
+    link: d.pdf_url || d.file_url || d.link || '',
+    cover_url: d.cover_url || d.coverUrl || '',
+    coverUrl: d.cover_url || d.coverUrl || '',
+    pages: Number(d.pages) || 120,
+    rating: Number(d.rating) || 5.0,
     instructor: d.instructor || d.instructor_name || d.instructorName || d.instructor_en || '',
     instructor_name: d.instructor_name || d.instructor || d.instructorName || d.instructor_en || '',
     category: d.category || d.category_name || d.categoryName || '',
@@ -194,13 +210,23 @@ export const getDoc = async (target) => {
       const parts = id.split('_');
       if (parts.length === 2) {
         const [studentId, courseId] = parts;
-        const targetTable = (table === 'enrollments' || table === 'course_requests') ? 'course_requests' : table;
-        const { data } = await supabase
+        const targetTable = (table === 'enrollments' || table === 'course_requests') ? table : table;
+        let { data } = await supabase
           .from(targetTable)
           .select('*')
           .eq('student_id', studentId)
           .eq('course_id', courseId)
           .maybeSingle();
+
+        if (!data && targetTable === 'enrollments') {
+          const fallback = await supabase
+            .from('course_requests')
+            .select('*')
+            .eq('student_id', studentId)
+            .eq('course_id', courseId)
+            .maybeSingle();
+          data = fallback.data;
+        }
 
         const mapped = mapDocData(data);
         return {
@@ -261,7 +287,7 @@ export const setDoc = async (docRef, data) => {
       record.id = id;
     }
 
-    if (table === 'course_requests' && id && id.includes('_')) {
+    if ((table === 'course_requests' || table === 'enrollments') && id && id.includes('_')) {
       const [studentId, courseId] = id.split('_');
       record.student_id = studentId;
       record.course_id = courseId;
@@ -279,6 +305,52 @@ export const setDoc = async (docRef, data) => {
     delete record.rawDueDate;
     delete record.enrolledAt;
     delete record.uid;
+
+    if (table === 'enrollments') {
+      const enrollRecord = {
+        student_id: record.student_id,
+        course_id: record.course_id,
+        course_title: record.course_title || record.courseTitle || '',
+        progress: record.progress || record.details?.progress || 0,
+        completed_lessons: record.completed_lessons || record.completedLessons || record.details?.completedLessons || []
+      };
+
+      const { data: existing } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('student_id', enrollRecord.student_id)
+        .eq('course_id', enrollRecord.course_id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('enrollments').update(enrollRecord).eq('id', existing.id);
+      } else {
+        await supabase.from('enrollments').insert([enrollRecord]);
+      }
+
+      // Also ensure course_requests has an approved record
+      const reqRecord = {
+        student_id: record.student_id,
+        course_id: record.course_id,
+        course_title: record.course_title || record.courseTitle || '',
+        student_name: record.student_name || record.studentName || '',
+        student_email: record.student_email || record.studentEmail || '',
+        status: 'approved'
+      };
+      const { data: existingReq } = await supabase
+        .from('course_requests')
+        .select('id')
+        .eq('student_id', reqRecord.student_id)
+        .eq('course_id', reqRecord.course_id)
+        .maybeSingle();
+
+      if (existingReq) {
+        await supabase.from('course_requests').update(reqRecord).eq('id', existingReq.id);
+      } else {
+        await supabase.from('course_requests').insert([reqRecord]);
+      }
+      return { ok: true };
+    }
 
     if (table === 'course_requests') {
       const { data: existing } = await supabase
@@ -380,32 +452,47 @@ export const addDoc = async (colRef, data) => {
   const table = mapTableName(rawTable);
   if (!table) return { id: 'error' };
   try {
-    const raw = { ...data };
-    const record = {};
+    if (table === 'books') {
+      if (raw.title !== undefined) record.title = raw.title;
+      if (raw.description !== undefined) record.description = raw.description || raw.title;
+      if (raw.author !== undefined) record.author = raw.author;
+      record.category_name = raw.category_name || raw.category || '';
+      if (raw.category_id) record.category_id = raw.category_id;
+      record.pdf_url = raw.pdf_url || raw.link || raw.file_url || '';
+      record.cover_url = raw.cover_url || raw.coverUrl || '';
+      record.pages = parseInt(raw.pages, 10) || 120;
+      record.downloads_count = parseInt(raw.downloads_count ?? raw.downloads, 10) || 0;
+      record.rating = Number(raw.rating) || 5.0;
+      record.created_at = raw.created_at || new Date().toISOString();
+    } else if (table === 'categories') {
+      record.name = raw.name || raw.title || '';
+      record.description = raw.description || '';
+      record.created_at = raw.created_at || new Date().toISOString();
+    } else {
+      if (raw.title !== undefined) record.title = raw.title;
+      if (raw.description !== undefined) record.description = raw.description;
 
-    if (raw.title !== undefined) record.title = raw.title;
-    if (raw.description !== undefined) record.description = raw.description;
+      const courseId = raw.course_id || raw.courseId;
+      if (courseId) record.course_id = courseId;
 
-    const courseId = raw.course_id || raw.courseId;
-    if (courseId) record.course_id = courseId;
+      const studentId = raw.student_id || raw.studentId;
+      if (studentId) record.student_id = studentId;
 
-    const studentId = raw.student_id || raw.studentId;
-    if (studentId) record.student_id = studentId;
+      const assignmentId = raw.assignment_id || raw.assignmentId;
+      if (assignmentId) record.assignment_id = assignmentId;
 
-    const assignmentId = raw.assignment_id || raw.assignmentId;
-    if (assignmentId) record.assignment_id = assignmentId;
+      const studentName = raw.student_name || raw.studentName || raw.student;
+      if (studentName) record.student_name = studentName;
 
-    const studentName = raw.student_name || raw.studentName || raw.student;
-    if (studentName) record.student_name = studentName;
+      const fileUrl = raw.file_url || raw.fileUrl;
+      if (fileUrl) record.file_url = fileUrl;
 
-    const fileUrl = raw.file_url || raw.fileUrl;
-    if (fileUrl) record.file_url = fileUrl;
+      const notes = raw.notes || raw.content;
+      if (notes) record.notes = notes;
 
-    const notes = raw.notes || raw.content;
-    if (notes) record.notes = notes;
-
-    const createdAt = raw.created_at || raw.createdAt;
-    record.created_at = createdAt || new Date().toISOString();
+      const createdAt = raw.created_at || raw.createdAt;
+      record.created_at = createdAt || new Date().toISOString();
+    }
 
     const rawDate = raw.raw_due_date || raw.rawDueDate || raw.dueDate || raw.due_date;
     if (rawDate) {
