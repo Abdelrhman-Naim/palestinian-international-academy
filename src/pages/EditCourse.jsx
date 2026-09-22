@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCategories } from "../context/CategoriesContext";
+import { useCourses } from "../context/CoursesContext";
 import { doc, getDoc, updateDoc, db } from "../firebase/config";
+import { supabase } from "../supabase/client";
 import CustomSelect from "../components/CustomSelect";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -9,14 +11,18 @@ import { useLanguage } from '../context/LanguageContext';
 import { notifyEnrolledStudents } from '../services/notificationService';
 
 export default function EditCourse() {
-  const { t, dir } = useLanguage();
+    const { t, dir } = useLanguage();
     const { id } = useParams();
+    const navigate = useNavigate();
     const { rawCategories } = useCategories();
+    const { courses, updateCourse } = useCourses();
     const { userRole, currentUser } = useAuth();
+    const hasLoadedRef = useRef(false);
 
     const coursesBackPath = userRole === 'admin' ? '/admin-dashboard/courses' : '/instructor-dashboard/my-courses';
     const coursesBackLabel = userRole === 'admin' ? (dir === 'rtl' ? 'الدورات' : 'Courses') : t('submittedAssignments.myCourses');
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [courseTitle, setCourseTitle] = useState('');
     const [courseInstructor, setCourseInstructor] = useState('');
     const [category, setCategory] = useState('');
@@ -73,48 +79,116 @@ export default function EditCourse() {
         return Object.keys(errs).length === 0;
     };
 
-    // Fetch course from Firestore
+    // Fetch course from Database / Cache
     useEffect(() => {
         if (!id) return;
+        let isMounted = true;
+
         const fetchCourse = async () => {
-            const snap = await getDoc(doc(db, 'courses', id));
-            if (snap.exists()) {
-                const data = snap.data();
-                setCourseTitle(data.title || '');
-                setCourseInstructor(data.instructor || '');
-                setCategory(data.category || '');
-                setIcon(data.icon || 'code');
-                setLevel(data.level || 'BEGINNER');
-                setDescription(data.description || '');
-                setLecturesCount(data.lecturesCount || data.lectures?.length || 1);
-                setInitialLecturesCount(data.lectures?.length || 0);
-                setStatus(data.status || '');
-                setGoals(data.goals?.length ? data.goals : ['']);
-                setSessions(data.lectures?.length ? data.lectures : [{ number: 1, title: '', link: '' }]);
+            if (hasLoadedRef.current) return;
+            setLoading(true);
+            let courseData = null;
+
+            // 1. First check courses context / cache
+            if (courses && courses.length > 0) {
+                const foundInContext = courses.find(c => c.id === id);
+                if (foundInContext) {
+                    courseData = { ...foundInContext };
+                }
             }
-            setLoading(false);
+
+            // 2. Fetch fresh data from DB bridge
+            try {
+                const snap = await getDoc(doc(db, 'courses', id));
+                if (snap && snap.exists()) {
+                    const snapData = snap.data();
+                    courseData = { ...(courseData || {}), ...snapData };
+                }
+            } catch (e) {
+                console.warn("Could not fetch course via getDoc:", e);
+            }
+
+            // 3. Fallback to direct Supabase query
+            if (!courseData || !courseData.title) {
+                try {
+                    const { data: sbData } = await supabase.from('courses').select('*').eq('id', id).maybeSingle();
+                    if (sbData) {
+                        courseData = { ...(courseData || {}), ...sbData };
+                    }
+                } catch (e) {
+                    console.warn("Direct Supabase query error:", e);
+                }
+            }
+
+            if (courseData && isMounted) {
+                hasLoadedRef.current = true;
+                setCourseTitle(courseData.title || '');
+
+                // Resolve instructor name
+                let instName = courseData.instructor || courseData.instructor_name || courseData.instructorName || courseData.instructor_en || '';
+                const instId = courseData.instructor_id || courseData.instructorId || '';
+                if (!instName && instId) {
+                    try {
+                        const { data: prof } = await supabase.from('profiles').select('name, full_name').eq('id', instId).maybeSingle();
+                        if (prof) {
+                            instName = prof.full_name || prof.name || '';
+                        }
+                    } catch (e) {
+                        console.warn("Failed to fetch instructor profile:", e);
+                    }
+                }
+                setCourseInstructor(instName);
+
+                setCategory(courseData.category || courseData.category_name || courseData.categoryName || '');
+                setIcon(courseData.icon || 'code');
+                setLevel(courseData.level || 'BEGINNER');
+                setDescription(courseData.description || '');
+
+                const rawSessions = courseData.sessions || courseData.lectures || courseData.lessons || [];
+                const formattedSessions = (Array.isArray(rawSessions) && rawSessions.length > 0)
+                    ? rawSessions.map((s, idx) => ({
+                        number: s.number || idx + 1,
+                        title: s.title || s.name || '',
+                        link: s.link || s.url || s.videoUrl || s.video_url || ''
+                    }))
+                    : [{ number: 1, title: '', link: '' }];
+
+                setSessions(formattedSessions);
+                setLecturesCount(courseData.lecturesCount || courseData.lessons_count || formattedSessions.length || 1);
+                setInitialLecturesCount(formattedSessions.length);
+                setStatus(courseData.status || '');
+                setGoals((Array.isArray(courseData.goals) && courseData.goals.length > 0) ? courseData.goals : ['']);
+            }
+            if (isMounted) setLoading(false);
         };
+
         fetchCourse();
-    }, [id]);
+        return () => { isMounted = false; };
+    }, [id, courses]);
 
     const handleSaveToFirestore = async () => {
         if (!id) return;
+        setSaving(true);
         const updateData = {
             level,
             icon,
             description,
-            lecturesCount,
+            lecturesCount: sessions.length,
+            lessons_count: sessions.length,
             goals,
             lectures: sessions,
+            lessons: sessions,
+            sessions: sessions,
+            instructor: courseInstructor,
+            instructor_name: courseInstructor,
+            category: category,
+            category_name: category,
+            title: courseTitle,
         };
-        if (userRole === 'admin') {
-            updateData.title = courseTitle;
-            updateData.instructor = courseInstructor;
-            updateData.category = category;
-        }
 
         if (userRole === 'instructor' && currentUser?.uid) {
             updateData.instructorId = currentUser.uid;
+            updateData.instructor_id = currentUser.uid;
         }
 
         if (userRole === 'instructor' && status === t('adminCourses.draft')) {
@@ -125,7 +199,14 @@ export default function EditCourse() {
         }
 
         updateData.updatedAt = new Date().toISOString();
-        await updateDoc(doc(db, 'courses', id), updateData);
+        updateData.updated_at = new Date().toISOString();
+
+        try {
+            await updateCourse(id, updateData);
+            await updateDoc(doc(db, 'courses', id), updateData);
+        } catch (saveErr) {
+            console.warn("Course update error:", saveErr);
+        }
 
         // Notify enrolled students in real-time
         try {
@@ -147,7 +228,12 @@ export default function EditCourse() {
             console.warn('Could not dispatch course update notifications:', notifErr);
         }
 
-        setModal(null);
+        setSaving(false);
+        setModal("saved");
+        setTimeout(() => {
+            setModal(null);
+            navigate(coursesBackPath);
+        }, 1200);
     };
 
     // =========================
@@ -636,47 +722,66 @@ export default function EditCourse() {
                             className="relative w-full max-w-md rounded-3xl bg-white border border-[#E8E2D5] p-6 shadow-2xl transition-colors duration-200 dark:border dark:border-gray-700 dark:bg-gray-800"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <button
-                                type="button"
-                                onClick={() => setModal(null)}
-                                className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                                title={t('common.close') || 'Close'}
-                                aria-label={t('common.close') || 'Close'}
-                            >
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
+                            {modal === "saved" ? (
+                                <div className="py-4 text-center">
+                                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                                        <i className="text-2xl fa-solid fa-check"></i>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                        {dir === 'rtl' ? 'تم حفظ التعديلات بنجاح' : 'Changes Saved Successfully'}
+                                    </h3>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        {dir === 'rtl' ? 'تم تحديث بيانات ومحاضرات الدورة بنجاح.' : 'Course details and lectures updated successfully.'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        disabled={saving}
+                                        onClick={() => setModal(null)}
+                                        className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                                        title={t('common.close') || 'Close'}
+                                        aria-label={t('common.close') || 'Close'}
+                                    >
+                                        <i className="fa-solid fa-xmark"></i>
+                                    </button>
 
-                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400">
-                                <i className="text-xl fa-solid fa-check"></i>
-                            </div>
+                                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400">
+                                        <i className="text-xl fa-solid fa-check"></i>
+                                    </div>
 
-                            <div className="text-center">
-                                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                    {t('editCourse.saveChanges')}
-                                </h3>
+                                    <div className="text-center">
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                            {t('editCourse.saveChanges')}
+                                        </h3>
 
-                                <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                    {t('editCourse.confirmSave')}
-                                </p>
-                            </div>
+                                        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                            {t('editCourse.confirmSave')}
+                                        </p>
+                                    </div>
 
-                            <div className="mt-7 flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setModal(null)}
-                                    className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                    {t('common.back')}
-                                </button>
+                                    <div className="mt-7 flex gap-3">
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => setModal(null)}
+                                            className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50"
+                                        >
+                                            {t('common.back')}
+                                        </button>
 
-                                <button
-                                    type="button"
-                                    onClick={handleSaveToFirestore}
-                                    className="flex-1 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white transition hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-500"
-                                >
-                                    {t('adminAddBook.confirmSaveBtn')}
-                                </button>
-                            </div>
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={handleSaveToFirestore}
+                                            className="flex-1 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white transition hover:bg-orange-700 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-500"
+                                        >
+                                            {saving ? (dir === 'rtl' ? 'جارٍ الحفظ...' : 'Saving...') : t('adminAddBook.confirmSaveBtn')}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
                     </motion.div>
                 )}

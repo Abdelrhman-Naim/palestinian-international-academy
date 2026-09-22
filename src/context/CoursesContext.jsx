@@ -170,9 +170,25 @@ export function CoursesProvider({ children }) {
       };
 
       const courseId = (courseData.id && isValidUUID(courseData.id)) ? courseData.id : generateUUID();
+      const sessionsList = courseData.sessions || courseData.lectures || courseData.lessons || [];
+      const normalizedSessions = sessionsList.map((s, idx) => ({
+        number: s.number || idx + 1,
+        title: s.title || s.name || '',
+        link: s.link || s.url || s.videoUrl || ''
+      }));
+
       const fullCourseObj = {
         ...courseData,
-        id: courseId
+        id: courseId,
+        instructor: courseData.instructor || courseData.instructor_name || '',
+        instructor_name: courseData.instructor || courseData.instructor_name || '',
+        category: courseData.category || courseData.category_name || '',
+        category_name: courseData.category || courseData.category_name || '',
+        lectures: normalizedSessions,
+        lessons: normalizedSessions,
+        sessions: normalizedSessions,
+        lessons_count: normalizedSessions.length || Number(courseData.lecturesCount) || 1,
+        lecturesCount: normalizedSessions.length || Number(courseData.lecturesCount) || 1,
       };
 
       if (fullCourseObj.title) fullCourseObj.title_en = await safeTranslate(fullCourseObj.title);
@@ -185,12 +201,19 @@ export function CoursesProvider({ children }) {
         fullCourseObj.lectures = await Promise.all((fullCourseObj.lectures || []).map(async lec => {
           return { ...lec, title_en: await safeTranslate(lec.title) };
         }));
+        fullCourseObj.lessons = fullCourseObj.lectures;
+        fullCourseObj.sessions = fullCourseObj.lectures;
       }
 
       fullCourseObj.created_at = fullCourseObj.created_at || new Date().toISOString();
 
       // Dynamic Auto-Repair Insert Loop for Supabase
       let currentPayload = { ...fullCourseObj };
+      currentPayload.lessons = fullCourseObj.lessons;
+      currentPayload.lectures = fullCourseObj.lectures;
+      currentPayload.instructor_name = fullCourseObj.instructor;
+      currentPayload.category_name = fullCourseObj.category;
+      currentPayload.lessons_count = fullCourseObj.lessons.length;
       delete currentPayload.avatar;
       delete currentPayload.sessions;
       delete currentPayload.instructorId;
@@ -301,6 +324,37 @@ export function CoursesProvider({ children }) {
       const { id: docId, originalData, ...dataToUpdate } = updatedData;
       dataToUpdate.updated_at = new Date().toISOString();
 
+      // Normalize sessions / lectures / lessons
+      const sess = dataToUpdate.sessions || dataToUpdate.lectures || dataToUpdate.lessons;
+      if (sess && Array.isArray(sess)) {
+        const normalized = sess.map((s, idx) => ({
+          number: s.number || idx + 1,
+          title: s.title || s.name || '',
+          link: s.link || s.url || s.videoUrl || s.video_url || ''
+        }));
+        dataToUpdate.lessons = normalized;
+        dataToUpdate.lectures = normalized;
+        dataToUpdate.sessions = normalized;
+        dataToUpdate.lessons_count = normalized.length;
+        dataToUpdate.lecturesCount = normalized.length;
+      }
+
+      if (dataToUpdate.instructor && !dataToUpdate.instructor_name) {
+        dataToUpdate.instructor_name = dataToUpdate.instructor;
+      }
+      if (dataToUpdate.instructor_name && !dataToUpdate.instructor) {
+        dataToUpdate.instructor = dataToUpdate.instructor_name;
+      }
+      if (dataToUpdate.category && !dataToUpdate.category_name) {
+        dataToUpdate.category_name = dataToUpdate.category;
+      }
+      if (dataToUpdate.category_name && !dataToUpdate.category) {
+        dataToUpdate.category = dataToUpdate.category_name;
+      }
+      if (dataToUpdate.instructorId && !dataToUpdate.instructor_id) {
+        dataToUpdate.instructor_id = dataToUpdate.instructorId;
+      }
+
       // Optimistic state update & local storage update
       setRawCourses(prev => prev.map(c => c.id === id ? sanitizeObject({ ...c, ...dataToUpdate }) : c));
       const existingLocals = getStoredLocalCourses();
@@ -309,18 +363,32 @@ export function CoursesProvider({ children }) {
       if (isValidUUID(id)) {
         // Payload cleanup for Supabase
         const payload = { ...dataToUpdate };
+        payload.instructor_name = dataToUpdate.instructor || dataToUpdate.instructor_name;
+        payload.category_name = dataToUpdate.category || dataToUpdate.category_name;
+        if (dataToUpdate.lessons) payload.lessons = dataToUpdate.lessons;
+        if (dataToUpdate.lectures) payload.lectures = dataToUpdate.lectures;
+        if (dataToUpdate.lessons_count) payload.lessons_count = dataToUpdate.lessons_count;
         delete payload.avatar;
         delete payload.sessions;
         delete payload.instructorId;
         delete payload.lecturesCount;
+        delete payload.imageName;
 
-        const { error } = await supabase
-          .from('courses')
-          .update(payload)
-          .eq('id', id);
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { error } = await supabase
+            .from('courses')
+            .update(payload)
+            .eq('id', id);
 
-        if (error) {
+          if (!error) break;
+
+          const match = error.message?.match(/Could not find the '([^']+)' column/i);
+          if (match && match[1]) {
+            delete payload[match[1]];
+            continue;
+          }
           console.warn("Supabase course update notice:", error.message);
+          break;
         }
       }
 

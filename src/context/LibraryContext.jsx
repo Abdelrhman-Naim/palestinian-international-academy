@@ -163,33 +163,22 @@ export function LibraryProvider({ children }) {
       saveLocalBooks([fullBookObj, ...existingLocals.filter(b => b.id !== fullBookObj.id)]);
       setRawBooks(prev => [fullBookObj, ...prev.filter(b => b.id !== fullBookObj.id)]);
 
-      // Prepare Supabase payload
+      // Prepare Supabase payload matching PostgreSQL schema
       let currentPayload = {
-        id: fullBookObj.id,
         title: fullBookObj.title,
-        author: fullBookObj.author,
-        description: fullBookObj.description,
-        category: fullBookObj.category,
-        category_name: fullBookObj.category_name,
-        pdf_url: fullBookObj.pdf_url,
-        link: fullBookObj.link,
-        cover_url: fullBookObj.cover_url,
-        coverUrl: fullBookObj.coverUrl,
-        pages: fullBookObj.pages,
-        downloads_count: fullBookObj.downloads_count,
-        downloads: fullBookObj.downloads,
-        rating: fullBookObj.rating,
-        created_at: fullBookObj.created_at,
-        year: fullBookObj.year
+        description: fullBookObj.description || fullBookObj.title || '',
+        author: fullBookObj.author || '',
+        category_name: fullBookObj.category_name || fullBookObj.category || '',
+        pdf_url: fullBookObj.pdf_url || fullBookObj.link || '',
+        cover_url: fullBookObj.cover_url || fullBookObj.coverUrl || '',
+        pages: parseInt(fullBookObj.pages, 10) || 120,
+        downloads_count: parseInt(fullBookObj.downloads_count ?? fullBookObj.downloads, 10) || 0,
+        rating: Number(fullBookObj.rating) || 5.0,
+        created_at: fullBookObj.created_at
       };
 
-      if (fullBookObj.title_en) currentPayload.title_en = fullBookObj.title_en;
-      if (fullBookObj.author_en) currentPayload.author_en = fullBookObj.author_en;
-      if (fullBookObj.category_en) currentPayload.category_en = fullBookObj.category_en;
-      if (fullBookObj.description_en) currentPayload.description_en = fullBookObj.description_en;
-
-      if (!isValidUUID(currentPayload.id)) {
-        delete currentPayload.id;
+      if (isValidUUID(fullBookObj.id)) {
+        currentPayload.id = fullBookObj.id;
       }
 
       // Dynamic Auto-Repair loop for Supabase
@@ -282,7 +271,25 @@ export function LibraryProvider({ children }) {
       setRawBooks(prev => prev.map(b => b.id === id ? { ...b, ...dataToUpdate } : b));
 
       if (isValidUUID(id)) {
-        let updatePayload = { ...dataToUpdate };
+        let updatePayload = {};
+        if (dataToUpdate.title !== undefined) updatePayload.title = dataToUpdate.title;
+        if (dataToUpdate.description !== undefined) updatePayload.description = dataToUpdate.description;
+        if (dataToUpdate.author !== undefined) updatePayload.author = dataToUpdate.author;
+        if (dataToUpdate.category !== undefined || dataToUpdate.category_name !== undefined) {
+          updatePayload.category_name = dataToUpdate.category_name || dataToUpdate.category;
+        }
+        if (dataToUpdate.link !== undefined || dataToUpdate.pdf_url !== undefined) {
+          updatePayload.pdf_url = dataToUpdate.pdf_url || dataToUpdate.link;
+        }
+        if (dataToUpdate.cover_url !== undefined || dataToUpdate.coverUrl !== undefined) {
+          updatePayload.cover_url = dataToUpdate.cover_url || dataToUpdate.coverUrl;
+        }
+        if (dataToUpdate.pages !== undefined) updatePayload.pages = parseInt(dataToUpdate.pages, 10) || 0;
+        if (dataToUpdate.downloads_count !== undefined || dataToUpdate.downloads !== undefined) {
+          updatePayload.downloads_count = parseInt(dataToUpdate.downloads_count ?? dataToUpdate.downloads, 10) || 0;
+        }
+        if (dataToUpdate.rating !== undefined) updatePayload.rating = Number(dataToUpdate.rating) || 5.0;
+
         for (let attempt = 0; attempt < 8; attempt++) {
           const { error } = await supabase
             .from('books')

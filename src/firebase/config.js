@@ -59,6 +59,17 @@ const mapDocData = (d) => {
     submissions: d.submissions !== undefined ? d.submissions : 0,
     progress: d.details?.progress || d.progress || 0,
     completedLessons: d.details?.completedLessons || d.completedLessons || [],
+    instructor: d.instructor || d.instructor_name || d.instructorName || d.instructor_en || '',
+    instructor_name: d.instructor_name || d.instructor || d.instructorName || d.instructor_en || '',
+    category: d.category || d.category_name || d.categoryName || '',
+    category_name: d.category_name || d.category || d.categoryName || '',
+    lectures: d.lectures || d.lessons || d.sessions || [],
+    lessons: d.lessons || d.lectures || d.sessions || [],
+    sessions: d.sessions || d.lectures || d.lessons || [],
+    goals: d.goals || [],
+    level: d.level || 'BEGINNER',
+    lecturesCount: d.lecturesCount || d.lessons_count || (d.lectures || d.lessons || d.sessions || []).length || 1,
+    lessons_count: d.lessons_count || d.lecturesCount || (d.lectures || d.lessons || d.sessions || []).length || 1,
   };
 };
 
@@ -311,10 +322,39 @@ export const updateDoc = async (docRef, data) => {
     if (record.courseId && !record.course_id) record.course_id = record.courseId;
     if (record.dueDate && !record.due_date) record.due_date = record.dueDate;
     if (record.studentId && !record.student_id) record.student_id = record.studentId;
-    if (record.assignmentId && !record.assignment_id) record.assignment_id = record.assignmentId;
+    if (table === 'courses') {
+      if (record.instructor && !record.instructor_name) record.instructor_name = record.instructor;
+      if (record.instructor_name && !record.instructor) record.instructor = record.instructor_name;
+      if (record.category && !record.category_name) record.category_name = record.category;
+      if (record.category_name && !record.category) record.category = record.category_name;
+      const sess = record.sessions || record.lectures || record.lessons;
+      if (sess && Array.isArray(sess)) {
+        const norm = sess.map((s, idx) => ({
+          number: s.number || idx + 1,
+          title: s.title || s.name || '',
+          link: s.link || s.url || s.videoUrl || s.video_url || ''
+        }));
+        record.lessons = norm;
+        record.lectures = norm;
+        record.sessions = norm;
+        record.lessons_count = norm.length;
+      }
+      delete record.avatar;
+      delete record.instructorId;
+      delete record.lecturesCount;
+      delete record.imageName;
+    }
 
-    const { error } = await supabase.from(table).update(record).eq('id', id);
-    if (error) throw error;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { error } = await supabase.from(table).update(record).eq('id', id);
+      if (!error) return { ok: true };
+      const match = error.message?.match(/Could not find the '([^']+)' column/i);
+      if (match && match[1]) {
+        delete record[match[1]];
+        continue;
+      }
+      throw error;
+    }
     return { ok: true };
   } catch (e) {
     console.warn(`[Supabase Bridge] updateDoc error on table ${table}/${id}:`, e);
