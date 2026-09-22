@@ -1,9 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import AdminPageShell from './AdminPageShell';
 import { supabase } from '../../supabase/client';
 import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../firebase/config';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
+import { getOrCreateDirectChat } from '../../services/chatService';
 import { useDebounce } from '../../hooks/useDebounce';
 import CustomSelect from '../../components/CustomSelect';
 import Pagination from '../../components/Pagination';
@@ -12,6 +14,8 @@ import { formatCustomDate } from '../../utils/formatDate';
 export default function AdminUsers() {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
+  const navigate = useNavigate();
+  const { currentUser, userData } = useAuth();
   const [searchParams] = useSearchParams();
 
   const initialSearch = searchParams.get('search') || searchParams.get('q') || '';
@@ -22,6 +26,7 @@ export default function AdminUsers() {
   const [courses, setCourses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [startingChatId, setStartingChatId] = useState(null);
 
   // Filters & Sorting state
   const [selectedCourse, setSelectedCourse] = useState('all');
@@ -92,6 +97,29 @@ export default function AdminUsers() {
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, selectedCourse, sortBy]);
+
+  const handleStartChat = async (student) => {
+    if (!currentUser?.uid) return;
+    setStartingChatId(student.id);
+    try {
+      const adminUser = {
+        uid: currentUser.uid,
+        name: userData?.name || userData?.fullName || t('navbar.admin'),
+        role: 'admin'
+      };
+      const studentUser = {
+        uid: student.id,
+        name: student.name || student.fullName || t('adminUsers.student'),
+        role: 'student'
+      };
+      const chatId = await getOrCreateDirectChat(adminUser, studentUser);
+      navigate(`/admin-dashboard/messages?chatId=${chatId}`);
+    } catch (err) {
+      console.error('Error starting chat with student:', err);
+    } finally {
+      setStartingChatId(null);
+    }
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm(t('adminUsers.deleteConfirm'))) {
@@ -222,6 +250,16 @@ export default function AdminUsers() {
               placeholder={isRtl ? 'ابحث بالاسم، البريد أو المعرف...' : 'Search by name, email or ID...'}
               className="w-full rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-2.5 pl-4 pr-10 text-sm font-semibold text-dark outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:bg-gray-900"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                aria-label="Clear Search"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            )}
           </div>
 
           {/* Filter by Course */}
@@ -245,100 +283,152 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Active Filter Bar & Total Count */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#E8E2D5]/60 pt-3 text-xs dark:border-gray-700/60">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-stone-500 dark:text-stone-400">
-              {isRtl ? `إجمالي العناصر: ${filteredStudents.length} طالب` : `Total items: ${filteredStudents.length} students`}
+        {/* Active Filter Bar & Reset Button */}
+        {isFilterActive && (
+          <div className="mt-3 flex items-center justify-between border-t border-[#E8E2D5] pt-3 text-xs dark:border-gray-700">
+            <span className="font-semibold text-gray-500 dark:text-gray-400">
+              {isRtl
+                ? `نتائج البحث والفلترة: (${filteredStudents.length}) طالب`
+                : `Filtered Results: (${filteredStudents.length}) students`}
             </span>
-            {isFilterActive && (
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center gap-1 font-bold text-primary hover:underline cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-sm">restart_alt</span>
-                <span>{isRtl ? 'إعادة تعيين الفلاتر' : 'Reset Filters'}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="flex items-center gap-1 font-bold text-rose-500 hover:text-rose-600 dark:text-rose-400 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-sm">restart_alt</span>
+              {isRtl ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}
+            </button>
           </div>
-
-          {selectedCourse !== 'all' && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
-              <span className="material-symbols-outlined text-xs">school</span>
-              <span>
-                {courses.find(c => c.id === selectedCourse)?.title || selectedCourse}
-              </span>
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ===== Students List ===== */}
-      <div className="overflow-hidden rounded-2xl border border-[#E8E2D5] bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 mb-6">
-        {loading ? (
-          <div className="p-12 text-center text-sm font-bold text-gray-400">{t('common.loading')}</div>
-        ) : filteredStudents.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600 mb-2">person_search</span>
-            <p className="text-sm font-bold text-gray-400 dark:text-gray-400">{t('adminUsers.noResults')}</p>
-          </div>
-        ) : (
-          paginatedStudents.map((student) => {
-            const dateDisplay = student.created_at 
-              ? formatCustomDate(student.created_at) 
-              : (student.createdAt ? formatCustomDate(student.createdAt) : t('adminUsers.notSpecified'));
-
-            return (
-              <div
-                key={student.id || student.email}
-                className="flex flex-col gap-3 border-b border-[#E8E2D5] px-6 py-4 last:border-0 hover:bg-[#FAF7F2] dark:border-gray-700 dark:hover:bg-gray-700/50 md:flex-row md:items-center md:justify-between"
-              >
-                <div>
-                  <h3 className="font-bold text-dark dark:text-white">{student.name}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-gray-500 dark:text-gray-400">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-stone-100 dark:bg-stone-800 px-2.5 py-1 text-stone-700 dark:text-stone-300">
-                    <span className="material-symbols-outlined text-sm text-primary">menu_book</span>
-                    <span>{student.coursesCount} {t('adminUsers.courses')}</span>
-                  </span>
-
-                  <span>{t('adminUsers.joinDate')} {dateDisplay}</span>
-
-                  <span
-                    className={`rounded-full px-3 py-1 ${
-                      student.status !== 'inactive' && student.status !== t('adminUsers.inactive')
-                        ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800'
-                        : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {student.status || t('adminUsers.active')}
-                  </span>
-
-                  <button
-                    onClick={() => handleDelete(student.id)}
-                    className="mr-2 p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 transition-colors cursor-pointer"
-                    title={t('adminUsers.deleteStudent')}
-                    aria-label={t('adminUsers.deleteStudent')}
-                  >
-                    <span className="material-symbols-outlined text-xl">delete</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })
         )}
       </div>
 
-      {/* ===== Pagination ===== */}
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      )}
+      {/* ===== Students Table ===== */}
+      <div className="overflow-hidden rounded-2xl border border-[#E8E2D5] bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="hidden grid-cols-12 gap-4 border-b border-[#E8E2D5] bg-[#FAF7F2] px-6 py-3 text-xs font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400 md:grid">
+          <span className="col-span-3">{isRtl ? 'الطالب' : 'Student'}</span>
+          <span className="col-span-3">{isRtl ? 'تاريخ الانضمام' : 'Joined Date'}</span>
+          <span className="col-span-2">{t('adminUsers.courses')}</span>
+          <span className="col-span-2">{t('adminUsers.status')}</span>
+          <span className="col-span-2 text-left rtl:text-right">{isRtl ? 'الإجراءات' : 'Actions'}</span>
+        </div>
+
+        {loading ? (
+          <div className="p-10 text-center text-sm font-bold text-gray-400">{t('common.loading')}</div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-primary dark:bg-orange-950/40">
+              <span className="material-symbols-outlined text-2xl">person_search</span>
+            </div>
+            <h4 className="text-base font-bold text-gray-800 dark:text-gray-200">
+              {isRtl ? 'لم يتم العثور على أي طلاب' : 'No students found'}
+            </h4>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {isRtl
+                ? 'جرب تعديل كلمات البحث أو تصفية الخيارات لإظهار النتائج.'
+                : 'Try adjusting your search terms or filters.'}
+            </p>
+            {isFilterActive && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-4 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] px-4 py-2 text-xs font-bold text-gray-700 hover:bg-[#F3EFE6] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer"
+              >
+                {isRtl ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {paginatedStudents.map((student) => {
+              const dateDisplay = student.created_at 
+                ? formatCustomDate(student.created_at) 
+                : (student.createdAt ? formatCustomDate(student.createdAt) : t('adminUsers.notSpecified'));
+
+              return (
+                <div
+                  key={student.id || student.email}
+                  className="flex flex-col gap-3 border-b border-[#E8E2D5] px-6 py-4 last:border-0 hover:bg-[#FAF7F2] dark:border-gray-700 dark:hover:bg-gray-700/50 md:grid md:grid-cols-12 md:items-center md:gap-4"
+                >
+                  {/* Student Column */}
+                  <div className="col-span-3 flex flex-col">
+                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{isRtl ? 'الطالب' : 'Student'}</span>
+                    <p className="font-bold text-dark dark:text-white">{student.name || student.fullName || t('adminUsers.student')}</p>
+                    {student.email && <p className="text-xs text-gray-400">{student.email}</p>}
+                  </div>
+
+                  {/* Joined Date Column */}
+                  <div className="col-span-3 flex flex-col">
+                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{isRtl ? 'تاريخ الانضمام' : 'Joined Date'}</span>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{dateDisplay}</p>
+                  </div>
+
+                  {/* Courses Column */}
+                  <div className="col-span-2 flex flex-col">
+                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{t('adminUsers.courses')}</span>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                      {student.coursesCount} {isRtl ? 'دورة' : 'courses'}
+                    </p>
+                  </div>
+
+                  {/* Status Column */}
+                  <div className="col-span-2 flex flex-col">
+                    <span className="md:hidden text-xs text-gray-400 font-bold mb-1">{t('adminUsers.status')}</span>
+                    <div>
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                          student.status !== 'inactive' && student.status !== t('adminUsers.inactive')
+                            ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800'
+                            : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {student.status || t('adminUsers.active')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions Column */}
+                  <div className="col-span-2 flex items-center justify-between md:justify-start gap-1.5 mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[#E8E2D5] dark:border-gray-700 md:border-0">
+                    <span className="md:hidden text-xs text-gray-400 font-bold">{isRtl ? 'الإجراءات' : 'Actions'}</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleStartChat(student)}
+                        disabled={startingChatId === student.id}
+                        title={isRtl ? 'مراسلة الطالب' : 'Message Student'}
+                        aria-label={isRtl ? 'مراسلة الطالب' : 'Message Student'}
+                        className="text-primary hover:text-white bg-primary/10 hover:bg-primary transition-all flex items-center justify-center p-2 rounded-xl shadow-xs cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          {startingChatId === student.id ? 'sync' : 'chat'}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(student.id)}
+                        title={t('adminUsers.deleteStudent')}
+                        aria-label={t('adminUsers.deleteStudent')}
+                        className="text-rose-500 hover:text-rose-700 transition-colors flex items-center justify-center p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Pagination Component with Footer */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredStudents.length}
+              itemsPerPage={itemsPerPage}
+              itemName={isRtl ? 'طالب' : 'students'}
+            />
+          </>
+        )}
+      </div>
     </AdminPageShell>
   );
 }
