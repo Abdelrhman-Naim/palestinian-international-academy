@@ -23,6 +23,24 @@ const saveLocalCourses = (coursesArr) => {
   } catch (e) {}
 };
 
+const isValidUUID = (str) => {
+  if (!str) return false;
+  const s = String(str);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) || /^\d+$/.test(s);
+};
+
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch (e) {}
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export function CoursesProvider({ children }) {
   const [rawCourses, setRawCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,9 +169,10 @@ export function CoursesProvider({ children }) {
         }
       };
 
+      const courseId = (courseData.id && isValidUUID(courseData.id)) ? courseData.id : generateUUID();
       const fullCourseObj = {
         ...courseData,
-        id: courseData.id || `course_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+        id: courseId
       };
 
       if (fullCourseObj.title) fullCourseObj.title_en = await safeTranslate(fullCourseObj.title);
@@ -177,6 +196,11 @@ export function CoursesProvider({ children }) {
       delete currentPayload.instructorId;
       delete currentPayload.lecturesCount;
       delete currentPayload.imageName;
+
+      // Ensure id in payload is a valid UUID, otherwise let Supabase auto-generate
+      if (!isValidUUID(currentPayload.id)) {
+        delete currentPayload.id;
+      }
 
       if (!currentPayload.instructor_id && fullCourseObj.instructorId) {
         currentPayload.instructor_id = fullCourseObj.instructorId;
@@ -243,13 +267,16 @@ export function CoursesProvider({ children }) {
       const existingLocals = getStoredLocalCourses();
       saveLocalCourses(existingLocals.filter(c => c.id !== id));
 
-      const { error } = await supabase
-        .from('courses')
-        .delete()
-        .eq('id', id);
+      // Only attempt remote delete in Supabase if id is a valid UUID/numeric ID in Postgres
+      if (isValidUUID(id)) {
+        const { error } = await supabase
+          .from('courses')
+          .delete()
+          .eq('id', id);
 
-      if (error) {
-        console.warn("Supabase course delete notice:", error.message);
+        if (error) {
+          console.warn("Supabase course delete notice:", error.message);
+        }
       }
 
       fetchCourses().catch(() => {});
@@ -268,20 +295,22 @@ export function CoursesProvider({ children }) {
       const existingLocals = getStoredLocalCourses();
       saveLocalCourses(existingLocals.map(c => c.id === id ? { ...c, ...dataToUpdate } : c));
 
-      // Payload cleanup for Supabase
-      const payload = { ...dataToUpdate };
-      delete payload.avatar;
-      delete payload.sessions;
-      delete payload.instructorId;
-      delete payload.lecturesCount;
+      if (isValidUUID(id)) {
+        // Payload cleanup for Supabase
+        const payload = { ...dataToUpdate };
+        delete payload.avatar;
+        delete payload.sessions;
+        delete payload.instructorId;
+        delete payload.lecturesCount;
 
-      const { error } = await supabase
-        .from('courses')
-        .update(payload)
-        .eq('id', id);
+        const { error } = await supabase
+          .from('courses')
+          .update(payload)
+          .eq('id', id);
 
-      if (error) {
-        console.warn("Supabase course update notice:", error.message);
+        if (error) {
+          console.warn("Supabase course update notice:", error.message);
+        }
       }
 
       fetchCourses().catch(() => {});
