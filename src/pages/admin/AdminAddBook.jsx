@@ -20,6 +20,7 @@ export default function AdminAddBook() {
   const [link, setLink] = useState('');
   const [modal, setModal] = useState(null);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
     const errs = {};
@@ -53,19 +54,31 @@ export default function AdminAddBook() {
       return;
     }
     
-    await addBook({
-      title,
-      author,
-      category,
-      link,
-      coverUrl: '',
-      year: new Date().getFullYear().toString(),
-      pages: Number(pages) > 0 ? Number(pages) : 120,
-      downloads: 0,
-    });
-    
-    setModal(null);
-    navigate('/admin-dashboard/library');
+    setIsSubmitting(true);
+    try {
+      await addBook({
+        title: title.trim(),
+        author: author.trim(),
+        category: category.trim(),
+        category_name: category.trim(),
+        link: link.trim(),
+        pdf_url: link.trim(),
+        coverUrl: '',
+        cover_url: '',
+        description: title.trim(),
+        year: new Date().getFullYear().toString(),
+        pages: Number(pages) > 0 ? Number(pages) : 120,
+        downloads: 0,
+        downloads_count: 0
+      });
+      
+      setModal(null);
+      navigate('/admin-dashboard/library');
+    } catch (err) {
+      console.error('Error adding book:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -262,6 +275,7 @@ export default function AdminAddBook() {
                 </button>
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={async () => {
                     if (modal === 'save') {
                       await handleSave();
@@ -270,13 +284,20 @@ export default function AdminAddBook() {
                       navigate('/admin-dashboard/library');
                     }
                   }}
-                  className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition-all shadow-md ${
+                  className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                     modal === 'save' 
                       ? 'bg-primary hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 shadow-primary/20' 
                       : 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20'
                   }`}
                 >
-                  {modal === 'save' ? t('adminAddBook.confirmSaveBtn') : t('adminAddBook.confirmCancelBtn')}
+                  {isSubmitting && modal === 'save' && (
+                    <i className="fa-solid fa-circle-notch fa-spin text-sm"></i>
+                  )}
+                  <span>
+                    {isSubmitting && modal === 'save'
+                      ? (dir === 'rtl' ? 'جاري الحفظ...' : 'Saving...')
+                      : (modal === 'save' ? t('adminAddBook.confirmSaveBtn') : t('adminAddBook.confirmCancelBtn'))}
+                  </span>
                 </button>
               </div>
             </motion.div>

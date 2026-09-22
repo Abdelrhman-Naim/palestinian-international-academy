@@ -8,3 +8,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Global table router proxy to prevent 404s on legacy or non-existent tables
+const originalFrom = supabase.from.bind(supabase);
+supabase.from = (table) => {
+  let mapped = table;
+  if (table === 'enrollments') mapped = 'course_requests';
+  if (table === 'users') mapped = 'profiles';
+  if (table === 'submissions') mapped = 'submitted_assignments';
+  return originalFrom(mapped);
+};
+
