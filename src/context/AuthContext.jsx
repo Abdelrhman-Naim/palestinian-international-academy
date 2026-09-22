@@ -47,11 +47,18 @@ export function AuthProvider({ children }) {
     const statusFromMeta = user.user_metadata?.status || 'active';
 
     const role = profile?.role || roleFromMeta;
-    const status = profile?.status || statusFromMeta;
+    let status = profile?.status;
+    if (!status || status === 'active') {
+      if (role === 'instructor' && profile?.is_approved !== true) {
+        status = 'pending';
+      } else if (!status) {
+        status = statusFromMeta;
+      }
+    }
 
     setUserRole(role);
     setUserStatus(status);
-    setUserData(profile ? { ...profile, uid: profile.id, name: profile.full_name || nameFromMeta } : { uid: user.id, id: user.id, email: user.email, role, status, name: nameFromMeta });
+    setUserData(profile ? { ...profile, uid: profile.id, status, name: profile.full_name || nameFromMeta } : { uid: user.id, id: user.id, email: user.email, role, status, name: nameFromMeta });
   };
 
   useEffect(() => {
@@ -102,7 +109,9 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (email, password, fullName, role) => {
-    const status = role === 'instructor' ? 'pending' : 'active';
+    const isInstructor = role === 'instructor';
+    const status = isInstructor ? 'pending' : 'active';
+    const isApproved = !isInstructor;
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -111,7 +120,8 @@ export function AuthProvider({ children }) {
         data: {
           full_name: fullName,
           role: role,
-          status: status
+          status: status,
+          is_approved: isApproved
         }
       }
     });
@@ -128,6 +138,7 @@ export function AuthProvider({ children }) {
           email: email,
           role: role,
           status: status,
+          is_approved: isApproved,
           updated_at: new Date()
         });
       } catch (e) {
