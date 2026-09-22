@@ -18,35 +18,35 @@ export async function createNotification({
 
   try {
     const finalCourseId = courseId || target_id || metadata.courseId || metadata.target_id || null;
-    const finalTargetType = target_type || type || metadata.target_type || null;
+
+    const notifObj = {
+      recipient_id: recipientId,
+      recipient_role: recipientRole,
+      title: title || '',
+      title_en: title_en || title || '',
+      message: message || '',
+      message_en: message_en || message || '',
+      type,
+      link: link || '',
+      is_read: false
+    };
+
+    if (finalCourseId) notifObj.course_id = finalCourseId;
+    if (metadata && Object.keys(metadata).length > 0) notifObj.metadata = metadata;
 
     const { data, error } = await supabase
       .from('notifications')
-      .insert([{
-        recipient_id: recipientId,
-        recipient_role: recipientRole,
-        title: title || '',
-        title_en: title_en || title || '',
-        message: message || '',
-        message_en: message_en || message || '',
-        type,
-        link: link || '',
-        course_id: finalCourseId,
-        target_id: target_id || finalCourseId,
-        target_type: finalTargetType,
-        metadata: metadata || {},
-        is_read: false
-      }])
+      .insert([notifObj])
       .select('id')
       .single();
 
     if (error) {
-      console.error('Failed to create notification in Supabase:', error);
+      console.warn('Notification insert notice:', error.message);
       return null;
     }
     return data?.id;
   } catch (err) {
-    console.error('Failed to create notification:', err);
+    console.warn('Failed to create notification catch:', err);
     return null;
   }
 }

@@ -120,6 +120,9 @@ export function CoursesProvider({ children }) {
       };
 
       const payload = { ...courseData };
+      delete payload.avatar;
+      delete payload.sessions;
+
       if (payload.title) payload.title_en = await safeTranslate(payload.title);
       if (payload.description) payload.description_en = await safeTranslate(payload.description);
       if (payload.instructor) payload.instructor_en = await safeTranslate(payload.instructor);
@@ -148,6 +151,30 @@ export function CoursesProvider({ children }) {
           createdCourse = data;
         } else if (error) {
           console.warn("Supabase course insert notice:", error.message);
+          // If error is schema column error, retry with clean standard schema payload
+          if (error.message?.includes('column')) {
+            const cleanPayload = {
+              title: payload.title,
+              title_en: payload.title_en,
+              description: payload.description,
+              description_en: payload.description_en,
+              instructor: payload.instructor,
+              instructor_id: payload.instructor_id || payload.instructorId,
+              category: payload.category,
+              icon: payload.icon || 'code',
+              level: payload.level,
+              goals: payload.goals,
+              lectures: payload.lectures,
+              price: payload.price || 'Free',
+              status: payload.status || 'published',
+              students: payload.students || 0,
+              created_at: payload.created_at
+            };
+            const retryRes = await supabase.from('courses').insert([cleanPayload]).select().single();
+            if (!retryRes.error && retryRes.data) {
+              createdCourse = retryRes.data;
+            }
+          }
         }
       } catch (sbErr) {
         console.warn("Supabase course insert catch:", sbErr);
