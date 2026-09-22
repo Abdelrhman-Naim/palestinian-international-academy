@@ -51,6 +51,7 @@ const mapDocData = (d) => {
     student: d.student_name || d.student || d.studentName,
     assignment: d.assignment_title || d.assignment || d.title,
     content: d.notes || d.content,
+    submissions: d.submissions !== undefined ? d.submissions : 0,
   };
 };
 
@@ -276,7 +277,6 @@ export const addDoc = async (colRef, data) => {
 
     if (raw.title !== undefined) record.title = raw.title;
     if (raw.description !== undefined) record.description = raw.description;
-    if (raw.submissions !== undefined) record.submissions = raw.submissions;
 
     const courseId = raw.course_id || raw.courseId;
     if (courseId) record.course_id = courseId;
@@ -307,19 +307,27 @@ export const addDoc = async (colRef, data) => {
       }
     }
 
+    if (table !== 'assignments' && raw.submissions !== undefined) {
+      record.submissions = raw.submissions;
+    }
+
     const { data: res, error } = await supabase.from(table).insert(record).select('id').single();
     if (error) {
       console.warn(`[Supabase Bridge] addDoc insert error on ${table}, attempting fallback:`, error.message);
       const fallbackRecord = { ...record };
       delete fallbackRecord.due_date;
+      delete fallbackRecord.submissions;
       const retryRes = await supabase.from(table).insert(fallbackRecord).select('id').single();
-      if (retryRes.error) throw retryRes.error;
+      if (retryRes.error) {
+        console.warn(`[Supabase Bridge] addDoc retry error on ${table}:`, retryRes.error.message);
+        return { id: `doc_${Date.now()}` };
+      }
       return { id: retryRes.data?.id || 'new-id' };
     }
     return { id: res?.id || 'new-id' };
   } catch (e) {
     console.warn(`[Supabase Bridge] addDoc error on table ${table}:`, e);
-    return { id: `assignment_${Date.now()}` };
+    return { id: `doc_${Date.now()}` };
   }
 };
 

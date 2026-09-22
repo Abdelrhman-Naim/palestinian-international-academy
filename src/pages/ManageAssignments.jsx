@@ -95,7 +95,6 @@ export default function ManageAssignments() {
                 rawDueDate: newAssignment.dueDate,
                 raw_due_date: newAssignment.dueDate,
                 date: formattedDueDate,
-                submissions: 0,
                 createdAt: new Date().toISOString(),
                 created_at: new Date().toISOString(),
             });
