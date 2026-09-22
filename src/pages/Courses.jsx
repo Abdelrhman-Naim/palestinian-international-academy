@@ -114,7 +114,7 @@ const Courses = ({ embedded = false }) => {
       <main className="grow">
         {/* Header Banner */}
         <section className="bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white py-16 px-4 border-b border-[#E8E2D5] dark:border-gray-800 relative overflow-hidden transition-colors">
-          <div className="max-w-7xl mx-auto relative z-10">
+          <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 relative z-10">
             <Breadcrumbs items={[{ label: t('navbar.courses') || (isRtl ? 'الدورات' : 'Courses') }]} />
             <div className="text-center mt-4">
               <p className="text-sm font-label-caps text-secondary mb-3 tracking-widest">{t('courses.catalogLabel')}</p>
@@ -125,7 +125,7 @@ const Courses = ({ embedded = false }) => {
         </section>
 
         {/* Content Container */}
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 flex flex-col lg:flex-row gap-8 relative">
+        <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 lg:py-12 flex flex-col lg:flex-row gap-6 xl:gap-8 relative">
           
           {/* Mobile Overlay */}
           {isMobileFiltersOpen && (
@@ -136,7 +136,7 @@ const Courses = ({ embedded = false }) => {
           )}
 
           {/* Sidebar / Filters */}
-          <aside className={`fixed inset-y-0 ${isRtl ? 'left-0' : 'right-0'} z-50 w-72 bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent transform transition-transform duration-300 lg:relative lg:w-1/4 lg:translate-x-0 ${isMobileFiltersOpen ? 'translate-x-0' : (isRtl ? '-translate-x-full' : 'translate-x-full')} lg:block shadow-2xl lg:shadow-none overflow-y-auto lg:overflow-visible h-full lg:h-auto`}>
+          <aside className={`fixed inset-y-0 ${isRtl ? 'left-0' : 'right-0'} z-50 w-72 bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent transform transition-transform duration-300 lg:relative lg:w-64 xl:w-72 2xl:w-80 shrink-0 lg:translate-x-0 ${isMobileFiltersOpen ? 'translate-x-0' : (isRtl ? '-translate-x-full' : 'translate-x-full')} lg:block shadow-2xl lg:shadow-none overflow-y-auto lg:overflow-visible h-full lg:h-auto`}>
             <div className="bg-white dark:bg-gray-800 lg:border border-[#E8E2D5] dark:border-gray-700 lg:rounded-2xl p-6 shadow-sm sticky top-28 transition-colors min-h-full lg:min-h-0">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
@@ -210,7 +210,7 @@ const Courses = ({ embedded = false }) => {
           </aside>
           
           {/* Courses Grid */}
-          <div className="flex-1 w-full lg:w-3/4">
+          <div className="flex-1 min-w-0 w-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button 
@@ -240,7 +240,7 @@ const Courses = ({ embedded = false }) => {
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3 gap-6"
               >
                 {filteredCourses.map(course => (
                   <motion.div
