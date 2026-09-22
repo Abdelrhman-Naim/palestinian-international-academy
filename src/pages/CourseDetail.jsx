@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, setDoc, getDoc, updateDoc, increment, serverTimestamp, collection, query, where, getDocs, onSnapshot, db } from '../firebase/config';
+import { supabase } from '../supabase/client';
 import { useCourses } from '../context/CoursesContext';
 import { useAuth } from '../context/AuthContext';
 import { autoEnrollStudentInCourseGroup, getOrCreateDirectChat } from '../services/chatService';
@@ -48,7 +49,59 @@ export default function CourseDetail() {
   // Check if already enrolled & listen to real-time progress
   useEffect(() => {
     if (!currentUser || !id) return;
-    const enrollRef = doc(db, 'enrollments', `${currentUser.uid}_${id}`);
+    const uid = currentUser.uid || currentUser.id;
+
+    const checkEnrollmentStatus = async () => {
+      try {
+        const enrollRef = doc(db, 'enrollments', `${uid}_${id}`);
+        const snap = await getDoc(enrollRef);
+
+        const { data: reqData } = await supabase
+          .from('course_requests')
+          .select('*')
+          .eq('student_id', uid)
+          .eq('course_id', id)
+          .maybeSingle();
+
+        if (snap.exists() || reqData) {
+          setEnrolled(true);
+          const data = snap.exists() ? snap.data() : reqData;
+          const doneList = Array.isArray(data.completedLessons) || Array.isArray(data.details?.completedLessons)
+            ? (data.completedLessons || data.details?.completedLessons)
+            : [];
+          setCompletedLessons(doneList);
+
+          const totalLecs = course?.lectures?.length || 0;
+          const computedProgress = totalLecs > 0 
+            ? Math.min(100, Math.round((doneList.length / totalLecs) * 100))
+            : (data.progress || data.details?.progress || 0);
+
+          setProgressPercent(computedProgress);
+          const hasPassedExam = !!(data.passedExam || data.details?.passedExam);
+          setExamPassed(hasPassedExam);
+
+          if (hasPassedExam) {
+            const cRef = doc(db, 'certificates', `${uid}_${id}`);
+            const cSnap = await getDoc(cRef);
+            if (cSnap.exists()) {
+              setEarnedCertificate({ id: cSnap.id, ...cSnap.data() });
+            }
+          }
+        } else {
+          setEnrolled(false);
+          setCompletedLessons([]);
+          setProgressPercent(0);
+          setEarnedCertificate(null);
+          setExamPassed(false);
+        }
+      } catch (err) {
+        console.warn('Error checking enrollment status:', err);
+      }
+    };
+
+    checkEnrollmentStatus();
+
+    const enrollRef = doc(db, 'enrollments', `${uid}_${id}`);
     const unsub = onSnapshot(enrollRef, async (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -57,7 +110,6 @@ export default function CourseDetail() {
         setCompletedLessons(doneList);
         setExamPassed(!!data.passedExam);
 
-        // Dynamically compute real progress against currently available course lectures
         const totalLecs = course?.lectures?.length || 0;
         const computedProgress = totalLecs > 0 
           ? Math.min(100, Math.round((doneList.length / totalLecs) * 100))
@@ -65,17 +117,15 @@ export default function CourseDetail() {
 
         setProgressPercent(computedProgress);
 
-        // If computed progress differs from stored progress (e.g. lectures added or deleted), sync it
         if (totalLecs > 0 && computedProgress !== data.progress) {
           updateDoc(enrollRef, { progress: computedProgress }).catch(e => console.warn('Sync progress error:', e));
         }
 
-        // Only load certificate if student actually passed the graduation exam
         const hasPassedExam = !!data.passedExam;
         setExamPassed(hasPassedExam);
 
         if (hasPassedExam) {
-          const cRef = doc(db, 'certificates', `${currentUser.uid}_${id}`);
+          const cRef = doc(db, 'certificates', `${uid}_${id}`);
           const cSnap = await getDoc(cRef);
           if (cSnap.exists()) {
             setEarnedCertificate({ id: cSnap.id, ...cSnap.data() });
@@ -85,12 +135,6 @@ export default function CourseDetail() {
         } else {
           setEarnedCertificate(null);
         }
-      } else {
-        setEnrolled(false);
-        setCompletedLessons([]);
-        setProgressPercent(0);
-        setEarnedCertificate(null);
-        setExamPassed(false);
       }
     });
 
@@ -215,8 +259,30 @@ export default function CourseDetail() {
     setEnrolling(true);
     setShowEnrollConfirmModal(false);
     try {
-      await setDoc(doc(db, 'enrollments', `${currentUser.uid}_${id}`), {
-        uid: currentUser.uid,
+      const studentUid = currentUser.uid || currentUser.id;
+      const studentName = userData?.fullName || userData?.name || currentUser.displayName || currentUser.name || currentUser.email?.split('@')[0] || 'طالب جديد';
+
+      // 1. Write to course_requests table in Supabase
+      try {
+        await supabase.from('course_requests').upsert({
+          student_id: studentUid,
+          student_name: studentName,
+          student_email: currentUser.email,
+          course_id: id,
+          course_title: course.title,
+          instructor_id: course.instructorId || null,
+          instructor_name: course.instructor || null,
+          status: 'approved',
+          payment_method: 'free',
+          created_at: new Date()
+        });
+      } catch (reqErr) {
+        console.warn('course_requests upsert error:', reqErr);
+      }
+
+      // 2. Write to enrollments table
+      await setDoc(doc(db, 'enrollments', `${studentUid}_${id}`), {
+        uid: studentUid,
         courseId: id,
         courseTitle: course.title,
         instructor: course.instructor,

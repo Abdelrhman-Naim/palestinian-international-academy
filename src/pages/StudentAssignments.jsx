@@ -37,7 +37,15 @@ const StudentAssignments = () => {
           .select('course_id')
           .eq('student_id', userId);
 
-        const courseIds = (requests || []).map(r => r.course_id).filter(Boolean);
+        const { data: enrolls } = await supabase
+          .from('enrollments')
+          .select('course_id, courseId')
+          .eq('uid', userId);
+
+        const courseIds = Array.from(new Set([
+          ...(requests || []).map(r => r.course_id).filter(Boolean),
+          ...(enrolls || []).map(e => e.course_id || e.courseId).filter(Boolean)
+        ]));
 
         if (courseIds.length === 0) {
           setAssignments([]);
