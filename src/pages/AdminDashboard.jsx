@@ -58,7 +58,28 @@ const AdminDashboard = () => {
         console.warn('Pending count fetch error:', err);
       }
     }
+
     fetchPendingCount();
+
+    const channel = supabase
+      .channel('admin-dashboard-pending-count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          fetchPendingCount();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(() => {
+      fetchPendingCount();
+    }, 4000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [location.pathname]);
 
   const toggleMenu = (menu) => {

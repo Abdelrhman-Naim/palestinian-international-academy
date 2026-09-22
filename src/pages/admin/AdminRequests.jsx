@@ -41,6 +41,28 @@ export default function AdminRequests() {
 
   useEffect(() => {
     fetchRequests();
+
+    // Subscribe to realtime changes on profiles table
+    const channel = supabase
+      .channel('admin-requests-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    // Auto refresh every 4 seconds as a fallback
+    const interval = setInterval(() => {
+      fetchRequests();
+    }, 4000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const decide = async (id, action) => {

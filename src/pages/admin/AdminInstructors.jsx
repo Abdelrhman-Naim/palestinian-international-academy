@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getOrCreateDirectChat } from '../../services/chatService';
 import AdminPageShell from './AdminPageShell';
-import { collection, query, where, onSnapshot, doc, deleteDoc, db } from '../../firebase/config';
+import { supabase } from '../../supabase/client';
+import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../firebase/config';
 import { useLanguage } from '../../context/LanguageContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import Pagination from '../../components/Pagination';
@@ -44,9 +45,38 @@ export default function AdminInstructors() {
       setInstructors(usersData);
       setLoading(false);
     });
+
+    // Subscribe to realtime changes on profiles
+    const channel = supabase
+      .channel('admin-instructors-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          getDocs(q).then(snapshot => {
+            const usersData = snapshot.docs
+              .map(doc => ({ id: doc.id, ...doc.data() }))
+              .filter(u => u.is_approved === true && u.status === 'active');
+            setInstructors(usersData);
+          });
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(() => {
+      getDocs(q).then(snapshot => {
+        const usersData = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(u => u.is_approved === true && u.status === 'active');
+        setInstructors(usersData);
+      });
+    }, 4000);
+
     return () => {
       unsub();
       unsubCourses();
+      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 
