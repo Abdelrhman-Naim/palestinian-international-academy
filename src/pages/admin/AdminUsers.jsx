@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import AdminPageShell from './AdminPageShell';
 import { supabase } from '../../supabase/client';
-import { collection, query, where, onSnapshot, getDocs, doc, deleteDoc, db } from '../../supabase/db';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { getOrCreateDirectChat } from '../../services/chatService';
@@ -44,13 +43,15 @@ export default function AdminUsers() {
 
   const fetchStudents = async () => {
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'student'));
-      const snapshot = await getDocs(q);
-      const usersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setStudents(usersData);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'student')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setStudents(data);
+      }
     } catch (err) {
       console.warn('Error fetching students:', err);
     } finally {
@@ -59,16 +60,18 @@ export default function AdminUsers() {
   };
 
   useEffect(() => {
-    // Fetch courses
-    const unsubCourses = onSnapshot(collection(db, 'courses'), (snapshot) => {
-      setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    const fetchAuxData = async () => {
+      try {
+        const [cRes, eRes] = await Promise.all([
+          supabase.from('courses').select('id, title'),
+          supabase.from('course_requests').select('*')
+        ]);
+        if (cRes.data) setCourses(cRes.data);
+        if (eRes.data) setEnrollments(eRes.data);
+      } catch (e) {}
+    };
 
-    // Fetch enrollments & course requests
-    const unsubEnrollments = onSnapshot(collection(db, 'enrollments'), (snapshot) => {
-      setEnrollments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
+    fetchAuxData();
     fetchStudents();
 
     // Realtime channel for profiles
@@ -83,11 +86,12 @@ export default function AdminUsers() {
       )
       .subscribe();
 
-    const interval = setInterval(fetchStudents, 4000);
+    const interval = setInterval(() => {
+      fetchStudents();
+      fetchAuxData();
+    }, 6000);
 
     return () => {
-      unsubCourses();
-      unsubEnrollments();
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
@@ -122,9 +126,9 @@ export default function AdminUsers() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm(isRtl ? 'هل أنت تأكد من حذف هذا الطالب؟' : 'Are you sure you want to delete this student?')) {
+    if (window.confirm(isRtl ? 'هل أنت متأكد من حذف هذا الطالب؟' : 'Are you sure you want to delete this student?')) {
       try {
-        await deleteDoc(doc(db, 'users', id));
+        await supabase.from('profiles').delete().eq('id', id);
         fetchStudents();
       } catch (err) {
         alert(isRtl ? 'حدث خطأ أثناء حذف الطالب' : 'Error deleting student');

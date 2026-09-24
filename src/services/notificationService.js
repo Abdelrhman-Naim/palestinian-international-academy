@@ -1,5 +1,20 @@
 import { supabase } from '../supabase/client';
 
+// In-memory deduplication cache: key -> timestamp
+const recentNotifCache = new Map();
+
+// Periodic prune every 30 seconds
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, ts] of recentNotifCache.entries()) {
+      if (now - ts > 60000) {
+        recentNotifCache.delete(key);
+      }
+    }
+  }, 30000);
+}
+
 export async function createNotification({
   recipientId,
   recipientRole = null,
@@ -18,6 +33,14 @@ export async function createNotification({
 
   try {
     const finalCourseId = courseId || target_id || metadata.courseId || metadata.target_id || null;
+    const dedupKey = `${recipientId}:${title || ''}:${message || ''}:${finalCourseId || ''}`;
+    const now = Date.now();
+
+    // Prevent duplicate notification within 15-second window
+    if (recentNotifCache.has(dedupKey) && now - recentNotifCache.get(dedupKey) < 15000) {
+      return null;
+    }
+    recentNotifCache.set(dedupKey, now);
 
     const notifObj = {
       recipient_id: recipientId,
@@ -131,6 +154,13 @@ export async function notifyInstructor(courseOrId, notifData) {
 
 export async function notifyAdmins(notifData) {
   try {
+    const dedupKey = `admins:${notifData.title || ''}:${notifData.message || ''}:${notifData.courseId || ''}`;
+    const now = Date.now();
+    if (recentNotifCache.has(dedupKey) && now - recentNotifCache.get(dedupKey) < 15000) {
+      return 0;
+    }
+    recentNotifCache.set(dedupKey, now);
+
     const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
     if (!admins || admins.length === 0) return 0;
 
@@ -175,7 +205,7 @@ export function subscribeToUserNotifications(userId, callback) {
         return;
       }
 
-      const items = (data || []).map(n => ({
+      const rawItems = (data || []).map(n => ({
         id: n.id,
         recipientId: n.recipient_id,
         recipientRole: n.recipient_role,
@@ -189,6 +219,15 @@ export function subscribeToUserNotifications(userId, callback) {
         isRead: n.is_read,
         createdAt: n.created_at
       }));
+
+      // Deduplicate identical notifications displayed in feed
+      const seen = new Set();
+      const items = rawItems.filter(item => {
+        const key = `${item.title}:${item.message}:${item.courseId || ''}:${Math.floor(new Date(item.createdAt).getTime() / 60000)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
       const unreadCount = items.filter(n => !n.isRead).length;
 

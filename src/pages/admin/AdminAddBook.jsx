@@ -48,6 +48,7 @@ export default function AdminAddBook() {
   };
   
   const handleSave = async () => {
+    if (isSubmitting) return;
     if (!title || !author || !category) {
       alert(t('adminAddBook.requiredFields'));
       setModal(null);
@@ -91,10 +92,11 @@ export default function AdminAddBook() {
       <div className="rounded-2xl border border-[#E8E2D5] bg-[#FAF7F2] p-5 dark:border-gray-700 dark:bg-gray-800/60 sm:p-6">
         <div className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+            <label htmlFor="book-title" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
               {t('adminAddBook.bookTitle')} <span className="text-rose-500">*</span>
             </label>
             <input
+              id="book-title"
               type="text"
               placeholder={t('adminAddBook.bookTitlePlaceholder')}
               value={title}
@@ -117,10 +119,11 @@ export default function AdminAddBook() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+            <label htmlFor="book-author" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
               {t('adminAddBook.author')} <span className="text-rose-500">*</span>
             </label>
             <input
+              id="book-author"
               type="text"
               placeholder={t('adminAddBook.authorPlaceholder')}
               value={author}
@@ -144,10 +147,10 @@ export default function AdminAddBook() {
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+              <label htmlFor="book-category" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                 {t('adminAddBook.category')} <span className="text-rose-500">*</span>
               </label>
-              <div className={errors.category ? 'rounded-xl ring-2 ring-rose-500/20' : ''}>
+              <div id="book-category" className={errors.category ? 'rounded-xl ring-2 ring-rose-500/20' : ''}>
                 <CustomSelect
                   value={category}
                   onChange={(val) => {
@@ -175,10 +178,11 @@ export default function AdminAddBook() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+              <label htmlFor="book-pages" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                 {t('adminAddBook.pageCount')} <span className="text-rose-500">*</span>
               </label>
               <input
+                id="book-pages"
                 type="number"
                 min="1"
                 placeholder={t('adminAddBook.pageCountPlaceholder')}
@@ -203,8 +207,9 @@ export default function AdminAddBook() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">{t('adminAddBook.fileLink')}</label>
+            <label htmlFor="book-link" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">{t('adminAddBook.fileLink')}</label>
             <input
+              id="book-link"
               type="url"
               placeholder="https://..."
               value={link}
@@ -268,8 +273,9 @@ export default function AdminAddBook() {
               <div className="mt-7 flex gap-3">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setModal(null)}
-                  className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 transition hover:bg-[#F3EFE6] dark:hover:bg-gray-700"
+                  className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 transition hover:bg-[#F3EFE6] dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {t('common.back')}
                 </button>

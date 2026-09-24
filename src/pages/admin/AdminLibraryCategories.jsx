@@ -9,18 +9,26 @@ export default function AdminLibraryCategories() {
   const items = rawCategories.library;
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [editModal, setEditModal] = useState(null); // { item, newName, error, saving }
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    const result = await addCategory('library', name);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    if (isAdding) return;
+    if (!name.trim()) return;
+    setIsAdding(true);
+    try {
+      const result = await addCategory('library', name);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setName('');
+      setError('');
+    } finally {
+      setIsAdding(false);
     }
-    setName('');
-    setError('');
   };
 
   const handleSaveEdit = async (e) => {
@@ -63,10 +71,15 @@ export default function AdminLibraryCategories() {
         />
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition-all hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 shadow-md shadow-primary/20"
+          disabled={isAdding || !name.trim()}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition-all hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          <span className="material-symbols-outlined text-base">add</span>
-          {t('adminLibraryCategories.add')}
+          {isAdding ? (
+            <span className="w-4 h-4 border-2 border-white dark:border-gray-950 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <span className="material-symbols-outlined text-base">add</span>
+          )}
+          {isAdding ? (dir === 'rtl' ? 'جاري الإضافة...' : 'Adding...') : t('adminLibraryCategories.add')}
         </button>
       </form>
 

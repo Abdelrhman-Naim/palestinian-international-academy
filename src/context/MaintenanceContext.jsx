@@ -3,33 +3,80 @@ import { supabase } from '../supabase/client';
 import { useAuth } from './AuthContext';
 
 const MaintenanceContext = createContext(null);
+const MAINTENANCE_STORAGE_KEY = 'pia_maintenance_settings';
 
-export function MaintenanceProvider({ children }) {
-  const [isMaintenance, setIsMaintenance] = useState(false);
-  const [maintenanceData, setMaintenanceData] = useState({
+const DEFAULT_MAINTENANCE_MESSAGE =
+  'المنصة تخضع حالياً لأعمال صيانة دورية وتحديثات هامة لتقديم تجربة استثنائية لكافة المهندسين والطلاب. سنعود للعمل بكامل طاقتنا في أقرب وقت.';
+
+const getInitialMaintenance = () => {
+  try {
+    const raw = localStorage.getItem(MAINTENANCE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        enabled: Boolean(parsed.enabled),
+        message: parsed.message || DEFAULT_MAINTENANCE_MESSAGE,
+        updatedAt: parsed.updatedAt || null,
+        updatedBy: parsed.updatedBy || ''
+      };
+    }
+  } catch (e) {
+    console.warn('Could not read maintenance state from storage:', e);
+  }
+  return {
     enabled: false,
-    message: '',
+    message: DEFAULT_MAINTENANCE_MESSAGE,
     updatedAt: null,
     updatedBy: ''
-  });
-  const [loading, setLoading] = useState(true);
+  };
+};
+
+export function MaintenanceProvider({ children }) {
+  const [maintenanceData, setMaintenanceData] = useState(getInitialMaintenance);
+  const [loading, setLoading] = useState(false);
   const { currentUser } = useAuth();
 
+  // Multi-tab synchronization
   useEffect(() => {
-    // Default maintenance off
-    setIsMaintenance(false);
-    setLoading(false);
+    const handleStorage = (e) => {
+      if (e.key === MAINTENANCE_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setMaintenanceData({
+            enabled: Boolean(parsed.enabled),
+            message: parsed.message || DEFAULT_MAINTENANCE_MESSAGE,
+            updatedAt: parsed.updatedAt || null,
+            updatedBy: parsed.updatedBy || ''
+          });
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   const toggleMaintenance = async (enabled, customMessage = '') => {
     try {
-      setIsMaintenance(Boolean(enabled));
-      setMaintenanceData({
+      const nextData = {
         enabled: Boolean(enabled),
-        message: customMessage || 'المنصة تخضع لأعمال صيانة وتحديث مجدولة لتقديم تجربة تعليمية استثنائية. سنعود للعمل قريباً جداً.',
+        message: customMessage || maintenanceData.message || DEFAULT_MAINTENANCE_MESSAGE,
         updatedAt: new Date().toISOString(),
         updatedBy: currentUser?.email || 'Admin'
-      });
+      };
+
+      setMaintenanceData(nextData);
+      localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(nextData));
+
+      // Log action to activity_logs table in Supabase
+      try {
+        await supabase.from('activity_logs').insert([{
+          action: enabled ? 'ENABLE_MAINTENANCE' : 'DISABLE_MAINTENANCE',
+          user_id: currentUser?.id || null,
+          details: { message: nextData.message, updated_by: nextData.updatedBy }
+        }]);
+      } catch (logErr) {}
+
       return { success: true };
     } catch (err) {
       console.error('Error updating maintenance mode:', err);
@@ -40,7 +87,7 @@ export function MaintenanceProvider({ children }) {
   return (
     <MaintenanceContext.Provider
       value={{
-        isMaintenance,
+        isMaintenance: maintenanceData.enabled,
         maintenanceData,
         loading,
         toggleMaintenance

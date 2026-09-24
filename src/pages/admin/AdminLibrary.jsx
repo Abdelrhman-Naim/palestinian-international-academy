@@ -34,7 +34,14 @@ export default function AdminLibrary() {
   }, [debouncedSearch, selectedCategory, sortBy]);
 
   const openEdit = (book) => {
-    setEditForm({ ...book.originalData });
+    const orig = book.originalData || {};
+    const cat = orig.category || orig.category_name || book.category || book.category_name || '';
+    setEditForm({
+      ...orig,
+      ...book,
+      category: cat,
+      category_name: cat
+    });
     setEditErrors({});
     setEditModal(book.id);
   };
@@ -47,7 +54,8 @@ export default function AdminLibrary() {
     if (!editForm.author?.trim()) {
       errs.author = isRtl ? 'اسم المؤلف مطلوب' : 'Author name is required';
     }
-    if (!editForm.category?.trim()) {
+    const cat = (editForm.category || editForm.category_name || '').trim();
+    if (!cat) {
       errs.category = isRtl ? 'التصنيف مطلوب' : 'Category is required';
     }
     if (editForm.pages && Number(editForm.pages) <= 0) {
@@ -59,7 +67,11 @@ export default function AdminLibrary() {
       return;
     }
 
-    updateBook(editModal, editForm);
+    updateBook(editModal, {
+      ...editForm,
+      category: cat,
+      category_name: cat
+    });
     setEditErrors({});
     setEditModal(null);
   };
@@ -362,8 +374,11 @@ export default function AdminLibrary() {
                       setEditForm(prev => ({ ...prev, category: val }));
                       if (editErrors.category) setEditErrors(prev => ({ ...prev, category: null }));
                     }}
-                    options={(categories?.library || rawCategories?.library || [])
-                      .filter(cat => cat !== 'الكل' && cat !== 'All')
+                    options={Array.from(new Set([
+                      ...(categories?.library || rawCategories?.library || []),
+                      ...(editForm.category ? [editForm.category] : [])
+                    ]))
+                      .filter(cat => cat && cat !== 'الكل' && cat !== 'All')
                       .map(cat => ({ value: cat, label: cat }))}
                   />
                 </div>

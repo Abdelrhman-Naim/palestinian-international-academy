@@ -23,6 +23,7 @@ export default function AdminSettings() {
   const [customLabel, setCustomLabel] = useState('');
   const [isSavingHero, setIsSavingHero] = useState(false);
   const [heroSuccess, setHeroSuccess] = useState('');
+  const [heroError, setHeroError] = useState('');
 
   useEffect(() => {
     if (maintenanceData?.message) {
@@ -43,16 +44,18 @@ export default function AdminSettings() {
 
   const handleCourseChange = (courseId) => {
     setSelectedCourseId(courseId);
+    setHeroError('');
     const selectedCourse = (courses || []).find(c => c.id === courseId);
     if (selectedCourse) {
-      const lecturesCount = selectedCourse.lectures?.length || selectedCourse.lecturesCount || 10;
+      const lecturesCount = Number(selectedCourse.lectures?.length || selectedCourse.lecturesCount || 10);
       setTotalLessons(lecturesCount);
+      setCompletedLessons(prev => Math.min(lecturesCount, Number(prev) || 0));
     }
   };
 
-  const numTotal = Number(totalLessons) > 0 ? Number(totalLessons) : 1;
-  const numCompleted = Math.max(0, Number(completedLessons) || 0);
-  const calculatedProgress = Math.min(100, Math.round((numCompleted / numTotal) * 100));
+  const numTotal = Math.max(1, Number(totalLessons) || 1);
+  const numCompleted = Math.max(0, Math.min(numTotal, Number(completedLessons) || 0));
+  const calculatedProgress = Math.min(100, Math.max(0, Math.round((numCompleted / numTotal) * 100)));
 
   const handleToggle = async () => {
     setIsUpdating(true);
@@ -81,8 +84,15 @@ export default function AdminSettings() {
 
   const handleSaveHeroCourse = async (e) => {
     e.preventDefault();
-    setIsSavingHero(true);
+    setHeroError('');
     setHeroSuccess('');
+
+    if (!selectedCourseId) {
+      setHeroError(isRtl ? 'يرجى اختيار كورس من القائمة قبل الحفظ' : 'Please select a course before saving');
+      return;
+    }
+
+    setIsSavingHero(true);
 
     const res = await updateFeaturedCourse({
       courseId: selectedCourseId,
@@ -192,8 +202,13 @@ export default function AdminSettings() {
                     <input
                       type="number"
                       min="0"
+                      max={totalLessons}
                       value={completedLessons}
-                      onChange={(e) => setCompletedLessons(e.target.value)}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setCompletedLessons(Math.min(numTotal, Math.max(0, val)));
+                        setHeroError('');
+                      }}
                       className="w-full px-3 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors font-bold"
                     />
                   </div>
@@ -212,6 +227,13 @@ export default function AdminSettings() {
                     />
                   </div>
                 </div>
+
+                {heroError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2 animate-fade-in">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>{heroError}</span>
+                  </div>
+                )}
 
                 <button
                   type="submit"

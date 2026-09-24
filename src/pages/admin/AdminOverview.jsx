@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { useCourses } from '../../context/CoursesContext';
 import { useLibrary } from '../../context/LibraryContext';
-import { collection, getDocs, db } from '../../supabase/db';
 import { supabase } from '../../supabase/client';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDateTime } from '../../utils/formatDate';
@@ -33,37 +32,21 @@ export default function AdminOverview() {
     }
   });
 
-  // Optimized parallel fetch
+  // Optimized parallel fetch from Supabase
   const fetchAllData = async () => {
     try {
-      const [profilesRes, firestoreUsersSnap, enrollmentsRes, firestoreEnrollmentsSnap] = await Promise.all([
+      const [profilesRes, enrollmentsRes] = await Promise.all([
         supabase.from('profiles').select('id, email, role, status, is_approved'),
-        getDocs(collection(db, 'users')).catch(() => ({ docs: [] })),
-        supabase.from('course_requests').select('id'),
-        getDocs(collection(db, 'enrollments')).catch(() => ({ size: 0 }))
+        supabase.from('course_requests').select('id, status')
       ]);
 
       const profiles = profilesRes.data || [];
-      const firestoreUsers = firestoreUsersSnap.docs ? firestoreUsersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) : [];
-
-      // Merge unique users
-      const mergedMap = new Map();
-      profiles.forEach(p => {
-        const key = p.id || p.email;
-        if (key) mergedMap.set(key, p);
-      });
-      firestoreUsers.forEach(fu => {
-        const key = fu.id || fu.email;
-        if (key && !mergedMap.has(key)) {
-          mergedMap.set(key, fu);
-        }
-      });
 
       let stu = 0;
       let inst = 0;
       let pend = 0;
 
-      mergedMap.forEach(u => {
+      profiles.forEach(u => {
         const role = u.role;
         const status = u.status;
         const isApproved = u.is_approved;
@@ -83,8 +66,9 @@ export default function AdminOverview() {
       setUsersInfo(newUsersInfo);
       try { sessionStorage.setItem('admin_overview_users_info', JSON.stringify(newUsersInfo)); } catch (e) {}
 
-      const courseStudentSum = courses.reduce((acc, curr) => acc + (curr.students || 0), 0);
-      const newEnrollments = Math.max(enrollmentsRes.data?.length || 0, firestoreEnrollmentsSnap.size || 0, courseStudentSum);
+      const courseStudentSum = (courses || []).reduce((acc, curr) => acc + (curr.students || 0), 0);
+      const approvedEnrollments = (enrollmentsRes.data || []).filter(e => e.status === 'approved').length;
+      const newEnrollments = Math.max(approvedEnrollments, enrollmentsRes.data?.length || 0, courseStudentSum);
       setEnrollmentsCount(newEnrollments);
       try { sessionStorage.setItem('admin_overview_enrollments', JSON.stringify(newEnrollments)); } catch (e) {}
 

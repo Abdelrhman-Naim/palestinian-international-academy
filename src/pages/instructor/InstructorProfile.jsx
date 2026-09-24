@@ -168,6 +168,19 @@ export default function InstructorProfile() {
       return;
     }
 
+    // Validate phone if provided
+    const phoneTrimmed = (formData.phone || '').trim();
+    if (phoneTrimmed) {
+      const phoneRegex = /^[+]?[0-9\s\-()]{7,20}$/;
+      if (!phoneRegex.test(phoneTrimmed)) {
+        setProfileMessage({
+          type: 'error',
+          text: isRtl ? 'يرجى إدخال رقم هاتف صحيح (أرقام فقط)' : 'Please enter a valid phone number'
+        });
+        return;
+      }
+    }
+
     setSavingProfile(true);
     setProfileMessage({ type: '', text: '' });
 
@@ -177,7 +190,7 @@ export default function InstructorProfile() {
     try {
       const updatePayload = {
         full_name: formData.fullName.trim(),
-        phone: formData.phone.trim(),
+        phone: phoneTrimmed,
         specialization: formData.field.trim(),
         bio: formData.bio.trim(),
         avatar_url: formData.photoURL || '',
@@ -213,10 +226,18 @@ export default function InstructorProfile() {
     }
   };
 
-  // Change password
+  // Change password with strict current password verification
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setPasswordMessage({ type: '', text: '' });
+
+    if (!pwdData.currentPassword) {
+      setPasswordMessage({
+        type: 'error',
+        text: isRtl ? 'يرجى إدخال كلمة المرور الحالية' : 'Please enter your current password'
+      });
+      return;
+    }
 
     if (pwdData.newPassword.length < 6) {
       setPasswordMessage({
@@ -234,9 +255,33 @@ export default function InstructorProfile() {
       return;
     }
 
+    const email = currentUser?.email || userData?.email;
+    if (!email) {
+      setPasswordMessage({
+        type: 'error',
+        text: isRtl ? 'تعذر التعرف على البريد الإلكتروني للحساب' : 'Account email not found'
+      });
+      return;
+    }
+
     setSavingPassword(true);
 
     try {
+      // 1. Verify current password
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: pwdData.currentPassword
+      });
+
+      if (verifyError) {
+        setPasswordMessage({
+          type: 'error',
+          text: isRtl ? 'كلمة المرور الحالية غير صحيحة' : 'Current password is incorrect'
+        });
+        return;
+      }
+
+      // 2. Update password
       const { error } = await supabase.auth.updateUser({
         password: pwdData.newPassword
       });

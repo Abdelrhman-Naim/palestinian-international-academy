@@ -52,46 +52,25 @@ export default function AdminProfile() {
   const [resetEmailSending, setResetEmailSending] = useState(false);
   const [resetEmailSuccess, setResetEmailSuccess] = useState('');
 
-  // Fast parallel stats fetch
+  // Fast parallel stats fetch from Supabase
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [profilesRes, uSnap, coursesRes, cSnap, booksRes, bSnap] = await Promise.all([
+        const [profilesRes, coursesRes, booksRes] = await Promise.all([
           supabase.from('profiles').select('id, email, role, status, is_approved'),
-          getDocs(collection(db, 'users')).catch(() => ({ docs: [] })),
           supabase.from('courses').select('id'),
-          getDocs(collection(db, 'courses')).catch(() => ({ size: 0 })),
-          supabase.from('books').select('id'),
-          getDocs(collection(db, 'books')).catch(() => ({ size: 0 }))
+          supabase.from('books').select('id')
         ]);
 
         const profiles = profilesRes.data || [];
-        const firestoreUsers = uSnap.docs ? uSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) : [];
-
-        const mergedUsers = new Map();
-        profiles.forEach(p => {
-          const key = p.id || p.email;
-          if (key) mergedUsers.set(key, p);
-        });
-        firestoreUsers.forEach(fu => {
-          const key = fu.id || fu.email;
-          if (key && !mergedUsers.has(key)) mergedUsers.set(key, fu);
-        });
-
-        let pending = 0;
-        mergedUsers.forEach(u => {
-          if (u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)) {
-            pending++;
-          }
-        });
-
-        const totalCourses = Math.max(coursesRes.data?.length || 0, cSnap.size || 0);
-        const totalBooks = Math.max(booksRes.data?.length || 0, bSnap.size || 0);
+        const pending = profiles.filter(u => 
+          u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
+        ).length;
 
         const newStats = {
-          usersCount: mergedUsers.size,
-          coursesCount: totalCourses,
-          booksCount: totalBooks,
+          usersCount: profiles.length,
+          coursesCount: coursesRes.data?.length || 0,
+          booksCount: booksRes.data?.length || 0,
           pendingInstructors: pending
         };
 
@@ -123,6 +102,16 @@ export default function AdminProfile() {
     const userId = currentUser?.id || currentUser?.uid || userData?.id;
     if (!userId) return;
 
+    // Validate phone if provided
+    const phoneTrimmed = (formData.phone || '').trim();
+    if (phoneTrimmed) {
+      const phoneRegex = /^[+]?[0-9\s\-()]{7,20}$/;
+      if (!phoneRegex.test(phoneTrimmed)) {
+        setInfoError(isRtl ? 'يرجى إدخال رقم هاتف صحيح (أرقام فقط)' : 'Please enter a valid phone number');
+        return;
+      }
+    }
+
     setInfoSaving(true);
     setInfoSuccess('');
     setInfoError('');
@@ -130,7 +119,7 @@ export default function AdminProfile() {
     try {
       const { error } = await supabase.from('profiles').update({
         full_name: formData.fullName.trim(),
-        phone: formData.phone.trim(),
+        phone: phoneTrimmed,
         bio: formData.bio.trim(),
         updated_at: new Date().toISOString()
       }).eq('id', userId);
@@ -216,14 +205,19 @@ export default function AdminProfile() {
     }
   };
 
-  // Handle Password Submit
+  // Handle Password Submit with strict current password verification
   const handlePwdSubmit = async (e) => {
     e.preventDefault();
     setPwdSuccess('');
     setPwdError('');
 
+    if (!pwdData.currentPassword) {
+      setPwdError(isRtl ? 'يرجى إدخال كلمة المرور الحالية' : 'Please enter your current password');
+      return;
+    }
+
     if (pwdData.newPassword.length < 6) {
-      setPwdError(isRtl ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
+      setPwdError(isRtl ? 'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل' : 'New password must be at least 6 characters');
       return;
     }
     if (pwdData.newPassword !== pwdData.confirmPassword) {
@@ -231,8 +225,26 @@ export default function AdminProfile() {
       return;
     }
 
+    const userEmail = currentUser?.email || userData?.email;
+    if (!userEmail) {
+      setPwdError(isRtl ? 'تعذر التعرف على البريد الإلكتروني للحساب' : 'User email could not be resolved');
+      return;
+    }
+
     setPwdSaving(true);
     try {
+      // 1. Verify current password by attempting re-authentication
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: pwdData.currentPassword
+      });
+
+      if (verifyError) {
+        setPwdError(isRtl ? 'كلمة المرور الحالية غير صحيحة' : 'Current password is incorrect');
+        return;
+      }
+
+      // 2. Only proceed if current password verification succeeded
       const { error } = await supabase.auth.updateUser({
         password: pwdData.newPassword
       });
@@ -326,7 +338,7 @@ export default function AdminProfile() {
             {/* Platform Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               <div className="bg-[#FAF7F2] dark:bg-gray-900/60 p-3 rounded-2xl border border-[#E8E2D5] dark:border-gray-700/80">
-                <span className="text-xs text-gray-500 dark:text-gray-400 block font-bold mb-0.5">{isRtl ? 'المستخدمين' : 'Total Users'}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block font-bold mb-0.5">{isRtl ? 'إجمالي مستخدمي المنصة' : 'Total Platform Users'}</span>
                 <span className="text-lg font-black text-amber-800 dark:text-amber-400">{stats.usersCount}</span>
               </div>
               <div className="bg-[#FAF7F2] dark:bg-gray-900/60 p-3 rounded-2xl border border-[#E8E2D5] dark:border-gray-700/80">

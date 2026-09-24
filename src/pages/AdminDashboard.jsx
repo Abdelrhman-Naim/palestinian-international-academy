@@ -24,7 +24,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMessages = location.pathname.includes('/messages');
-  const { logout } = useAuth();
+  const { logout, currentUser, userData } = useAuth();
   const [openMenus, setOpenMenus] = useState({
     courses: true,
     library: true,
@@ -35,6 +35,10 @@ const AdminDashboard = () => {
   const [isDarkMode, toggleDarkMode] = useDarkMode();
   const [pendingCount, setPendingCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const adminName = userData?.full_name || userData?.name || currentUser?.displayName || (isRtl ? 'مدير النظام' : 'Administrator');
+  const adminInitials = adminName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'AD';
+  const adminAvatar = userData?.avatar_url || currentUser?.photoURL || '';
 
   const handleLogout = async () => {
     try {
@@ -121,12 +125,16 @@ const AdminDashboard = () => {
         <Link 
           to="/admin-dashboard/profile" 
           onClick={() => setIsSidebarOpen(false)}
-          className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0 group hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0 group hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-center"
         >
-          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg shadow-primary/20 ring-4 ring-primary/20 group-hover:scale-105 transition-transform">
-            أ.م
+          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg shadow-primary/20 ring-4 ring-primary/20 group-hover:scale-105 transition-transform overflow-hidden">
+            {adminAvatar ? (
+              <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
+            ) : (
+              <span>{adminInitials}</span>
+            )}
           </div>
-          <h2 className="font-semibold text-lg group-hover:text-primary transition-colors">{t('adminDashboard.adminTitle')}</h2>
+          <h2 className="font-semibold text-base group-hover:text-primary transition-colors line-clamp-1 max-w-[190px]">{adminName}</h2>
           <span className="text-xs text-primary dark:text-primary uppercase tracking-wider mt-1 font-label-caps font-extrabold">
             Administrator
           </span>
@@ -325,10 +333,10 @@ const AdminDashboard = () => {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-[#E8E2D5] dark:border-gray-800 space-y-3 shrink-0">
+        <div className="p-4 pb-8 border-t border-[#E8E2D5] dark:border-gray-800 space-y-3 shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 hover:border-rose-400 hover:text-rose-500 text-gray-700 dark:text-gray-300 py-2.5 px-4 rounded-xl flex items-center justify-center font-bold transition-all duration-200 shadow-xs"
+            className="w-full bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 hover:border-rose-400 hover:text-rose-500 text-gray-700 dark:text-gray-300 py-2.5 px-4 rounded-xl flex items-center justify-center font-bold transition-all duration-200 shadow-xs cursor-pointer"
           >
             {t('adminDashboard.logout')}
           </button>

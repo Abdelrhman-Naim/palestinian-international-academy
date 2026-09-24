@@ -36,6 +36,7 @@ export default function AddCourse() {
   const [openSession, setOpenSession] = useState(0);
   const [modal, setModal] = useState(null);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchInstructors = async () => {
@@ -190,70 +191,79 @@ export default function AddCourse() {
     // =========================
 
     const handleSaveCourse = async (status = t('addCourse.published')) => {
+        if (isSubmitting) return; // Prevent double submit
         if (!title || !instructor || !category) {
             alert(t('addCourse.requiredFields'));
             setModal(null);
             return;
         }
-        
-        const selectedInst = instructorsList.find(i => (typeof i === 'object' ? (i.name === instructor || i.fullName === instructor) : i === instructor));
-        const instructorId = userRole === 'instructor'
-            ? (currentUser?.uid || userData?.uid || '')
-            : (selectedInst?.id || selectedInst?.uid || '');
 
-        const result = await addCourse({
-            title,
-            instructor,
-            instructorId,
-            category,
-            icon: icon || 'code',
-            description,
-            goals,
-            sessions,
-            lecturesCount,
-            imageName: 'screen.png',
-            level: (level === 'مبتدئ' || level === 'Beginner' || level === t('addCourse.beginner'))
-                ? 'BEGINNER' 
-                : (level === 'متوسط' || level === 'Intermediate' || level === t('addCourse.intermediate'))
-                ? 'INTERMEDIATE' 
-                : 'ADVANCED',
-            price: 'Free',
-            rating: 0,
-            status: status,
-            students: 0,
-            avatar: instructor.substring(0, 2).toUpperCase()
-        });
-
-        // Notify instructor and platform admins in real-time
+        setIsSubmitting(true);
         try {
-            const newCourseId = result?.id || null;
-            await notifyInstructor({ instructor }, {
-                title: 'دورة جديدة في حسابك',
-                title_en: 'New Course Assigned',
-                message: `تم إدراج دورة جديدة لدوراتك: «${title}». يمكنك الآن إضافة وتعديل المحاضرات والواجبات.`,
-                message_en: `A new course "${title}" has been added to your instructor profile.`,
-                type: 'course',
-                link: newCourseId ? `/instructor-dashboard/edit-course/${newCourseId}` : '/instructor-dashboard/my-courses',
-                courseId: newCourseId,
-                metadata: { courseTitle: title, courseId: newCourseId }
+            const selectedInst = instructorsList.find(i => (typeof i === 'object' ? (i.name === instructor || i.fullName === instructor) : i === instructor));
+            const instructorId = userRole === 'instructor'
+                ? (currentUser?.uid || userData?.uid || '')
+                : (selectedInst?.id || selectedInst?.uid || '');
+
+            const result = await addCourse({
+                title,
+                instructor,
+                instructorId,
+                category,
+                icon: icon || 'code',
+                description,
+                goals,
+                sessions,
+                lecturesCount,
+                imageName: 'screen.png',
+                level: (level === 'مبتدئ' || level === 'Beginner' || level === t('addCourse.beginner'))
+                    ? 'BEGINNER' 
+                    : (level === 'متوسط' || level === 'Intermediate' || level === t('addCourse.intermediate'))
+                    ? 'INTERMEDIATE' 
+                    : 'ADVANCED',
+                price: 'Free',
+                rating: 0,
+                status: status,
+                students: 0,
+                avatar: instructor.substring(0, 2).toUpperCase()
             });
 
-            await notifyAdmins({
-                title: 'دورة جديدة على المنصة',
-                title_en: 'New Platform Course',
-                message: `تم إضافة دورة جديدة «${title}» للمدرب «${instructor}».`,
-                message_en: `New course "${title}" was created for instructor "${instructor}".`,
-                type: 'course',
-                link: newCourseId ? `/admin-dashboard/edit-course/${newCourseId}` : `/admin-dashboard/courses?search=${encodeURIComponent(title)}`,
-                courseId: newCourseId,
-                metadata: { courseTitle: title, courseId: newCourseId }
-            });
-        } catch (notifErr) {
-            console.warn('Could not dispatch course creation notifications:', notifErr);
+            // Notify instructor and platform admins in real-time
+            try {
+                const newCourseId = result?.id || null;
+                await notifyInstructor({ instructor }, {
+                    title: 'دورة جديدة في حسابك',
+                    title_en: 'New Course Assigned',
+                    message: `تم إدراج دورة جديدة لدوراتك: «${title}». يمكنك الآن إضافة وتعديل المحاضرات والواجبات.`,
+                    message_en: `A new course "${title}" has been added to your instructor profile.`,
+                    type: 'course',
+                    link: newCourseId ? `/instructor-dashboard/edit-course/${newCourseId}` : '/instructor-dashboard/my-courses',
+                    courseId: newCourseId,
+                    metadata: { courseTitle: title, courseId: newCourseId }
+                });
+
+                await notifyAdmins({
+                    title: 'دورة جديدة على المنصة',
+                    title_en: 'New Platform Course',
+                    message: `تم إضافة دورة جديدة «${title}» للمدرب «${instructor}».`,
+                    message_en: `New course "${title}" was created for instructor "${instructor}".`,
+                    type: 'course',
+                    link: newCourseId ? `/admin-dashboard/edit-course/${newCourseId}` : `/admin-dashboard/courses?search=${encodeURIComponent(title)}`,
+                    courseId: newCourseId,
+                    metadata: { courseTitle: title, courseId: newCourseId }
+                });
+            } catch (notifErr) {
+                console.warn('Could not dispatch course creation notifications:', notifErr);
+            }
+            
+            setModal(null);
+            navigate(userRole === 'admin' ? '/admin-dashboard/courses' : '/instructor-dashboard/my-courses');
+        } catch (err) {
+            console.error('Error saving course:', err);
+            alert(dir === 'rtl' ? 'حدث خطأ أثناء حفظ الدورة. يرجى المحاولة ثانية.' : 'Failed to save course. Please try again.');
+        } finally {
+            setIsSubmitting(false);
         }
-        
-        setModal(null);
-        navigate(userRole === 'admin' ? '/admin-dashboard/courses' : '/instructor-dashboard/my-courses');
     };
 
     const handleConfirmCancel = () => {
@@ -748,14 +758,16 @@ export default function AddCourse() {
                             <div className="mt-7 flex gap-3">
                                 <button
                                     type="button"
+                                    disabled={isSubmitting}
                                     onClick={() => setModal(null)}
-                                    className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                    className="flex-1 rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {t('common.back')}
                                 </button>
 
                                 <button
                                     type="button"
+                                    disabled={isSubmitting}
                                     onClick={async () => {
                                         if (modal === "save") {
                                             await handleSaveCourse(t('addCourse.published'));
@@ -765,7 +777,7 @@ export default function AddCourse() {
                                             handleConfirmCancel();
                                         }
                                     }}
-                                    className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition ${
+                                    className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                                         modal === "save"
                                             ? "bg-primary hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 shadow-md shadow-primary/20"
                                             : modal === "draft"
@@ -773,7 +785,14 @@ export default function AddCourse() {
                                             : "bg-rose-500 hover:bg-rose-600 dark:bg-rose-600 dark:hover:bg-rose-500"
                                     }`}
                                 >
-                                    {modal === "save" || modal === "draft" ? t('addCourse.confirmSaveBtn') : t('addCourse.confirmCancelBtn')}
+                                    {isSubmitting && (
+                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    )}
+                                    <span>
+                                        {isSubmitting
+                                            ? (dir === 'rtl' ? 'جاري الحفظ...' : 'Saving...')
+                                            : (modal === "save" || modal === "draft" ? t('addCourse.confirmSaveBtn') : t('addCourse.confirmCancelBtn'))}
+                                    </span>
                                 </button>
                             </div>
                         </motion.div>

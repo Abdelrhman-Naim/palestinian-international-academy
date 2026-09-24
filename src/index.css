@@ -255,3 +255,22 @@ html.dark:not(.fonts-loaded) .material-symbols-outlined::after {
     animation: none !important;
   }
 }
+
+/* Suppress Netlify feedback / drawer overlay badge that obscures UI controls */
+[data-netlify-drawer],
+#netlify-identity-widget,
+.netlify-badge,
+iframe[src*="netlify.com"],
+div[class*="netlify-feedback"],
+div[id*="netlify-feedback"],
+div[class*="netlify-badge"] {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Safe area inset support */
+.safe-area-bottom {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+}
