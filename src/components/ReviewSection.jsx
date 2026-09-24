@@ -27,6 +27,7 @@ export default function ReviewSection({
   // Form State
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -78,26 +79,42 @@ export default function ReviewSection({
     e.preventDefault();
     if (!currentUser || !canReview || isSubmitting) return;
 
+    if (!rating || Number(rating) < 1) {
+      setFormError(isRtl ? 'يرجى تحديد عدد النجوم للتقييم (نجمة واحدة على الأقل)' : 'Please select a star rating (at least 1 star)');
+      return;
+    }
+
+    if (!comment.trim() || comment.trim().length < 3) {
+      setFormError(isRtl ? 'يرجى كتابة نص المراجعة والتقييم (3 أحرف على الأقل)' : 'Please write your review feedback (at least 3 characters)');
+      return;
+    }
+
+    setFormError('');
     setIsSubmitting(true);
     try {
       const resolvedName = userData?.fullName || userData?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || (isRtl ? 'طالب المنصة' : 'Platform Student');
       const resolvedAvatar = userData?.photoURL || currentUser?.photoURL || '';
 
-      await addOrUpdateReview({
+      const res = await addOrUpdateReview({
         targetType,
         targetId,
         userId: currentUser.uid,
         userName: resolvedName,
         userAvatar: resolvedAvatar,
-        rating,
-        comment,
+        rating: Number(rating),
+        comment: comment.trim(),
       });
+
+      if (res && res.error) {
+        throw res.error;
+      }
 
       const updated = await getUserReview(targetType, targetId, currentUser.uid);
       setUserReview(updated);
       setIsEditing(false);
     } catch (err) {
       console.error('Error submitting review:', err);
+      setFormError(err.message || (isRtl ? 'حدث خطأ أثناء حفظ التقييم' : 'Error saving review'));
     } finally {
       setIsSubmitting(false);
     }
@@ -292,7 +309,7 @@ export default function ReviewSection({
                   </span>
                   <StarRating 
                     value={rating} 
-                    onChange={(val) => setRating(val)} 
+                    onChange={(val) => { setRating(val); if (formError) setFormError(''); }} 
                     size="lg" 
                     showLabel 
                   />
@@ -300,21 +317,34 @@ export default function ReviewSection({
 
                 {/* Comment Textarea */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
-                    {isRtl ? 'رأيك وتجربتك بالتفصيل (اختياري):' : 'Detailed feedback (optional):'}
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5 flex items-center justify-between">
+                    <span>{isRtl ? 'رأيك وتجربتك بالتفصيل:' : 'Your Detailed Review:'}</span>
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">{isRtl ? '* مطلوب (3 أحرف على الأقل)' : '* Required (min 3 chars)'}</span>
                   </label>
                   <textarea
                     value={comment}
-                    onChange={(e) => setComment(e.target.value)}
+                    onChange={(e) => { setComment(e.target.value); if (formError) setFormError(''); }}
                     rows={3}
                     placeholder={
                       isRtl
                         ? 'اكتب هنا انطباعك عن جودة المحتوى، الشرح، والاستفادة العملية...'
                         : 'Share your thoughts about content quality, teaching method, and practical skills...'
                     }
-                    className="w-full px-4 py-3 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-dark dark:text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-y"
+                    className={`w-full px-4 py-3 rounded-2xl border bg-stone-50 dark:bg-stone-800 text-dark dark:text-white text-xs sm:text-sm focus:outline-none transition-all resize-y ${
+                      formError && (!comment.trim() || comment.trim().length < 3)
+                        ? 'border-rose-500 ring-2 ring-rose-500/20'
+                        : 'border-stone-200 dark:border-stone-700 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                    }`}
                   />
                 </div>
+
+                {/* Form Error Banner */}
+                {formError && (
+                  <div className="rounded-xl bg-rose-50 dark:bg-rose-950/40 p-3 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base shrink-0">error</span>
+                    <span>{formError}</span>
+                  </div>
+                )}
 
                 {/* Submit Action Button */}
                 <div className="flex justify-end gap-3">

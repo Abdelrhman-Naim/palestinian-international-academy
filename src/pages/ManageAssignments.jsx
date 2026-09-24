@@ -48,18 +48,40 @@ export default function ManageAssignments() {
     }, [id]);
 
     const formatDueDate = (dateStr, isRtl) => {
-        if (!dateStr) return '';
-        try {
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const d = new Date(year, month - 1, day);
-            return d.toLocaleDateString(isRtl ? "ar-EG" : "en-US", {
-                day: "numeric",
-                month: "long",
-                year: "numeric"
-            });
-        } catch {
+        if (!dateStr) return '—';
+        if (typeof dateStr === 'string' && dateStr.includes('Invalid')) return '—';
+        
+        // If string already contains localized arabic month name, return it directly
+        const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        if (typeof dateStr === 'string' && arabicMonths.some(m => dateStr.includes(m))) {
             return dateStr;
         }
+
+        try {
+            if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+                const [year, month, day] = dateStr.trim().split('-').map(Number);
+                const d = new Date(year, month - 1, day);
+                if (!isNaN(d.getTime())) {
+                    return d.toLocaleDateString(isRtl ? "ar-EG" : "en-US", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                    });
+                }
+            }
+
+            const raw = dateStr?.toDate ? dateStr.toDate() : dateStr;
+            const parsed = new Date(raw);
+            if (!isNaN(parsed.getTime())) {
+                return parsed.toLocaleDateString(isRtl ? "ar-EG" : "en-US", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                });
+            }
+        } catch (e) {}
+        
+        return typeof dateStr === 'string' && !dateStr.includes('Invalid') ? dateStr : '—';
     };
 
     const validateAssignmentForm = () => {

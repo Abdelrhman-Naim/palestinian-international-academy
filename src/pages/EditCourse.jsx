@@ -54,7 +54,7 @@ export default function EditCourse() {
             errs.description = dir === 'rtl' ? 'يرجى كتابة نبذة عن الدورة' : 'Description is required';
         }
         if (!lecturesCount || Number(lecturesCount) <= 0) {
-            errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح (> 0)' : 'Valid lecture count (> 0) is required';
+            errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح أكبر من صفر' : 'Valid lecture count (> 0) is required';
         }
         const hasValidGoal = goals?.some(g => g && g.trim() !== '');
         if (!hasValidGoal) {
@@ -63,6 +63,18 @@ export default function EditCourse() {
         const hasValidSession = sessions?.some(s => s && s.title?.trim() !== '');
         if (!hasValidSession) {
             errs.sessions = dir === 'rtl' ? 'يرجى إدخال عنوان لمحاضرة واحدة على الأقل' : 'At least one lecture with title is required';
+        }
+
+        // Validate URL format for all provided lesson links
+        const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+        for (let i = 0; i < (sessions || []).length; i++) {
+            const link = sessions[i]?.link?.trim();
+            if (link && !urlPattern.test(link)) {
+                errs.sessions = dir === 'rtl'
+                    ? `رابط المحاضرة رقم ${i + 1} غير صالح! يرجى إدخال رابط يبدأ بـ https://`
+                    : `Invalid URL format in lecture #${i + 1}! Must start with https://`;
+                break;
+            }
         }
 
         // Check for duplicate non-empty lesson links
@@ -464,10 +476,23 @@ export default function EditCourse() {
                                 <input
                                     type="number"
                                     min="1"
+                                    step="1"
+                                    required
                                     value={lecturesCount}
-                                    onChange={(e) => setLecturesCount(e.target.value)}
-                                    className="w-full rounded-xl border border-[#E8E2D5] bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-orange-500"
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '' || Number(v) >= 1) {
+                                            setLecturesCount(v);
+                                            if (errors.lecturesCount) setErrors(p => ({ ...p, lecturesCount: null }));
+                                        }
+                                    }}
+                                    className={`w-full rounded-xl border px-4 py-3 text-sm text-gray-700 outline-none transition ${
+                                        errors.lecturesCount 
+                                            ? "border-rose-500 ring-2 ring-rose-500/10" 
+                                            : "border-[#E8E2D5] focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700"
+                                    } bg-white dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500`}
                                 />
+                                {errors.lecturesCount && <p className="mt-1.5 text-xs font-semibold text-rose-500">{errors.lecturesCount}</p>}
                             </div>
 
                             {/* Goals */}

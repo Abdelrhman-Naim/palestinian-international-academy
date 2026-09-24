@@ -211,7 +211,7 @@ export default function NotificationDropdown() {
 
       if (type === 'enrollment') {
         if (courseId) {
-          return `/admin-dashboard/course-students/${courseId}`;
+          return `/instructor-dashboard/my-courses?highlightCourse=${courseId}`;
         }
         return '/instructor-dashboard/my-courses';
       }
@@ -224,6 +224,10 @@ export default function NotificationDropdown() {
       }
 
       if (rawLink) {
+        if (rawLink.includes('/course-students/') || rawLink.includes('/admin-dashboard/')) {
+          const cId = courseId || rawLink.split('/').filter(Boolean).pop();
+          return cId && !cId.includes('admin') ? `/instructor-dashboard/my-courses?highlightCourse=${cId}` : '/instructor-dashboard/my-courses';
+        }
         if (rawLink.startsWith('/instructor-dashboard')) {
           if (rawLink.includes('/manage-assignments/')) {
             const cId = rawLink.split('/').filter(Boolean).pop();

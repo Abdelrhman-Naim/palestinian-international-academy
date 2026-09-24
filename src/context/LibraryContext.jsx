@@ -71,20 +71,36 @@ export function LibraryProvider({ children }) {
         remoteBooks = data.map(item => sanitizeObject(item));
       }
 
-      // Merge remote + local custom books avoiding duplicates by id or title
+      // Merge remote + local custom books strictly avoiding duplicates by id, title, and author
       const mergedMap = new Map();
       const existingTitles = new Set();
 
       remoteBooks.forEach(rb => {
+        const titleKey = (rb.title || '').trim().toLowerCase();
+        const authorKey = (rb.author || '').trim().toLowerCase();
+        const comboKey = `${titleKey}__${authorKey}`;
+
+        // Skip duplicate remote entries with matching title/author
+        if (titleKey && (existingTitles.has(comboKey) || existingTitles.has(titleKey))) {
+          return;
+        }
+
         if (rb.id) mergedMap.set(rb.id, rb);
-        if (rb.title) existingTitles.add(rb.title.trim().toLowerCase());
+        if (titleKey) {
+          existingTitles.add(comboKey);
+          existingTitles.add(titleKey);
+        }
       });
 
       const unsyncedBooks = [];
       localBooks.forEach(lb => {
         const titleKey = (lb.title || '').trim().toLowerCase();
-        if (lb.id && !mergedMap.has(lb.id) && !existingTitles.has(titleKey)) {
+        const authorKey = (lb.author || '').trim().toLowerCase();
+        const comboKey = `${titleKey}__${authorKey}`;
+
+        if (lb.id && !mergedMap.has(lb.id) && !existingTitles.has(comboKey) && !existingTitles.has(titleKey)) {
           mergedMap.set(lb.id, sanitizeObject(lb));
+          existingTitles.add(comboKey);
           existingTitles.add(titleKey);
           unsyncedBooks.push(lb);
         }

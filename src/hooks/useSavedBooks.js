@@ -25,12 +25,12 @@ export function useSavedBooks() {
   }, [currentUser]);
 
   const savedBookIds = useMemo(() => {
-    return new Set(savedList.map((item) => item.bookId || item.book_id));
+    return new Set(savedList.map((item) => String(item.bookId || item.book_id || item.id)));
   }, [savedList]);
 
   const isSaved = (bookId) => {
     if (!bookId) return false;
-    return savedBookIds.has(bookId);
+    return savedBookIds.has(String(bookId));
   };
 
   const handleToggleSave = async (book) => {

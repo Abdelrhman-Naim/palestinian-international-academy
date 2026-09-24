@@ -1,5 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { createCourseGroupChat } from '../services/chatService';
 import { useCourses } from '../context/CoursesContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,8 @@ export default function MyCourses() {
   const { courses, loading } = useCourses();
   const { userData, currentUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightCourseId = searchParams.get('highlightCourse') || searchParams.get('course');
   const [loadingGroupCourseId, setLoadingGroupCourseId] = useState(null);
 
   const handleOpenOrCreateGroup = async (course) => {
@@ -32,6 +34,15 @@ export default function MyCourses() {
   // Filter this instructor's courses using language-independent UID + multilingual fallback
   const myCourses = courses.filter(c => isCourseOwnedByInstructor(c, currentUser, userData));
 
+  useEffect(() => {
+    if (highlightCourseId) {
+      const el = document.getElementById(`course-card-${highlightCourseId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [highlightCourseId, myCourses]);
+
   return (
     <div dir={dir} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -52,8 +63,16 @@ export default function MyCourses() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#E8E2D5] dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
-            {myCourses.map(course => (
-              <div key={course.id} className="group p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 border-b border-[#E8E2D5] dark:border-gray-700 last:border-0 hover:bg-[#FAF7F2] dark:hover:bg-gray-700 transition-colors duration-300">
+            {myCourses.map(course => {
+              const isHighlighted = String(course.id) === String(highlightCourseId);
+              return (
+              <div 
+                key={course.id} 
+                id={`course-card-${course.id}`}
+                className={`group p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 border-b border-[#E8E2D5] dark:border-gray-700 last:border-0 hover:bg-[#FAF7F2] dark:hover:bg-gray-700 transition-all duration-300 ${
+                  isHighlighted ? 'bg-amber-500/10 dark:bg-amber-500/15 ring-2 ring-amber-500' : ''
+                }`}
+              >
                 
                 <div className="w-full md:w-32 h-24 bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 rounded-xl shadow-sm flex items-center justify-center text-gray-400 shrink-0">
                   <i className="fa-solid fa-book text-3xl"></i>
@@ -117,7 +136,8 @@ export default function MyCourses() {
                 </div>
 
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

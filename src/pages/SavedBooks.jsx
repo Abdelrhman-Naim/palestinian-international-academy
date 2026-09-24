@@ -139,9 +139,10 @@ export default function SavedBooks() {
                 {/* Book Cover Image Area */}
                 <div className="relative h-48 w-full bg-linear-to-br from-stone-100 to-amber-50 dark:from-stone-900 dark:to-stone-950 flex items-center justify-center overflow-hidden">
                   <img
-                    src={screenImg}
+                    src={item.cover_url || item.coverUrl || screenImg}
                     alt={item.title}
                     className="w-full h-full object-cover opacity-75 group-hover:scale-105 group-hover:opacity-90 transition-all duration-500"
+                    onError={(e) => { e.currentTarget.src = screenImg; }}
                   />
 
                   {/* Top Badges */}

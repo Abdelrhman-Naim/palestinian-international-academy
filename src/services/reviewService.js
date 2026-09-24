@@ -32,7 +32,17 @@ export async function addOrUpdateReview({ targetType, targetId, userId, userName
     throw new Error('Missing targetType, targetId, or userId');
   }
 
-  const numRating = Math.min(5, Math.max(1, Number(rating) || 5));
+  const numRating = Number(rating);
+  if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+    throw new Error('Rating must be between 1 and 5 stars');
+  }
+
+  const trimmedComment = (comment || '').trim();
+  if (!trimmedComment || trimmedComment.length < 3) {
+    throw new Error('Review comment must be at least 3 characters');
+  }
+
+  const cleanRating = Math.min(5, Math.max(1, numRating));
 
   const { data, error } = await supabase
     .from('reviews')
@@ -42,8 +52,8 @@ export async function addOrUpdateReview({ targetType, targetId, userId, userName
       user_id: userId,
       user_name: userName || 'مستخدم المنصة',
       user_avatar: userAvatar || '',
-      rating: numRating,
-      comment: (comment || '').trim(),
+      rating: cleanRating,
+      comment: trimmedComment,
       updated_at: new Date()
     })
     .select()

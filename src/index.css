@@ -197,19 +197,25 @@ html.dark,
   direction: ltr;
   -webkit-font-feature-settings: 'liga';
   font-feature-settings: 'liga';
+  font-variant-ligatures: normal;
   -webkit-font-smoothing: antialiased;
   max-width: 1.5em;
   max-height: 1.5em;
   overflow: hidden;
+  user-select: none;
 }
 
 /* While the icon font is loading or on slow network: 
-   Completely hide ligature names (like expand_more, quiz, star, forum) */
+   Physically zero out text size to prevent ANY glyph ligature leakage (school, person, bookmark) */
 html:not(.fonts-loaded) .material-symbols-outlined {
+  font-size: 0 !important;
+  line-height: 0 !important;
   color: transparent !important;
   text-shadow: none !important;
   user-select: none !important;
   position: relative;
+  width: 1.25em !important;
+  height: 1.25em !important;
 }
 
 /* Elegant gold pulse skeleton placeholder matching the exact icon space */

@@ -25,6 +25,7 @@ export default function ManageCourseExam() {
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(20);
   const [questions, setQuestions] = useState([]);
   const [collapsedQuestions, setCollapsedQuestions] = useState({});
+  const [validationErrors, setValidationErrors] = useState({});
 
   const toggleQuestionCollapse = (qIndex) => {
     setCollapsedQuestions(prev => ({
@@ -123,6 +124,13 @@ export default function ManageCourseExam() {
       copy[index].question = value;
       return copy;
     });
+    if (validationErrors[index]?.question) {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        if (next[index]) next[index] = { ...next[index], question: false };
+        return next;
+      });
+    }
   };
 
   const handleOptionTextChange = (qIndex, optIndex, value) => {
@@ -131,6 +139,17 @@ export default function ManageCourseExam() {
       copy[qIndex].options[optIndex] = value;
       return copy;
     });
+    if (validationErrors[qIndex]?.options?.[optIndex]) {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        if (next[qIndex]?.options) {
+          const newOpts = [...next[qIndex].options];
+          newOpts[optIndex] = false;
+          next[qIndex] = { ...next[qIndex], options: newOpts };
+        }
+        return next;
+      });
+    }
   };
 
   const handleCorrectOptionChange = (qIndex, optIndex) => {
@@ -148,20 +167,62 @@ export default function ManageCourseExam() {
       return;
     }
 
-    // Validation for questions
+    if (!questions || questions.length === 0) {
+      alert(isRtl ? 'يجب أن يحتوي الاختبار على سؤال واحد على الأقل.' : 'Exam must contain at least one question.');
+      return;
+    }
+
+    // Validation for questions with visual feedback and auto-accordion expand
+    const errMap = {};
+    let firstErrorIndex = null;
+    let firstErrorMessage = '';
+
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      const qErr = { question: false, options: [false, false, false, false] };
+      let hasErr = false;
+
       if (!q.question.trim()) {
-        alert(isRtl ? `يرجى إدخال نص السؤال رقم ${i + 1}.` : `Please enter text for question #${i + 1}.`);
-        return;
+        qErr.question = true;
+        hasErr = true;
+        if (!firstErrorMessage) {
+          firstErrorMessage = isRtl ? `يرجى إدخال نص السؤال رقم ${i + 1}.` : `Please enter text for question #${i + 1}.`;
+        }
       }
-      for (let j = 0; j < q.options.length; j++) {
+
+      for (let j = 0; j < (q.options || []).length; j++) {
         if (!q.options[j].trim()) {
-          alert(isRtl ? `يرجى إدخال نص الخيار ${j + 1} في السؤال رقم ${i + 1}.` : `Please fill option ${j + 1} in question #${i + 1}.`);
-          return;
+          qErr.options[j] = true;
+          hasErr = true;
+          if (!firstErrorMessage) {
+            firstErrorMessage = isRtl ? `يرجى إدخال نص الخيار ${j + 1} في السؤال رقم ${i + 1}.` : `Please fill option ${j + 1} in question #${i + 1}.`;
+          }
+        }
+      }
+
+      if (hasErr) {
+        errMap[i] = qErr;
+        if (firstErrorIndex === null) {
+          firstErrorIndex = i;
         }
       }
     }
+
+    if (firstErrorIndex !== null) {
+      setValidationErrors(errMap);
+      // Auto-expand the collapsed question that has the error
+      setCollapsedQuestions(prev => ({ ...prev, [firstErrorIndex]: false }));
+      setTimeout(() => {
+        const el = document.getElementById(`exam-question-card-${firstErrorIndex}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 80);
+      alert(firstErrorMessage);
+      return;
+    }
+
+    setValidationErrors({});
 
     setSaving(true);
     try {
@@ -453,13 +514,18 @@ export default function ManageCourseExam() {
               const isCollapsed = !!collapsedQuestions[qIndex];
               const selectedOptText = q.options[q.correctOption] || `${isRtl ? 'الخيار' : 'Option'} ${q.correctOption + 1}`;
 
+              const hasQError = !!validationErrors[qIndex];
+
               return (
                 <div 
                   key={qIndex} 
+                  id={`exam-question-card-${qIndex}`}
                   className={`bg-white dark:bg-gray-800 rounded-3xl border transition-all ${
-                    isCollapsed 
-                      ? 'p-4 border-[#E8E2D5] dark:border-gray-700 hover:border-amber-500/50 shadow-xs' 
-                      : 'p-6 border-[#E8E2D5] dark:border-gray-700 shadow-sm space-y-4'
+                    hasQError
+                      ? 'border-rose-500 ring-2 ring-rose-500/20 shadow-md ' + (isCollapsed ? 'p-4' : 'p-6 space-y-4')
+                      : isCollapsed 
+                        ? 'p-4 border-[#E8E2D5] dark:border-gray-700 hover:border-amber-500/50 shadow-xs' 
+                        : 'p-6 border-[#E8E2D5] dark:border-gray-700 shadow-sm space-y-4'
                   }`}
                 >
                   {/* Question Header Accordion Bar */}
@@ -468,15 +534,22 @@ export default function ManageCourseExam() {
                     className="flex items-center justify-between gap-3 cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-3 font-bold text-dark dark:text-white min-w-0 flex-1">
-                      <span className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-black shadow-xs shrink-0">
+                      <span className={`w-8 h-8 rounded-xl text-white flex items-center justify-center text-xs font-black shadow-xs shrink-0 ${
+                        hasQError ? 'bg-rose-500' : 'bg-amber-500'
+                      }`}>
                         {qIndex + 1}
                       </span>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-dark dark:text-white truncate">
+                          <span className={`text-sm font-bold truncate ${hasQError ? 'text-rose-600 dark:text-rose-400' : 'text-dark dark:text-white'}`}>
                             {q.question.trim() || (isRtl ? `السؤال رقم ${qIndex + 1}` : `Question #${qIndex + 1}`)}
                           </span>
+                          {hasQError && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 font-bold shrink-0">
+                              {isRtl ? 'بيانات ناقصة' : 'Incomplete'}
+                            </span>
+                          )}
                         </div>
                         {isCollapsed && (
                           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-stone-400 font-medium">
@@ -528,8 +601,11 @@ export default function ManageCourseExam() {
                     <div className="pt-2 space-y-4 border-t border-stone-100 dark:border-gray-700/60">
                       {/* Question Text Input */}
                       <div>
-                        <label className="block text-xs font-bold text-stone-600 dark:text-stone-300 mb-1">
-                          {isRtl ? 'نص السؤال' : 'Question Prompt'} *
+                        <label className="block text-xs font-bold text-stone-600 dark:text-stone-300 mb-1 flex items-center justify-between">
+                          <span>{isRtl ? 'نص السؤال' : 'Question Prompt'} *</span>
+                          {validationErrors[qIndex]?.question && (
+                            <span className="text-[11px] text-rose-500 font-semibold">{isRtl ? 'هذا الحقل مطلوب' : 'This field is required'}</span>
+                          )}
                         </label>
                         <input
                           type="text"
@@ -537,7 +613,11 @@ export default function ManageCourseExam() {
                           value={q.question}
                           onChange={e => handleQuestionTextChange(qIndex, e.target.value)}
                           placeholder={isRtl ? 'اكتب صيغة السؤال هنا بدقة...' : 'Type the question here...'}
-                          className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-gray-700 bg-stone-50 dark:bg-gray-900 text-dark dark:text-white font-medium text-sm focus:outline-hidden focus:border-primary"
+                          className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50 dark:bg-gray-900 text-dark dark:text-white font-medium text-sm focus:outline-hidden transition-all ${
+                            validationErrors[qIndex]?.question
+                              ? 'border-rose-500 ring-2 ring-rose-500/20'
+                              : 'border-stone-200 dark:border-gray-700 focus:border-primary'
+                          }`}
                         />
                       </div>
 
@@ -550,13 +630,16 @@ export default function ManageCourseExam() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {q.options.map((opt, optIndex) => {
                             const isCorrect = Number(q.correctOption) === optIndex;
+                            const isOptError = !!validationErrors[qIndex]?.options?.[optIndex];
                             return (
                               <div
                                 key={optIndex}
                                 className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                                  isCorrect 
-                                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500/50' 
-                                    : 'border-stone-200 dark:border-gray-700 bg-stone-50/70 dark:bg-gray-900/60'
+                                  isOptError
+                                    ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/30 dark:bg-rose-950/20'
+                                    : isCorrect 
+                                      ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500/50' 
+                                      : 'border-stone-200 dark:border-gray-700 bg-stone-50/70 dark:bg-gray-900/60'
                                 }`}
                               >
                                 <input

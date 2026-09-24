@@ -157,6 +157,7 @@ export function CoursesProvider({ children }) {
   };
 
   const fallbackEnTranslations = {
+    'مقدمة في React': 'Introduction to React',
     'فوتوشوب': 'Photoshop Masterclass',
     'تطوير الويب': 'Web Development',
     'هندسة البرمجيات': 'Software Engineering',
@@ -171,24 +172,50 @@ export function CoursesProvider({ children }) {
     'جميع المستويات': 'All Levels',
   };
 
+  const fallbackArTranslations = {
+    'Introduction to React': 'مقدمة في React',
+    'Advanced React': 'احتراف React المتقدم',
+    'Advanced React Patterns': 'أنماط React المتقدمة',
+    'Full Stack Web Development': 'تطوير الويب المتكامل',
+    'UI/UX Design': 'تصميم واجهات المستخدم',
+    'UI/UX Design Masterclass': 'دورة تصميم واجهات المستخدم الشاملة',
+    'Python for Beginners': 'بايثون للمبتدئين',
+    'Python Programming': 'برمجة بايثون',
+    'Photoshop Masterclass': 'دورة فوتوشوب الشاملة',
+    'Web Development': 'تطوير الويب',
+    'Software Engineering': 'هندسة البرمجيات',
+    'Cybersecurity Fundamentals': 'أساسيات الأمن السيبراني',
+    'Artificial Intelligence & ML': 'الذكاء الاصطناعي وتعلم الآلة',
+    'Beginner': 'مبتدئ',
+    'Intermediate': 'متوسط',
+    'Advanced': 'متقدم',
+    'All Levels': 'جميع المستويات',
+  };
+
   const getEnField = (val, valEn) => {
     if (valEn) return valEn;
     if (val && fallbackEnTranslations[val]) return fallbackEnTranslations[val];
     return val;
   };
 
+  const getArField = (val, valAr) => {
+    if (valAr) return valAr;
+    if (val && fallbackArTranslations[val]) return fallbackArTranslations[val];
+    return val;
+  };
+
   const courses = rawCourses.map(course => {
     const mapped = {
       ...course,
-      title: lang === 'en' ? getEnField(course.title, course.title_en) : course.title,
-      description: lang === 'en' ? (course.description_en || course.description) : course.description,
-      instructor: lang === 'en' ? getEnField(course.instructor || course.instructor_name, course.instructor_en) : (course.instructor || course.instructor_name),
-      category: lang === 'en' ? getEnField(course.category || course.category_name, course.category_en) : (course.category || course.category_name),
-      level: lang === 'en' ? getEnField(course.level, course.level_en) : course.level,
+      title: lang === 'en' ? getEnField(course.title, course.title_en) : getArField(course.title, course.title_ar),
+      description: lang === 'en' ? (course.description_en || course.description) : (course.description_ar || course.description),
+      instructor: lang === 'en' ? getEnField(course.instructor || course.instructor_name, course.instructor_en) : getArField(course.instructor || course.instructor_name, course.instructor_ar),
+      category: lang === 'en' ? getEnField(course.category || course.category_name, course.category_en) : getArField(course.category || course.category_name, course.category_ar),
+      level: lang === 'en' ? getEnField(course.level, course.level_en) : getArField(course.level, course.level_ar),
       goals: lang === 'en' && course.goals_en && course.goals_en.length === (course.goals || []).length ? course.goals_en : course.goals,
       lectures: (course.lectures || course.lessons || course.sessions || []).map(lec => ({
         ...lec,
-        title: lang === 'en' ? (lec.title_en || lec.title) : lec.title
+        title: lang === 'en' ? (lec.title_en || lec.title) : (lec.title_ar || lec.title)
       })),
       originalData: course
     };

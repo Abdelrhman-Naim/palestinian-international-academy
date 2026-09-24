@@ -70,7 +70,23 @@ const StudentAssignments = () => {
               courseId: a.course_id,
               course: cMap[a.course_id]?.title || 'دورة',
               instructor: cMap[a.course_id]?.instructor_name || 'المدرب',
-              deadline: a.due_date ? new Date(a.due_date).toLocaleDateString('ar-EG') : '—',
+              deadline: (() => {
+                const rawDate = a.due_date || a.dueDate || a.date;
+                if (!rawDate) return '—';
+                if (typeof rawDate === 'string' && rawDate.includes('Invalid')) return '—';
+                const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+                if (typeof rawDate === 'string' && arabicMonths.some(m => rawDate.includes(m))) return rawDate;
+                try {
+                  if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) {
+                    const [y, m, d] = rawDate.trim().split('-').map(Number);
+                    const dt = new Date(y, m - 1, d);
+                    if (!isNaN(dt.getTime())) return dt.toLocaleDateString('ar-EG');
+                  }
+                  const d = new Date(rawDate?.toDate ? rawDate.toDate() : rawDate);
+                  if (!isNaN(d.getTime())) return d.toLocaleDateString('ar-EG');
+                } catch (e) {}
+                return typeof rawDate === 'string' && !rawDate.includes('Invalid') ? rawDate : '—';
+              })(),
               status: sub ? (sub.grade ? 'graded' : 'submitted') : 'pending',
               grade: sub?.grade || null,
               file_url: a.file_url || a.fileUrl || '',

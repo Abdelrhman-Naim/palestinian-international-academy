@@ -1195,7 +1195,7 @@ export default function ChatPage() {
                             {t('chat.courseGroup')}
                           </span>
                           <span>•</span>
-                          <span className="shrink-0">{activeChat.participants?.length || 0} {t('chat.members')}</span>
+                          <span className="shrink-0">{Math.max(groupMembers.length, activeChat.participants?.length || 0, 1)} {t('chat.members')}</span>
                           {activeChat.instructorName && (
                             <>
                               <span>•</span>
@@ -2056,7 +2056,7 @@ export default function ChatPage() {
                     </h5>
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
-                    {groupMembers.length} {t('chat.members')}
+                    {Math.max(groupMembers.length, activeChat.participants?.length || 0, 1)} {t('chat.members')}
                   </span>
                 </div>
 

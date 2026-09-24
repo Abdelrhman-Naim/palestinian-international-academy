@@ -548,6 +548,26 @@ export async function fetchChatMembers(chatOrId) {
       });
     }
 
+    // 5.5. Include all participants in chat.participants array
+    if (Array.isArray(chat.participants)) {
+      chat.participants.forEach(pId => {
+        if (!pId) return;
+        const sid = String(pId);
+        if (!membersMap.has(sid)) {
+          const isInst = sid === instructorUid;
+          membersMap.set(sid, {
+            uid: sid,
+            name: isInst ? instructorName : 'عضو في المجموعة',
+            role: isInst ? 'instructor' : 'student',
+            groupRole: isInst ? 'admin' : 'member',
+            isInstructor: isInst,
+            isGroupAdmin: isInst,
+            isAssistantAdmin: false
+          });
+        }
+      });
+    }
+
     // 6. Enrich with profiles from Supabase
     try {
       const uids = Array.from(membersMap.keys()).filter(id => !id.startsWith('inst_'));

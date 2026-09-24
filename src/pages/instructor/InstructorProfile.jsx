@@ -4,6 +4,7 @@ import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../../utils/courseUtils';
 import { auth, db, storage, doc, updateDoc } from '../../supabase/db';
+import { supabase } from '../../supabase/client';
 import { Link } from 'react-router-dom';
 
 export default function InstructorProfile() {
@@ -53,12 +54,12 @@ export default function InstructorProfile() {
   useEffect(() => {
     if (userData || currentUser) {
       setFormData({
-        fullName: userData?.name || userData?.fullName || currentUser?.displayName || '',
+        fullName: userData?.full_name || userData?.name || userData?.fullName || currentUser?.displayName || '',
         fullName_en: userData?.name_en || userData?.fullName_en || '',
         phone: userData?.phone || '',
-        field: userData?.field || '',
+        field: userData?.specialization || userData?.field || '',
         bio: userData?.bio || '',
-        photoURL: userData?.photoURL || currentUser?.photoURL || ''
+        photoURL: userData?.avatar_url || userData?.photoURL || currentUser?.photoURL || ''
       });
     }
   }, [userData, currentUser]);
@@ -314,10 +315,17 @@ export default function InstructorProfile() {
     setPasswordMessage({ type: '', text: '' });
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      if (resetPassword) {
+        await resetPassword(email);
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/login`
+        });
+        if (error) throw error;
+      }
       setPasswordMessage({
         type: 'success',
-        text: t('instructorProfile.resetLinkSent')
+        text: isRtl ? 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك بنجاح' : 'Password reset link sent to your email successfully'
       });
       setTimeout(() => setPasswordMessage({ type: '', text: '' }), 6000);
     } catch (err) {
@@ -332,9 +340,10 @@ export default function InstructorProfile() {
   };
 
   // Format joined date
-  const joinedDate = userData?.createdAt 
-    ? (userData.createdAt.toDate ? userData.createdAt.toDate().toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-       : new Date(userData.createdAt).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }))
+  const rawJoined = userData?.created_at || userData?.createdAt || currentUser?.created_at;
+  const joinedDate = rawJoined 
+    ? (rawJoined.toDate ? rawJoined.toDate().toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+       : new Date(rawJoined).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }))
     : '—';
 
   const initials = (formData.fullName || currentUser?.email || 'IN')

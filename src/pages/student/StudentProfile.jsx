@@ -4,6 +4,7 @@ import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { auth, db, storage, doc, updateDoc } from '../../supabase/db';
 import { supabase } from '../../supabase/client';
+import { useSavedBooks } from '../../hooks/useSavedBooks';
 import { Link } from 'react-router-dom';
 
 export default function StudentProfile() {
@@ -11,11 +12,12 @@ export default function StudentProfile() {
   const isRtl = dir === 'rtl';
   const { currentUser, userData } = useAuth();
   const { courses } = useCourses();
+  const { savedList } = useSavedBooks();
   const fileInputRef = useRef(null);
 
   // Enrolled courses count
   const enrolledCount = (userData?.enrolledCourses || []).length;
-  const savedBooksCount = (userData?.savedBooks || []).length;
+  const savedBooksCount = savedList.length || (userData?.savedBooks || []).length;
 
   // Personal info form state
   const [formData, setFormData] = useState({
@@ -52,11 +54,11 @@ export default function StudentProfile() {
   useEffect(() => {
     if (userData) {
       setFormData({
-        fullName: userData.fullName || userData.name || currentUser?.displayName || '',
+        fullName: userData.full_name || userData.fullName || userData.name || currentUser?.displayName || '',
         fullName_en: userData.fullName_en || userData.name_en || '',
         phone: userData.phone || '',
         bio: userData.bio || '',
-        photoURL: userData.photoURL || currentUser?.photoURL || ''
+        photoURL: userData.avatar_url || userData.photoURL || currentUser?.photoURL || ''
       });
     }
   }, [userData, currentUser]);
