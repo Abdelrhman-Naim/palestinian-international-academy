@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AnimatedRoutes from './components/AnimatedRoutes';
@@ -14,7 +15,6 @@ import RouteTransitionLoader from './components/RouteTransitionLoader';
 import PageLoader from './components/PageLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import MobileBottomNav from './components/MobileBottomNav';
-
 import { useLanguage } from './context/LanguageContext';
 
 const UnauthorizedPage = ({ redirectTo, redirectLabel }) => {
@@ -34,7 +34,16 @@ const UnauthorizedPage = ({ redirectTo, redirectLabel }) => {
 function InstructorGuard({ children }) {
   const { userStatus, userRole, currentUser, loading } = useAuth();
   const { t, dir } = useLanguage();
-  if (loading) return <PageLoader fullScreen={true} />;
+  const [safetyTimedOut, setSafetyTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setSafetyTimedOut(true), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  if (loading && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <Navigate to="/login-trainer" replace />;
   if (userRole !== 'instructor') {
     return <UnauthorizedPage redirectTo="/login-trainer" redirectLabel={t('app.goInstructorLogin')} />;
@@ -57,7 +66,16 @@ function InstructorGuard({ children }) {
 function AdminGuard({ children }) {
   const { userRole, currentUser, loading } = useAuth();
   const { t } = useLanguage();
-  if (loading) return <PageLoader fullScreen={true} />;
+  const [safetyTimedOut, setSafetyTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setSafetyTimedOut(true), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  if (loading && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <Navigate to="/login-admin" replace />;
   if (userRole !== 'admin') {
     return <UnauthorizedPage redirectTo="/login-admin" redirectLabel={t('app.goAdminLogin')} />;
@@ -68,7 +86,16 @@ function AdminGuard({ children }) {
 function StudentGuard({ children }) {
   const { userRole, currentUser, loading } = useAuth();
   const { t } = useLanguage();
-  if (loading) return <PageLoader fullScreen={true} />;
+  const [safetyTimedOut, setSafetyTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setSafetyTimedOut(true), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  if (loading && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (userRole !== 'student') {
     return <UnauthorizedPage redirectTo="/login" redirectLabel={t('app.goStudentLogin')} />;

@@ -6,7 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 /**
  * RouteTransitionLoader
- * When navigating between routes, especially on slow networks,
+ * When navigating between distinct top-level pages, especially on slow networks,
  * renders a magnificent centered circular loader with clear typography and status.
  */
 export default function RouteTransitionLoader() {
@@ -16,23 +16,40 @@ export default function RouteTransitionLoader() {
   const prevPathRef = useRef(location.pathname);
   const timerRef = useRef(null);
 
+  const getRootSegment = (path) => {
+    const parts = (path || '').split('/').filter(Boolean);
+    return parts[0] || '';
+  };
+
   useEffect(() => {
-    // Only trigger when actual path changes
+    const prevRoot = getRootSegment(prevPathRef.current);
+    const currRoot = getRootSegment(location.pathname);
+
+    // Only trigger full transition loader when moving between distinct top-level routes
+    // (e.g., / -> /courses, or /courses -> /admin-dashboard).
+    // Avoid triggering on internal tab changes inside dashboards or query param changes.
+    const isSubTabChange = (
+      (prevRoot === 'admin-dashboard' && currRoot === 'admin-dashboard') ||
+      (prevRoot === 'instructor-dashboard' && currRoot === 'instructor-dashboard') ||
+      (prevRoot === 'dashboard' && currRoot === 'dashboard')
+    );
+
     if (prevPathRef.current !== location.pathname) {
       prevPathRef.current = location.pathname;
-      setIsTransitioning(true);
 
-      if (timerRef.current) clearTimeout(timerRef.current);
-      // Smoothly dismiss once page transitions
-      timerRef.current = setTimeout(() => {
-        setIsTransitioning(false);
-      }, 120);
+      if (!isSubTabChange) {
+        setIsTransitioning(true);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+          setIsTransitioning(false);
+        }, 140);
+      }
     }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [location.pathname, location.search]);
+  }, [location.pathname]);
 
   return (
     <AnimatePresence>

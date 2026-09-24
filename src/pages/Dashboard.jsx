@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
+import PageLoader from '../components/PageLoader';
 
 const navItemClass = ({ isActive }) =>
   `flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium border ${
@@ -278,7 +279,13 @@ const Dashboard = () => {
 
         {/* Outlet renders child routes */}
         <div className={`flex-1 ${isMessages ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
-          <Outlet />
+          <Suspense fallback={
+            <div className="flex-1 flex items-center justify-center p-8">
+              <PageLoader size="sm" />
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
       {/* END: Main Content Area */}

@@ -71,9 +71,17 @@ const pageTransition = {
 
 const PageWrapper = ({ children }) => {
   const location = useLocation();
+  const rootKey = (location.pathname.startsWith('/admin-dashboard') || location.pathname.startsWith('/AdminDashboard'))
+    ? '/admin-dashboard'
+    : location.pathname.startsWith('/instructor-dashboard')
+    ? '/instructor-dashboard'
+    : location.pathname.startsWith('/dashboard')
+    ? '/dashboard'
+    : location.pathname;
+
   return (
     <motion.div
-      key={location.pathname}
+      key={rootKey}
       initial="initial"
       animate="in"
       exit="out"
