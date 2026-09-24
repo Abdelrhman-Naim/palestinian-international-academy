@@ -2,6 +2,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { createCourseGroupChat } from '../services/chatService';
 import { useCourses } from '../context/CoursesContext';
+import { getCourseIcon } from '../components/CourseCard';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../utils/courseUtils';
@@ -74,8 +75,10 @@ export default function MyCourses() {
                 }`}
               >
                 
-                <div className="w-full md:w-32 h-24 bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 rounded-xl shadow-sm flex items-center justify-center text-gray-400 shrink-0">
-                  <i className="fa-solid fa-book text-3xl"></i>
+                <div className="relative w-full md:w-32 h-24 overflow-hidden rounded-2xl shadow-xs bg-[#F5F0E6] dark:bg-[#1D1915] border border-amber-300/60 dark:border-[#3E3326] flex items-center justify-center shrink-0 group-hover:bg-[#EFE9DC] dark:group-hover:bg-[#221D18] transition-colors">
+                  <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#28221B] border border-amber-300/80 dark:border-[#3E3326] flex items-center justify-center text-amber-600 dark:text-[#D9A54C] shadow-xs group-hover:scale-110 transition-transform duration-300">
+                    <span className="material-symbols-outlined text-2xl">{getCourseIcon(course)}</span>
+                  </div>
                 </div>
 
                 <div className="flex-1 text-right">

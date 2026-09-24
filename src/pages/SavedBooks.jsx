@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSavedBooks } from '../hooks/useSavedBooks';
 import { useLanguage } from '../context/LanguageContext';
-import screenImg from '../assets/screen.png';
+import BookCard from '../components/BookCard';
 
 export default function SavedBooks() {
   const { t, dir } = useLanguage();
@@ -131,105 +131,29 @@ export default function SavedBooks() {
         ) : (
           /* Saved Books Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBooks.map((item) => (
-              <div
-                key={item.id}
-                className="group relative bg-white dark:bg-stone-900 border border-[#E8E2D5] dark:border-stone-800 hover:border-amber-500/50 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between"
-              >
-                {/* Book Cover Image Area */}
-                <div className="relative h-48 w-full bg-linear-to-br from-stone-100 to-amber-50 dark:from-stone-900 dark:to-stone-950 flex items-center justify-center overflow-hidden">
-                  <img
-                    src={item.cover_url || item.coverUrl || screenImg}
-                    alt={item.title}
-                    className="w-full h-full object-cover opacity-75 group-hover:scale-105 group-hover:opacity-90 transition-all duration-500"
-                    onError={(e) => { e.currentTarget.src = screenImg; }}
-                  />
-
-                  {/* Top Badges */}
-                  {(item.ratingAverage > 0 || item.ratingCount > 0) && (
-                    <div className="absolute top-3 inset-x-3 flex items-center justify-end" dir="ltr">
-                      <span className="bg-amber-500/90 text-stone-900 font-bold text-[10px] px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">star</span>
-                        <span>{(item.ratingAverage || 0).toFixed(1)}</span>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Quick Remove Bookmark Button */}
-                  <button
-                    onClick={() => removeSaved(item.bookId)}
-                    className="absolute bottom-3 inset-e-3 w-9 h-9 rounded-full bg-white/90 dark:bg-stone-900/90 text-rose-500 hover:bg-rose-500 hover:text-white backdrop-blur-md shadow-md flex items-center justify-center transition-all cursor-pointer"
-                    title={isRtl ? 'إزالة من المحفوظات' : 'Remove from saved'}
-                  >
-                    <span className="material-symbols-outlined text-lg">bookmark_remove</span>
-                  </button>
-                </div>
-
-                {/* Card Content Area */}
-                <div className="p-5 flex flex-col grow justify-between">
-                  <div>
-                    {item.category && (
-                      <span className="text-xs text-primary font-bold mb-1.5 block tracking-wide">
-                        {item.category}
-                      </span>
-                    )}
-
-                    <h3 className="font-bold text-base text-dark dark:text-white line-clamp-2 group-hover:text-primary transition-colors leading-snug mb-3">
-                      {item.title}
-                    </h3>
-
-                    <div className="space-y-1.5 text-xs text-stone-500 dark:text-stone-400 mb-4">
-                      {item.author && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-sm text-stone-400">person</span>
-                          <span>{item.author}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-4 text-[11px]">
-                        {item.year && (
-                          <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm text-stone-400">calendar_today</span>
-                            <span>{item.year}</span>
-                          </div>
-                        )}
-                        {item.pages && (
-                          <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm text-stone-400">menu_book</span>
-                            <span>{item.pages} {isRtl ? 'صفحة' : 'pages'}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Actions */}
-                  <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
-                    <Link
-                      to={`/library/${item.bookId}`}
-                      className="flex-1 py-2 rounded-xl bg-[#FAF7F2] dark:bg-stone-800 hover:bg-primary hover:text-white text-primary text-xs font-bold transition-all text-center flex items-center justify-center gap-1 shadow-xs"
-                    >
-                      <span>{isRtl ? 'قراءة الآن' : 'Read Now'}</span>
-                      <span className="material-symbols-outlined text-sm rtl:rotate-180">arrow_forward</span>
-                    </Link>
-
-                    {(item.driveUrl || item.link) && (
-                      <a
-                        href={item.driveUrl || item.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-9 h-9 rounded-xl border border-stone-200 dark:border-stone-700 hover:border-primary text-stone-600 dark:text-stone-300 hover:text-primary flex items-center justify-center transition-all"
-                        title={isRtl ? 'تنزيل الكتاب' : 'Download Book'}
-                      >
-                        <span className="material-symbols-outlined text-sm">download</span>
-                      </a>
-                    )}
-                  </div>
-
-                </div>
-
-              </div>
-            ))}
+            {filteredBooks.map((item) => {
+              const bookObj = {
+                ...item,
+                id: item.bookId || item.id,
+                title: item.title,
+                author: item.author,
+                category: item.category,
+                downloads: item.downloads || 0,
+                year: item.year,
+                pages: item.pages,
+                ratingAverage: item.ratingAverage,
+                ratingCount: item.ratingCount
+              };
+              return (
+                <BookCard
+                  key={item.id || item.bookId}
+                  book={bookObj}
+                  isSaved={true}
+                  showBookmark={true}
+                  onBookmarkClick={() => removeSaved(item.bookId || item.id)}
+                />
+              );
+            })}
           </div>
         )}
 

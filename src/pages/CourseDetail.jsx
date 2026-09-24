@@ -8,7 +8,7 @@ import { autoEnrollStudentInCourseGroup, getOrCreateDirectChat } from '../servic
 import { createNotification, notifyInstructor, notifyAdmins } from '../services/notificationService';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import screenImg from '../assets/screen.png';
+import { getCourseIcon } from '../components/CourseCard';
 import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
 import { toggleLessonCompletion } from '../services/certificateService';
@@ -464,9 +464,7 @@ export default function CourseDetail() {
 
         {/* Hero */}
         <section className="bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white py-14 px-4 border-b border-[#E8E2D5] dark:border-gray-800 relative overflow-hidden transition-colors">
-          <div className="absolute inset-0">
-            <img src={screenImg} alt="" className="w-full h-full object-cover opacity-10" />
-          </div>
+          <div className="absolute inset-0 bg-radial from-amber-500/5 via-transparent to-transparent pointer-events-none"></div>
           <div className="max-w-5xl mx-auto relative z-10">
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="bg-primary/10 text-primary text-xs px-3 py-1 rounded-full border border-primary/25 font-bold uppercase">{course.category}</span>
@@ -738,8 +736,13 @@ export default function CourseDetail() {
 
             {/* Sidebar */}
             <div className="space-y-4">
-              <div className="rounded-2xl overflow-hidden border border-[#E8E2D5] dark:border-gray-700 shadow-sm">
-                <img src={screenImg} alt={course.title} className="w-full h-44 object-cover" />
+              <div className="rounded-2xl overflow-hidden border border-amber-300/60 dark:border-[#3E3326] shadow-sm bg-[#F5F0E6] dark:bg-[#1D1915] p-8 flex flex-col items-center justify-center relative min-h-[180px] text-center">
+                <div className="w-20 h-20 rounded-2xl bg-white dark:bg-[#28221B] border border-amber-300/80 dark:border-[#3E3326] flex items-center justify-center text-amber-600 dark:text-[#D9A54C] shadow-sm mb-3">
+                  <span className="material-symbols-outlined text-4xl">{getCourseIcon(course)}</span>
+                </div>
+                <div className="bg-amber-100 dark:bg-[#2B231B] text-amber-800 dark:text-[#D9A54C] border border-amber-300/80 dark:border-[#423524] text-[11px] font-bold px-3 py-1 rounded-full shadow-xs">
+                  {course.category || (dir === 'rtl' ? 'دورة تدريبية' : 'Training Course')}
+                </div>
               </div>
               <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-2xl p-6 shadow-sm">
                 <h3 className="font-bold text-dark dark:text-white mb-4">{t('addCourse.courseDetails')}</h3>

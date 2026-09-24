@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useCourses } from '../context/CoursesContext';
 import { getOrCreateDirectChat } from '../services/chatService';
 import CertificateModal from '../components/CertificateModal';
+import { getCourseIcon } from '../components/CourseCard';
 
 const StudentMyCourses = () => {
   const { t, dir } = useLanguage();
@@ -186,8 +187,10 @@ const StudentMyCourses = () => {
                 className="group rounded-2xl border border-[#E8E2D5] bg-white p-5 transition-all hover:border-[#D4AF37] hover:shadow-sm dark:border-gray-700 dark:bg-gray-800/60"
               >
                 <div className="flex flex-col sm:flex-row items-start gap-5">
-                  <div className="w-full sm:w-28 h-20 bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
-                    <i className="fa-solid fa-book text-2xl"></i>
+                  <div className="relative w-full sm:w-28 h-20 overflow-hidden rounded-xl shadow-xs bg-[#F5F0E6] dark:bg-[#1D1915] border border-amber-300/60 dark:border-[#3E3326] flex items-center justify-center shrink-0 group-hover:bg-[#EFE9DC] dark:group-hover:bg-[#221D18] transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-white dark:bg-[#28221B] border border-amber-300/80 dark:border-[#3E3326] flex items-center justify-center text-amber-600 dark:text-[#D9A54C] shadow-xs group-hover:scale-110 transition-transform duration-300">
+                      <span className="material-symbols-outlined text-xl">{getCourseIcon(matchingCourse || { title: enroll.courseTitle, category: enroll.category })}</span>
+                    </div>
                   </div>
 
                   <div className="flex-1 w-full">

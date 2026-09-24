@@ -4,7 +4,6 @@ import { useLibrary } from '../context/LibraryContext';
 import { doc, updateDoc, increment, db } from '../supabase/db';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import screenImg from '../assets/screen.png';
 import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
 import ReviewSection from '../components/ReviewSection';
@@ -176,8 +175,16 @@ export default function BookDetail() {
         <section className="bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white py-12 px-4 border-b border-[#E8E2D5] dark:border-gray-800 transition-colors">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10">
             {/* Book Cover */}
-            <div className="relative w-44 h-60 shrink-0 rounded-xl overflow-hidden shadow-md border border-[#E8E2D5] dark:border-gray-700 bg-[#F3EFE6] dark:bg-gray-800 flex items-center justify-center">
-              <img src={screenImg} alt={book.title} className="w-full h-full object-cover opacity-80" />
+            <div className="relative w-48 sm:w-56 h-72 shrink-0 rounded-2xl shadow-md border border-amber-300/60 dark:border-[#3A322B] bg-[#F5F0E6] dark:bg-[#27221D] flex flex-col items-center justify-center p-6 text-center group">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                <span className="material-symbols-outlined text-4xl">auto_stories</span>
+              </div>
+              <h3 className="text-dark dark:text-white font-bold text-base leading-snug line-clamp-3 mb-2 font-headline-md">
+                {book.title}
+              </h3>
+              <p className="text-gray-500 dark:text-stone-400 text-xs line-clamp-1 font-body-md">
+                {book.author || book.subtitle || ''}
+              </p>
             </div>
 
             {/* Info */}

@@ -1,7 +1,7 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCourses } from '../context/CoursesContext';
-import heroImg from '../assets/screen.png';
+import { getCourseIcon } from '../components/CourseCard';
 import { useLanguage } from '../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../utils/courseUtils';
 
@@ -142,12 +142,10 @@ export default function InstructorOverview() {
               <div className="p-8 text-center text-gray-500 font-bold">{t('instructorOverview.noCourses')}</div>
             ) : myCourses.map(course => (
               <div key={course.id} className="group p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 border-b border-[#E8E2D5] dark:border-gray-700 hover:bg-[#FAF7F2] dark:hover:bg-gray-700 transition-colors duration-300">
-                <div className="relative w-full md:w-32 h-24 overflow-hidden rounded-xl shadow-sm bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 flex items-center justify-center">
-                  <img
-                    src={heroImg}
-                    alt="Course"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
+                <div className="relative w-full md:w-32 h-24 overflow-hidden rounded-2xl shadow-xs bg-[#F5F0E6] dark:bg-[#1D1915] border border-amber-300/60 dark:border-[#3E3326] flex items-center justify-center shrink-0 group-hover:bg-[#EFE9DC] dark:group-hover:bg-[#221D18] transition-colors">
+                  <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#28221B] border border-amber-300/80 dark:border-[#3E3326] flex items-center justify-center text-amber-600 dark:text-[#D9A54C] shadow-xs group-hover:scale-110 transition-transform duration-300">
+                    <span className="material-symbols-outlined text-2xl">{getCourseIcon(course)}</span>
+                  </div>
                 </div>
                 <div className="flex-1 text-right">
                   <h3 className="text-lg font-bold text-dark dark:text-white mb-1 group-hover:text-primary transition-colors">
