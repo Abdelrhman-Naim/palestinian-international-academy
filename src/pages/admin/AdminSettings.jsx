@@ -34,11 +34,11 @@ export default function AdminSettings() {
   useEffect(() => {
     if (featuredCourseConfig) {
       setSelectedCourseId(featuredCourseConfig.courseId || '');
-      setCompletedLessons(featuredCourseConfig.completedLessons ?? 8);
+      const total = Math.max(1, Number(featuredCourseConfig.totalLessons) || 10);
+      const completed = Math.max(0, Math.min(total, Number(featuredCourseConfig.completedLessons ?? 8)));
+      setTotalLessons(total);
+      setCompletedLessons(completed);
       setCustomLabel(featuredCourseConfig.customLabel || '');
-      if (featuredCourseConfig.totalLessons) {
-        setTotalLessons(featuredCourseConfig.totalLessons);
-      }
     }
   }, [featuredCourseConfig]);
 
@@ -50,6 +50,34 @@ export default function AdminSettings() {
       const lecturesCount = Number(selectedCourse.lectures?.length || selectedCourse.lecturesCount || 10);
       setTotalLessons(lecturesCount);
       setCompletedLessons(prev => Math.min(lecturesCount, Number(prev) || 0));
+    }
+  };
+
+  const handleTotalLessonsChange = (valStr) => {
+    const val = Number(valStr);
+    setTotalLessons(valStr);
+    if (val > 0) {
+      setCompletedLessons(prev => Math.min(val, Number(prev) || 0));
+      setHeroError('');
+    } else {
+      setHeroError(isRtl ? 'يجب أن يكون إجمالي الدروس رقماً موجباً أكبر من صفر' : 'Total lessons must be a positive number greater than 0');
+    }
+  };
+
+  const handleCompletedLessonsChange = (valStr) => {
+    const rawVal = Number(valStr);
+    const maxVal = Math.max(1, Number(totalLessons) || 1);
+    if (rawVal > maxVal) {
+      setCompletedLessons(maxVal);
+      setHeroError(isRtl 
+        ? `لا يمكن أن يتجاوز عدد الدروس المكتملة (${rawVal}) إجمالي الدروس (${maxVal})!` 
+        : `Completed lessons (${rawVal}) cannot exceed total lessons (${maxVal})!`);
+    } else if (rawVal < 0) {
+      setCompletedLessons(0);
+      setHeroError(isRtl ? 'لا يمكن أن يكون عدد الدروس سالباً' : 'Completed lessons cannot be negative');
+    } else {
+      setCompletedLessons(rawVal);
+      setHeroError('');
     }
   };
 
@@ -89,6 +117,16 @@ export default function AdminSettings() {
 
     if (!selectedCourseId) {
       setHeroError(isRtl ? 'يرجى اختيار كورس من القائمة قبل الحفظ' : 'Please select a course before saving');
+      return;
+    }
+
+    if (numTotal < 1) {
+      setHeroError(isRtl ? 'يجب أن يكون إجمالي الدروس 1 على الأقل!' : 'Total lessons must be at least 1!');
+      return;
+    }
+
+    if (numCompleted > numTotal) {
+      setHeroError(isRtl ? 'عدد الدروس المكتملة لا يمكن أن يتجاوز إجمالي دروس الدورة!' : 'Completed lessons cannot exceed total lessons!');
       return;
     }
 
@@ -191,7 +229,7 @@ export default function AdminSettings() {
                       type="number"
                       min="1"
                       value={totalLessons}
-                      onChange={(e) => setTotalLessons(e.target.value)}
+                      onChange={(e) => handleTotalLessonsChange(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors font-bold"
                     />
                   </div>
@@ -204,11 +242,7 @@ export default function AdminSettings() {
                       min="0"
                       max={totalLessons}
                       value={completedLessons}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setCompletedLessons(Math.min(numTotal, Math.max(0, val)));
-                        setHeroError('');
-                      }}
+                      onChange={(e) => handleCompletedLessonsChange(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors font-bold"
                     />
                   </div>

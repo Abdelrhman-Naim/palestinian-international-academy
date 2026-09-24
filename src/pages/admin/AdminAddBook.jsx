@@ -11,7 +11,7 @@ export default function AdminAddBook() {
   const { t, dir } = useLanguage();
   const navigate = useNavigate();
   const { rawCategories } = useCategories();
-  const { addBook } = useLibrary();
+  const { addBook, books } = useLibrary();
   
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -24,8 +24,11 @@ export default function AdminAddBook() {
 
   const validateForm = () => {
     const errs = {};
-    if (!title.trim()) {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
       errs.title = dir === 'rtl' ? 'يرجى إدخال عنوان الكتاب' : 'Please enter book title';
+    } else if ((books || []).some(b => (b.title || '').trim().toLowerCase() === trimmedTitle.toLowerCase())) {
+      errs.title = dir === 'rtl' ? 'يوجد كتاب مسجل مسبقاً بهذا العنوان' : 'A book with this title already exists';
     }
     if (!author.trim()) {
       errs.author = dir === 'rtl' ? 'يرجى إدخال اسم المؤلف' : 'Please enter author name';
@@ -49,8 +52,17 @@ export default function AdminAddBook() {
   
   const handleSave = async () => {
     if (isSubmitting) return;
-    if (!title || !author || !category) {
+    if (!title.trim() || !author.trim() || !category.trim()) {
       alert(t('adminAddBook.requiredFields'));
+      setModal(null);
+      return;
+    }
+
+    if ((books || []).some(b => (b.title || '').trim().toLowerCase() === title.trim().toLowerCase())) {
+      setErrors(prev => ({
+        ...prev,
+        title: dir === 'rtl' ? 'يوجد كتاب مسجل مسبقاً بهذا العنوان' : 'A book with this title already exists'
+      }));
       setModal(null);
       return;
     }

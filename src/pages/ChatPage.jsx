@@ -256,10 +256,17 @@ export default function ChatPage() {
     let active = true;
     if (activeChat) {
       fetchChatMembers(activeChat).then(members => {
-        if (active) setParticipantsList(members || []);
+        if (active) {
+          const list = members || [];
+          setParticipantsList(list);
+          if (activeChat.type === 'course_group') {
+            setGroupMembers(list);
+          }
+        }
       }).catch(err => console.warn('Could not fetch participants for mentions:', err));
     } else {
       setParticipantsList([]);
+      setGroupMembers([]);
     }
     setReplyingToMessage(null);
     setEditingMessage(null);
@@ -1195,7 +1202,7 @@ export default function ChatPage() {
                             {t('chat.courseGroup')}
                           </span>
                           <span>•</span>
-                          <span className="shrink-0">{groupMembers.length > 0 ? groupMembers.length : (activeChat.participants?.length || 1)} {t('chat.members')}</span>
+                          <span className="shrink-0">{groupMembers.length > 0 ? groupMembers.length : (Array.isArray(activeChat.participants) ? activeChat.participants.length : 0)} {t('chat.members')}</span>
                           {activeChat.instructorName && (
                             <>
                               <span>•</span>
@@ -1956,7 +1963,7 @@ export default function ChatPage() {
                   </span>
                   <span>•</span>
                   <span className="font-semibold">
-                    {groupMembers.length > 0 ? groupMembers.length : (activeChat.participants?.length || 1)} {t('chat.members')}
+                    {groupMembers.length > 0 ? groupMembers.length : (Array.isArray(activeChat.participants) ? activeChat.participants.length : 0)} {t('chat.members')}
                   </span>
                 </div>
 
@@ -2056,7 +2063,7 @@ export default function ChatPage() {
                     </h5>
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
-                    {groupMembers.length > 0 ? groupMembers.length : (activeChat.participants?.length || 1)} {t('chat.members')}
+                    {groupMembers.length > 0 ? groupMembers.length : (Array.isArray(activeChat.participants) ? activeChat.participants.length : 0)} {t('chat.members')}
                   </span>
                 </div>
 
@@ -2083,7 +2090,9 @@ export default function ChatPage() {
                     </div>
                   ) : filteredGroupMembers.length === 0 ? (
                     <p className="text-center py-6 text-xs text-gray-400 font-semibold">
-                      {isRtl ? "لا يوجد أعضاء مطابقين للبحث" : "No matching members found"}
+                      {memberSearchQuery.trim()
+                        ? (isRtl ? "لا يوجد أعضاء مطابقين للبحث" : "No matching members found")
+                        : (isRtl ? "لا يوجد أعضاء مسجلين حالياً في هذه المجموعة" : "No members currently registered in this group")}
                     </p>
                   ) : (
                     filteredGroupMembers.map((member) => {

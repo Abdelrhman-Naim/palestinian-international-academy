@@ -152,7 +152,7 @@ const AdminLogin = () => {
                   aria-label={showPassword ? t('adminLogin.hidePassword') : t('adminLogin.showPassword')}
                   title={showPassword ? t('adminLogin.hidePassword') : t('adminLogin.showPassword')}
                 >
-                  <span className="material-symbols-outlined text-lg">
+                  <span className="material-symbols-outlined text-lg" aria-hidden="true">
                     {showPassword ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>

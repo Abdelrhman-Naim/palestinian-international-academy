@@ -217,19 +217,25 @@ export function subscribeToUserNotifications(userId, callback) {
         link: n.link,
         courseId: n.course_id,
         isRead: n.is_read,
-        createdAt: n.created_at
+        createdAt: n.created_at,
+        _timestampMillis: n.created_at ? new Date(n.created_at).getTime() : Date.now()
       }));
 
-      // Deduplicate identical notifications displayed in feed (keep most recent)
-      const seen = new Set();
-      const items = rawItems.filter(item => {
+      // Aggregate identical notifications with repetition count (keep most recent timestamp)
+      const groupedMap = new Map();
+      for (const item of rawItems) {
         const titleKey = (item.title || '').trim().toLowerCase();
         const msgKey = (item.message || '').trim().toLowerCase();
         const key = `${titleKey}:${msgKey}:${item.courseId || ''}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+        if (groupedMap.has(key)) {
+          const existing = groupedMap.get(key);
+          existing.count = (existing.count || 1) + 1;
+          if (!item.isRead) existing.isRead = false;
+        } else {
+          groupedMap.set(key, { ...item, count: 1 });
+        }
+      }
+      const items = Array.from(groupedMap.values());
 
       const unreadCount = items.filter(n => !n.isRead).length;
 
@@ -295,5 +301,14 @@ export async function clearAllNotifications(userId) {
     await supabase.from('notifications').delete().eq('recipient_id', userId);
   } catch (err) {
     console.error('Failed to clear notifications:', err);
+  }
+}
+
+export async function clearReadNotifications(userId) {
+  if (!userId) return;
+  try {
+    await supabase.from('notifications').delete().eq('recipient_id', userId).eq('is_read', true);
+  } catch (err) {
+    console.error('Failed to clear read notifications:', err);
   }
 }

@@ -9,7 +9,8 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-  clearAllNotifications
+  clearAllNotifications,
+  clearReadNotifications
 } from '../services/notificationService';
 
 export default function NotificationDropdown() {
@@ -318,6 +319,15 @@ export default function NotificationDropdown() {
     await clearAllNotifications(uid);
   };
 
+  // Clear only read notifications
+  const handleClearRead = async (e) => {
+    e.stopPropagation();
+    const uid = currentUser?.id || currentUser?.uid;
+    if (!uid) return;
+    setNotifications(prev => prev.filter(n => !n.isRead));
+    await clearReadNotifications(uid);
+  };
+
   // Delete single notification
   const handleDelete = async (e, notifId) => {
     e.stopPropagation();
@@ -550,13 +560,20 @@ export default function NotificationDropdown() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <h4 className={`text-xs sm:text-sm font-bold truncate ${
-                            !notif.isRead
-                              ? 'text-dark dark:text-white'
-                              : 'text-gray-700 dark:text-gray-300'
-                          }`}>
-                            {title}
-                          </h4>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h4 className={`text-xs sm:text-sm font-bold truncate ${
+                              !notif.isRead
+                                ? 'text-dark dark:text-white'
+                                : 'text-gray-700 dark:text-gray-300'
+                            }`}>
+                              {title}
+                            </h4>
+                            {notif.count > 1 && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300 dark:border-amber-800 shrink-0">
+                                ×{notif.count}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[10px] text-gray-400 dark:text-gray-400 shrink-0">
                             {timeText}
                           </span>
@@ -605,17 +622,29 @@ export default function NotificationDropdown() {
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="p-2.5 bg-[#FAF7F2] dark:bg-gray-900/60 border-t border-[#E8E2D5] dark:border-gray-700 flex items-center justify-between text-xs">
-                <span className="text-gray-400 text-[11px]">
+              <div className="p-2.5 bg-[#FAF7F2] dark:bg-gray-900/60 border-t border-[#E8E2D5] dark:border-gray-700 flex items-center justify-between text-xs gap-2">
+                <span className="text-gray-400 text-[11px] shrink-0">
                   {notifications.length} {t('notifications.title')}
                 </span>
-                <button
-                  onClick={handleClearAll}
-                  className="text-gray-400 hover:text-rose-500 transition-colors font-medium flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-xs">delete_sweep</span>
-                  <span>{t('notifications.clearAll')}</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  {notifications.some(n => n.isRead) && (
+                    <button
+                      onClick={handleClearRead}
+                      className="text-stone-500 hover:text-stone-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors font-medium flex items-center gap-1 cursor-pointer"
+                      title={dir === 'rtl' ? 'مسح المقروءة' : 'Clear Read'}
+                    >
+                      <span className="material-symbols-outlined text-xs">done</span>
+                      <span>{dir === 'rtl' ? 'مسح المقروءة' : 'Clear Read'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleClearAll}
+                    className="text-gray-400 hover:text-rose-500 transition-colors font-medium flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xs">delete_sweep</span>
+                    <span>{t('notifications.clearAll')}</span>
+                  </button>
+                </div>
               </div>
             )}
           </motion.div>

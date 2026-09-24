@@ -106,9 +106,30 @@ export default function AdminOverview() {
       tone: 'primary',
       to: '/admin-dashboard/users'
     },
-    { label: t('adminOverview.activeInstructors'), value: usersInfo.instructors.toString(), icon: 'badge', tone: 'rose', to: '/admin-dashboard/instructors' },
-    { label: t('adminOverview.publishedCourses'), value: courses.length.toString(), icon: 'school', tone: 'green', to: '/admin-dashboard/courses' },
-    { label: t('adminOverview.libraryBooks'), value: books.length.toString(), icon: 'library_books', tone: 'blue', to: '/admin-dashboard/library' },
+    { 
+      label: t('adminOverview.activeInstructors'), 
+      value: usersInfo.instructors.toString(), 
+      subtitle: isRtl ? 'المدربون المعتمدون بالمنصة' : 'Approved instructors on platform',
+      icon: 'badge', 
+      tone: 'rose', 
+      to: '/admin-dashboard/instructors' 
+    },
+    { 
+      label: t('adminOverview.publishedCourses'), 
+      value: courses.length.toString(), 
+      subtitle: isRtl ? 'الدورات المتاحة للطلاب' : 'Courses available for students',
+      icon: 'school', 
+      tone: 'green', 
+      to: '/admin-dashboard/courses' 
+    },
+    { 
+      label: t('adminOverview.libraryBooks'), 
+      value: books.length.toString(), 
+      subtitle: isRtl ? 'المراجع والكتب الرقمية' : 'Digital reference books',
+      icon: 'library_books', 
+      tone: 'blue', 
+      to: '/admin-dashboard/library' 
+    },
   ];
 
   return (

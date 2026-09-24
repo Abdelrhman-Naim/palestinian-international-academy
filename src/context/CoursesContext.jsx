@@ -49,9 +49,21 @@ export function CoursesProvider({ children }) {
   const [featuredCourseConfig, setFeaturedCourseConfig] = useState(() => {
     try {
       const saved = localStorage.getItem('hero_featured_course');
-      return saved ? JSON.parse(saved) : { courseId: '', progress: 82, completedLessons: 12, customLabel: '' };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const total = Math.max(1, Number(parsed.totalLessons) || 10);
+        const completed = Math.max(0, Math.min(total, Number(parsed.completedLessons ?? 8)));
+        const progress = Math.min(100, Math.max(0, Math.round((completed / total) * 100)));
+        return {
+          ...parsed,
+          totalLessons: total,
+          completedLessons: completed,
+          progress: parsed.progress !== undefined ? Math.min(100, Number(parsed.progress)) : progress
+        };
+      }
+      return { courseId: '', progress: 80, completedLessons: 8, totalLessons: 10, customLabel: '' };
     } catch (e) {
-      return { courseId: '', progress: 82, completedLessons: 12, customLabel: '' };
+      return { courseId: '', progress: 80, completedLessons: 8, totalLessons: 10, customLabel: '' };
     }
   });
 
@@ -145,10 +157,22 @@ export function CoursesProvider({ children }) {
 
   const updateFeaturedCourse = async (config) => {
     try {
-      setFeaturedCourseConfig(prev => ({ ...prev, ...config }));
-      try {
-        localStorage.setItem('hero_featured_course', JSON.stringify({ ...featuredCourseConfig, ...config }));
-      } catch (e) {}
+      setFeaturedCourseConfig(prev => {
+        const merged = { ...prev, ...config };
+        const total = Math.max(1, Number(merged.totalLessons) || 10);
+        const completed = Math.max(0, Math.min(total, Number(merged.completedLessons ?? 8)));
+        const progress = Math.min(100, Math.max(0, Math.round((completed / total) * 100)));
+        const safeConfig = {
+          ...merged,
+          totalLessons: total,
+          completedLessons: completed,
+          progress: config.progress !== undefined ? Math.min(100, Number(config.progress)) : progress
+        };
+        try {
+          localStorage.setItem('hero_featured_course', JSON.stringify(safeConfig));
+        } catch (e) {}
+        return safeConfig;
+      });
       return { ok: true };
     } catch (err) {
       console.error('Error updating hero featured course:', err);

@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from '../context/LanguageContext';
 import { notifyEnrolledStudents } from '../services/notificationService';
+import PageLoader from '../components/PageLoader';
 
 export default function EditCourse() {
     const { t, dir } = useLanguage();
@@ -22,6 +23,7 @@ export default function EditCourse() {
     const coursesBackPath = userRole === 'admin' ? '/admin-dashboard/courses' : '/instructor-dashboard/my-courses';
     const coursesBackLabel = userRole === 'admin' ? (dir === 'rtl' ? 'الدورات' : 'Courses') : t('submittedAssignments.myCourses');
     const [loading, setLoading] = useState(true);
+    const [courseNotFound, setCourseNotFound] = useState(false);
     const [saving, setSaving] = useState(false);
     const [courseTitle, setCourseTitle] = useState('');
     const [courseInstructor, setCourseInstructor] = useState('');
@@ -99,25 +101,28 @@ export default function EditCourse() {
         const fetchCourse = async () => {
             if (hasLoadedRef.current) return;
             setLoading(true);
+            setCourseNotFound(false);
             let courseData = null;
 
             // 1. First check courses context / cache
             if (courses && courses.length > 0) {
-                const foundInContext = courses.find(c => c.id === id);
+                const foundInContext = courses.find(c => String(c.id) === String(id));
                 if (foundInContext) {
                     courseData = { ...foundInContext };
                 }
             }
 
             // 2. Fetch fresh data from DB bridge
-            try {
-                const snap = await getDoc(doc(db, 'courses', id));
-                if (snap && snap.exists()) {
-                    const snapData = snap.data();
-                    courseData = { ...(courseData || {}), ...snapData };
+            if (!courseData || !courseData.title) {
+                try {
+                    const snap = await getDoc(doc(db, 'courses', id));
+                    if (snap && snap.exists()) {
+                        const snapData = snap.data();
+                        courseData = { ...(courseData || {}), ...snapData };
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch course via getDoc:", e);
                 }
-            } catch (e) {
-                console.warn("Could not fetch course via getDoc:", e);
             }
 
             // 3. Fallback to direct Supabase query
@@ -132,8 +137,11 @@ export default function EditCourse() {
                 }
             }
 
-            if (courseData && isMounted) {
+            if (!isMounted) return;
+
+            if (courseData && courseData.title) {
                 hasLoadedRef.current = true;
+                setCourseNotFound(false);
                 setCourseTitle(courseData.title || '');
 
                 // Resolve instructor name
@@ -170,6 +178,8 @@ export default function EditCourse() {
                 setInitialLecturesCount(formattedSessions.length);
                 setStatus(courseData.status || '');
                 setGoals((Array.isArray(courseData.goals) && courseData.goals.length > 0) ? courseData.goals : ['']);
+            } else {
+                setCourseNotFound(true);
             }
             if (isMounted) setLoading(false);
         };
@@ -179,7 +189,7 @@ export default function EditCourse() {
     }, [id, courses]);
 
     const handleSaveCourse = async () => {
-        if (!id) return;
+        if (!id || loading || saving || courseNotFound) return;
         setSaving(true);
         const updateData = {
             level,
@@ -330,6 +340,38 @@ export default function EditCourse() {
         setOpenSession((current) => (current === index ? null : index));
     };
 
+    if (loading) {
+        return (
+            <div dir={dir} className="min-h-[500px] flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-900 rounded-2xl border border-[#E8E2D5] dark:border-gray-700">
+                <PageLoader message={dir === 'rtl' ? 'جاري تحميل بيانات الدورة التدريبية...' : 'Loading course details...'} />
+            </div>
+        );
+    }
+
+    if (courseNotFound) {
+        return (
+            <div dir={dir} className="min-h-[450px] flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-900 rounded-2xl border border-[#E8E2D5] dark:border-gray-700 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mb-4 shadow-xs">
+                    <span className="material-symbols-outlined text-3xl">error_outline</span>
+                </div>
+                <h3 className="text-xl font-bold text-dark dark:text-white mb-2">
+                    {dir === 'rtl' ? 'لم يتم العثور على الدورة التدريبية' : 'Course Not Found'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6 leading-relaxed">
+                    {dir === 'rtl' 
+                        ? 'الدورة المطلوبة غير موجودة أو ربما تم حذفها مسبقاً من قاعدة البيانات.' 
+                        : 'The requested course does not exist or may have been deleted from the database.'}
+                </p>
+                <Link
+                    to={coursesBackPath}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-secondary transition-all shadow-md shadow-primary/20"
+                >
+                    <span className="material-symbols-outlined text-sm rtl:rotate-180">arrow_forward</span>
+                    <span>{dir === 'rtl' ? 'العودة إلى قائمة الدورات' : 'Back to Courses List'}</span>
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div

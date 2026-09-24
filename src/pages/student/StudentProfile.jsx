@@ -50,6 +50,7 @@ export default function StudentProfile() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [resetEmailSending, setResetEmailSending] = useState(false);
   const [resetEmailSuccess, setResetEmailSuccess] = useState('');
+  const [resetEmailError, setResetEmailError] = useState('');
 
   useEffect(() => {
     if (userData) {
@@ -222,15 +223,17 @@ export default function StudentProfile() {
     if (!currentUser?.email) return;
     setResetEmailSending(true);
     setResetEmailSuccess('');
+    setResetEmailError('');
 
     try {
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(currentUser.email);
       if (resetErr) throw resetErr;
       setResetEmailSuccess(isRtl ? 'تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.' : 'Reset email sent.');
-      setTimeout(() => setResetEmailSuccess(''), 5000);
+      setTimeout(() => setResetEmailSuccess(''), 6000);
     } catch (err) {
       console.error('Error sending reset email:', err);
-      setInfoError(isRtl ? 'فشل إرسال رابط التعيين.' : 'Failed to send reset email.');
+      setResetEmailError(isRtl ? 'فشل إرسال رابط التعيين.' : (err.message || 'Failed to send reset email.'));
+      setTimeout(() => setResetEmailError(''), 6000);
     } finally {
       setResetEmailSending(false);
     }
@@ -268,8 +271,9 @@ export default function StudentProfile() {
               disabled={photoUploading}
               className="absolute bottom-0 end-0 w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer dark:bg-amber-500 dark:text-amber-950"
               title={isRtl ? 'تغيير الصورة' : 'Change photo'}
+              aria-label={isRtl ? 'تغيير الصورة' : 'Change photo'}
             >
-              <span className="material-symbols-outlined text-lg">
+              <span className="material-symbols-outlined text-lg" aria-hidden="true">
                 {photoUploading ? 'sync' : 'photo_camera'}
               </span>
             </button>
@@ -467,9 +471,11 @@ export default function StudentProfile() {
                   <button
                     type="button"
                     onClick={() => setShowNewPwd(prev => !prev)}
-                    className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-dark dark:hover:text-white"
+                    aria-label={showNewPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                    title={showNewPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-dark dark:hover:text-white cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-lg">{showNewPwd ? 'visibility_off' : 'visibility'}</span>
+                    <span className="material-symbols-outlined text-lg" aria-hidden="true">{showNewPwd ? 'visibility_off' : 'visibility'}</span>
                   </button>
                 </div>
               </div>
@@ -489,9 +495,11 @@ export default function StudentProfile() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPwd(prev => !prev)}
-                    className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-dark dark:hover:text-white"
+                    aria-label={showConfirmPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                    title={showConfirmPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-dark dark:hover:text-white cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-lg">{showConfirmPwd ? 'visibility_off' : 'visibility'}</span>
+                    <span className="material-symbols-outlined text-lg" aria-hidden="true">{showConfirmPwd ? 'visibility_off' : 'visibility'}</span>
                   </button>
                 </div>
               </div>
@@ -499,25 +507,36 @@ export default function StudentProfile() {
               <button
                 type="submit"
                 disabled={pwdSaving}
-                className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-secondary dark:bg-amber-500 dark:text-amber-950 dark:hover:bg-amber-400 transition-colors shadow-md disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-secondary dark:bg-amber-500 dark:text-amber-950 dark:hover:bg-amber-400 transition-colors shadow-md disabled:opacity-50 cursor-pointer"
               >
                 {pwdSaving ? (isRtl ? 'جاري التعديل...' : 'Updating...') : (isRtl ? 'تحديث كلمة المرور' : 'Update Password')}
               </button>
             </form>
           </div>
 
-          <div className="pt-6 border-t border-[#E8E2D5]/60 dark:border-gray-700 mt-6">
-            {resetEmailSuccess && (
-              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-2">{resetEmailSuccess}</p>
-            )}
+          <div className="pt-6 border-t border-[#E8E2D5]/60 dark:border-gray-700 mt-6 text-center">
             <button
               type="button"
               onClick={handleSendResetEmail}
               disabled={resetEmailSending}
-              className="w-full py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 text-xs font-bold text-primary dark:text-amber-400 hover:bg-[#FAF7F2] dark:hover:bg-gray-900 transition-colors"
+              className="w-full py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 text-xs font-bold text-primary dark:text-amber-400 hover:bg-[#FAF7F2] dark:hover:bg-gray-900 transition-colors cursor-pointer"
             >
               {resetEmailSending ? (isRtl ? 'جاري إرسال البريد...' : 'Sending email...') : (isRtl ? 'إرسال رابط إعادة تعيين للبريد الإلكتروني' : 'Send password reset link via email')}
             </button>
+
+            {resetEmailSuccess && (
+              <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-base">info</span>
+                <span>{resetEmailSuccess}</span>
+              </div>
+            )}
+
+            {resetEmailError && (
+              <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-base">error</span>
+                <span>{resetEmailError}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

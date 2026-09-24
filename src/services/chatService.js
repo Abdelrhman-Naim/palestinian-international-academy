@@ -421,7 +421,7 @@ export async function fetchChatMembers(chatOrId) {
   const chat = typeof chatOrId === 'object' ? chatOrId : { id: chatOrId, participants: [] };
 
   // A) Course Group Chat: Resolve Instructor as Admin, Approved Students, and Assistant Admins
-  if (chat.type === 'course_group' || String(chat.id).startsWith('group_')) {
+  if (chat.type === 'course_group' || chat.type === 'group' || String(chat.id).startsWith('group_')) {
     const courseId = chat.courseId || String(chat.id).replace('group_', '');
     const membersMap = new Map();
 
@@ -565,6 +565,20 @@ export async function fetchChatMembers(chatOrId) {
             isAssistantAdmin: false
           });
         }
+      });
+    }
+
+    // 5.6. Include creator if not yet mapped
+    if (chat.created_by && !membersMap.has(String(chat.created_by))) {
+      const cId = String(chat.created_by);
+      membersMap.set(cId, {
+        uid: cId,
+        name: chat.created_by_name || 'منشئ المجموعة',
+        role: 'instructor',
+        groupRole: 'admin',
+        isInstructor: true,
+        isGroupAdmin: true,
+        isAssistantAdmin: false
       });
     }
 

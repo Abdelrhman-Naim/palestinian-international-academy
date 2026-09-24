@@ -15,9 +15,9 @@ const Hero = () => {
 
   const featuredLabel = featuredCourseConfig?.label || (isRtl ? 'الكورس المميز' : 'Featured Course');
   const featuredTitle = featuredCourse?.title || (isRtl ? 'دورة الهندسة والتصميم التطبيقي' : 'Applied Digital Engineering');
-  const featuredTotalLessons = featuredCourseConfig?.totalLessons || featuredCourse?.lectures?.length || 10;
-  const featuredCompletedLessons = featuredCourseConfig?.completedLessons ?? 8;
-  const featuredProgress = featuredCourseConfig?.progress ?? Math.min(100, Math.round((featuredCompletedLessons / (featuredTotalLessons || 1)) * 100));
+  const featuredTotalLessons = Math.max(1, Number(featuredCourseConfig?.totalLessons) || featuredCourse?.lectures?.length || 10);
+  const featuredCompletedLessons = Math.max(0, Math.min(featuredTotalLessons, Number(featuredCourseConfig?.completedLessons ?? 8)));
+  const featuredProgress = Math.min(100, Math.max(0, featuredCourseConfig?.progress !== undefined ? Number(featuredCourseConfig.progress) : Math.round((featuredCompletedLessons / featuredTotalLessons) * 100)));
   const courseLink = featuredCourse ? `/courses/${featuredCourse.id}` : '/courses';
 
   useEffect(() => {

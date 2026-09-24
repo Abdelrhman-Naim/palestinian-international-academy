@@ -49,6 +49,7 @@ export default function InstructorProfile() {
 
   const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+  const [resetMessage, setResetMessage] = useState({ type: '', text: '' });
 
   // Sync user data to form
   useEffect(() => {
@@ -312,7 +313,7 @@ export default function InstructorProfile() {
     if (!email) return;
 
     setSendingReset(true);
-    setPasswordMessage({ type: '', text: '' });
+    setResetMessage({ type: '', text: '' });
 
     try {
       if (resetPassword) {
@@ -323,17 +324,18 @@ export default function InstructorProfile() {
         });
         if (error) throw error;
       }
-      setPasswordMessage({
+      setResetMessage({
         type: 'success',
         text: isRtl ? 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك بنجاح' : 'Password reset link sent to your email successfully'
       });
-      setTimeout(() => setPasswordMessage({ type: '', text: '' }), 6000);
+      setTimeout(() => setResetMessage({ type: '', text: '' }), 6000);
     } catch (err) {
       console.error('Error sending reset email:', err);
-      setPasswordMessage({
+      setResetMessage({
         type: 'error',
         text: isRtl ? 'تعذر إرسال الرابط، يرجى المحاولة لاحقاً' : 'Could not send reset link, try again later'
       });
+      setTimeout(() => setResetMessage({ type: '', text: '' }), 6000);
     } finally {
       setSendingReset(false);
     }
@@ -407,12 +409,13 @@ export default function InstructorProfile() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingPhoto}
                 title={t('instructorProfile.changePhoto')}
+                aria-label={t('instructorProfile.changePhoto')}
                 className="absolute -bottom-2 -right-2 w-9 h-9 rounded-xl bg-primary hover:bg-secondary text-white shadow-md flex items-center justify-center transition-all hover:scale-105 border-2 border-white dark:border-gray-800"
               >
                 {uploadingPhoto ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span className="material-symbols-outlined text-lg">photo_camera</span>
+                  <span className="material-symbols-outlined text-lg" aria-hidden="true">photo_camera</span>
                 )}
               </button>
 
@@ -725,9 +728,11 @@ export default function InstructorProfile() {
                     <button
                       type="button"
                       onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                      aria-label={showCurrentPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                      title={showCurrentPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-transparent border-0 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-lg">
+                      <span className="material-symbols-outlined text-lg" aria-hidden="true">
                         {showCurrentPwd ? 'visibility_off' : 'visibility'}
                       </span>
                     </button>
@@ -752,9 +757,11 @@ export default function InstructorProfile() {
                     <button
                       type="button"
                       onClick={() => setShowNewPwd(!showNewPwd)}
+                      aria-label={showNewPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                      title={showNewPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-transparent border-0 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-lg">
+                      <span className="material-symbols-outlined text-lg" aria-hidden="true">
                         {showNewPwd ? 'visibility_off' : 'visibility'}
                       </span>
                     </button>
@@ -779,9 +786,11 @@ export default function InstructorProfile() {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                      aria-label={showConfirmPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                      title={showConfirmPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-transparent border-0 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-lg">
+                      <span className="material-symbols-outlined text-lg" aria-hidden="true">
                         {showConfirmPwd ? 'visibility_off' : 'visibility'}
                       </span>
                     </button>
@@ -823,10 +832,23 @@ export default function InstructorProfile() {
                 {sendingReset ? (
                   <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span className="material-symbols-outlined text-sm text-primary">send</span>
+                  <span className="material-symbols-outlined text-sm text-primary" aria-hidden="true">send</span>
                 )}
                 <span>{t('instructorProfile.sendResetLink')}</span>
               </button>
+
+              {resetMessage.text && (
+                <div className={`mt-3 p-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${
+                  resetMessage.type === 'success'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                }`}>
+                  <span className="material-symbols-outlined text-sm shrink-0" aria-hidden="true">
+                    {resetMessage.type === 'success' ? 'check_circle' : 'error'}
+                  </span>
+                  <span>{resetMessage.text}</span>
+                </div>
+              )}
             </div>
 
           </div>

@@ -51,6 +51,7 @@ export default function AdminProfile() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [resetEmailSending, setResetEmailSending] = useState(false);
   const [resetEmailSuccess, setResetEmailSuccess] = useState('');
+  const [resetEmailError, setResetEmailError] = useState('');
 
   // Fast parallel stats fetch from Supabase
   useEffect(() => {
@@ -67,8 +68,15 @@ export default function AdminProfile() {
           u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
         ).length;
 
+        const studentsCount = profiles.filter(u => u.role === 'student' || (!u.role && u.role !== 'admin' && u.role !== 'instructor')).length;
+        const instructorsCount = profiles.filter(u => u.role === 'instructor').length;
+        const adminsCount = profiles.filter(u => u.role === 'admin').length;
+
         const newStats = {
           usersCount: profiles.length,
+          studentsCount,
+          instructorsCount,
+          adminsCount,
           coursesCount: coursesRes.data?.length || 0,
           booksCount: booksRes.data?.length || 0,
           pendingInstructors: pending
@@ -268,13 +276,16 @@ export default function AdminProfile() {
     if (!userEmail) return;
     setResetEmailSending(true);
     setResetEmailSuccess('');
+    setResetEmailError('');
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(userEmail);
       if (error) throw error;
       setResetEmailSuccess(isRtl ? `تم إرسال رابط إعادة الضبط إلى ${userEmail}` : `Reset link sent to ${userEmail}`);
-      setTimeout(() => setResetEmailSuccess(''), 5000);
+      setTimeout(() => setResetEmailSuccess(''), 6000);
     } catch (err) {
       console.error('Reset email error:', err);
+      setResetEmailError(isRtl ? 'تعذر إرسال البريد، يرجى المحاولة لاحقاً' : (err.message || 'Failed to send reset email'));
+      setTimeout(() => setResetEmailError(''), 6000);
     } finally {
       setResetEmailSending(false);
     }
@@ -311,8 +322,9 @@ export default function AdminProfile() {
               disabled={photoUploading}
               className="absolute -bottom-2 -end-2 w-9 h-9 rounded-2xl bg-primary text-dark dark:text-gray-950 flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer border-2 border-white dark:border-gray-800"
               title={isRtl ? 'تغيير الصورة الشخصية' : 'Change Avatar'}
+              aria-label={isRtl ? 'تغيير الصورة الشخصية' : 'Change Avatar'}
             >
-              <span className="material-symbols-outlined text-base">photo_camera</span>
+              <span className="material-symbols-outlined text-base" aria-hidden="true">photo_camera</span>
             </button>
             <input 
               ref={fileInputRef}
@@ -338,8 +350,13 @@ export default function AdminProfile() {
             {/* Platform Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               <div className="bg-[#FAF7F2] dark:bg-gray-900/60 p-3 rounded-2xl border border-[#E8E2D5] dark:border-gray-700/80">
-                <span className="text-xs text-gray-500 dark:text-gray-400 block font-bold mb-0.5">{isRtl ? 'إجمالي مستخدمي المنصة' : 'Total Platform Users'}</span>
-                <span className="text-lg font-black text-amber-800 dark:text-amber-400">{stats.usersCount}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block font-bold mb-0.5">{isRtl ? 'كافة الحسابات المسجلة' : 'Total Registered Accounts'}</span>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className="text-lg font-black text-amber-800 dark:text-amber-400">{stats.usersCount}</span>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium" title={isRtl ? `طالب: ${stats.studentsCount || 0} · مدرب: ${stats.instructorsCount || 0} · إدارة: ${stats.adminsCount || 0}` : `Students: ${stats.studentsCount || 0} · Instructors: ${stats.instructorsCount || 0} · Admin: ${stats.adminsCount || 0}`}>
+                    ({isRtl ? `طالب: ${stats.studentsCount ?? 0} · مدرب: ${stats.instructorsCount ?? 0} · إدارة: ${stats.adminsCount ?? 0}` : `S: ${stats.studentsCount ?? 0} · I: ${stats.instructorsCount ?? 0} · A: ${stats.adminsCount ?? 0}`})
+                  </span>
+                </div>
               </div>
               <div className="bg-[#FAF7F2] dark:bg-gray-900/60 p-3 rounded-2xl border border-[#E8E2D5] dark:border-gray-700/80">
                 <span className="text-xs text-gray-500 dark:text-gray-400 block font-bold mb-0.5">{isRtl ? 'الدورات' : 'Courses'}</span>
@@ -481,13 +498,6 @@ export default function AdminProfile() {
             </div>
           )}
 
-          {resetEmailSuccess && (
-            <div className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-sm font-bold flex items-center gap-2">
-              <span className="material-symbols-outlined text-base">info</span>
-              <span>{resetEmailSuccess}</span>
-            </div>
-          )}
-
           <form onSubmit={handlePwdSubmit} className="space-y-4 grow">
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
@@ -504,9 +514,11 @@ export default function AdminProfile() {
                 <button 
                   type="button" 
                   onClick={() => setShowCurrentPwd(!showCurrentPwd)}
-                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label={showCurrentPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                  title={showCurrentPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-lg">{showCurrentPwd ? 'visibility_off' : 'visibility'}</span>
+                  <span className="material-symbols-outlined text-lg" aria-hidden="true">{showCurrentPwd ? 'visibility_off' : 'visibility'}</span>
                 </button>
               </div>
             </div>
@@ -527,9 +539,11 @@ export default function AdminProfile() {
                 <button 
                   type="button" 
                   onClick={() => setShowNewPwd(!showNewPwd)}
-                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label={showNewPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                  title={showNewPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-lg">{showNewPwd ? 'visibility_off' : 'visibility'}</span>
+                  <span className="material-symbols-outlined text-lg" aria-hidden="true">{showNewPwd ? 'visibility_off' : 'visibility'}</span>
                 </button>
               </div>
             </div>
@@ -550,9 +564,11 @@ export default function AdminProfile() {
                 <button 
                   type="button" 
                   onClick={() => setShowConfirmPwd(!showConfirmPwd)}
-                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label={showConfirmPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                  title={showConfirmPwd ? (isRtl ? 'إخفاء كلمة المرور' : 'Hide password') : (isRtl ? 'إظهار كلمة المرور' : 'Show password')}
+                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-lg">{showConfirmPwd ? 'visibility_off' : 'visibility'}</span>
+                  <span className="material-symbols-outlined text-lg" aria-hidden="true">{showConfirmPwd ? 'visibility_off' : 'visibility'}</span>
                 </button>
               </div>
             </div>
@@ -583,6 +599,20 @@ export default function AdminProfile() {
             >
               {resetEmailSending ? (isRtl ? 'جاري الإرسال...' : 'Sending...') : (isRtl ? 'نسيت كلمة المرور؟ إرسال رابط إعادة الضبط بالبريد' : 'Forgot Password? Send reset link via email')}
             </button>
+
+            {resetEmailSuccess && (
+              <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-base">info</span>
+                <span>{resetEmailSuccess}</span>
+              </div>
+            )}
+
+            {resetEmailError && (
+              <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-base">error</span>
+                <span>{resetEmailError}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

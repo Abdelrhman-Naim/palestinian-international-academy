@@ -662,6 +662,7 @@ export default function CourseDetail() {
                               type="button"
                               onClick={() => handleToggleLesson(i, lec.title)}
                               disabled={isProcessing}
+                              aria-label={isDone ? (dir === 'rtl' ? 'إلغاء وضع علامة مكتمل' : 'Mark as incomplete') : (dir === 'rtl' ? 'تحديد كمكتمل' : 'Mark as completed')}
                               title={isDone ? (dir === 'rtl' ? 'إلغاء وضع علامة مكتمل' : 'Mark as incomplete') : (dir === 'rtl' ? 'تحديد كمكتمل' : 'Mark as completed')}
                               className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 transition-all cursor-pointer ${
                                 isDone 
@@ -672,7 +673,7 @@ export default function CourseDetail() {
                               {isProcessing ? (
                                 <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                               ) : isDone ? (
-                                <span className="material-symbols-outlined text-lg">check</span>
+                                <span className="material-symbols-outlined text-lg" aria-hidden="true">check</span>
                               ) : (
                                 <span className="text-xs font-bold">{lec.number || i + 1}</span>
                               )}
@@ -903,9 +904,10 @@ export default function CourseDetail() {
               <button
                 type="button"
                 onClick={() => setActiveLectureModal(null)}
+                aria-label={dir === 'rtl' ? 'إغلاق نافذة المحاضرة' : 'Close lecture modal'}
                 className="w-8 h-8 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
               </button>
             </div>
 

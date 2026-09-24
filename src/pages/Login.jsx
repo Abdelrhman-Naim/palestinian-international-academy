@@ -18,6 +18,7 @@ const Login = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotError, setForgotError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const { login, currentUser, userRole, resetPassword } = useAuth();
 
@@ -62,7 +63,7 @@ const Login = () => {
     setForgotError('');
     setForgotSuccess('');
 
-    const targetEmail = (forgotEmail || email).trim();
+    const targetEmail = (forgotEmail || '').trim();
     if (!targetEmail) {
       setForgotError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email.');
       return;
@@ -163,7 +164,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setForgotEmail(email);
+                      setForgotEmail(email ? email.trim() : '');
                       setShowForgotModal(true);
                       setForgotSuccess('');
                       setForgotError('');
@@ -173,14 +174,27 @@ const Login = () => {
                     {t('login.forgotPassword')}
                   </button>
                 </div>
-                <input 
-                  className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
-                  id="password" 
-                  required 
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <input 
+                    className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 pe-11 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
+                    id="password" 
+                    required 
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex items-center justify-center cursor-pointer"
+                    aria-label={showPassword ? (dir === 'rtl' ? 'إخفاء كلمة المرور' : 'Hide password') : (dir === 'rtl' ? 'إظهار كلمة المرور' : 'Show password')}
+                    title={showPassword ? (dir === 'rtl' ? 'إخفاء كلمة المرور' : 'Hide password') : (dir === 'rtl' ? 'إظهار كلمة المرور' : 'Show password')}
+                  >
+                    <span className="material-symbols-outlined text-lg" aria-hidden="true">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
               
               <button 
@@ -205,9 +219,9 @@ const Login = () => {
             <button
               onClick={() => setShowForgotModal(false)}
               className="absolute top-4 inset-s-4 text-gray-400 hover:text-dark dark:hover:text-white p-2 rounded-xl transition-colors cursor-pointer"
-              aria-label="إغلاق"
+              aria-label={dir === 'rtl' ? 'إغلاق' : 'Close'}
             >
-              <span className="material-symbols-outlined text-xl">close</span>
+              <span className="material-symbols-outlined text-xl" aria-hidden="true">close</span>
             </button>
 
             <div className="text-center mb-6">
