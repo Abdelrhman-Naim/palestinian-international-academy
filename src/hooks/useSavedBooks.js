@@ -36,12 +36,40 @@ export function useSavedBooks() {
   const handleToggleSave = async (book) => {
     if (!currentUser || !book) return { saved: false };
     const userId = currentUser.id || currentUser.uid;
+    const bId = String(book.id);
+
+    // Optimistic UI state update immediately
+    setSavedList((prev) => {
+      const exists = prev.some((item) => String(item.bookId || item.book_id || item.id) === bId);
+      if (exists) {
+        return prev.filter((item) => String(item.bookId || item.book_id || item.id) !== bId);
+      } else {
+        const optimisticItem = {
+          id: `saved_${Date.now()}_${bId}`,
+          book_id: bId,
+          bookId: bId,
+          title: book.title || '',
+          author: book.author || '',
+          category: book.category || book.category_name || '',
+          description: book.description || '',
+          cover_url: book.cover_url || book.coverUrl || '',
+          coverUrl: book.coverUrl || book.cover_url || '',
+          downloads: book.downloads || 0,
+          rating: book.rating || 5.0,
+          saved_at: new Date().toISOString()
+        };
+        return [optimisticItem, ...prev];
+      }
+    });
+
     return await toggleSaveBook(userId, book);
   };
 
   const handleRemove = async (bookId) => {
     if (!currentUser || !bookId) return;
     const userId = currentUser.id || currentUser.uid;
+    const bId = String(bookId);
+    setSavedList((prev) => prev.filter((item) => String(item.bookId || item.book_id || item.id) !== bId));
     await removeSavedBook(userId, bookId);
   };
 

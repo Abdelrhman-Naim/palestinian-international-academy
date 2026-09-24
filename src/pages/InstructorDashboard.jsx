@@ -1,4 +1,4 @@
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,13 @@ const InstructorDashboard = () => {
   const { userData, logout } = useAuth();
   const [isDarkMode, toggleDarkMode] = useDarkMode();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      import('./ChatPage').catch(() => {});
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleLogout = async () => {
     try {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
@@ -7,6 +7,8 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import CourseCard from '../components/CourseCard';
 import { useCategories } from '../context/CategoriesContext';
 import { useCourses } from '../context/CoursesContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabase/client';
 import CustomSelect from '../components/CustomSelect';
 import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
@@ -34,6 +36,8 @@ const Courses = ({ embedded = false }) => {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const userId = currentUser?.uid || currentUser?.id;
   const { categories: contextCategories } = useCategories();
   const { courses: coursesData, loading } = useCourses();
   const [selectedCategory, setSelectedCategory] = useState(t('studentAssignments.all'));
@@ -41,6 +45,36 @@ const Courses = ({ embedded = false }) => {
   const [selectedPrice, setSelectedPrice] = useState(t('studentAssignments.all'));
   const [sortBy, setSortBy] = useState('popular');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
+
+  useEffect(() => {
+    if (!userId) {
+      setEnrolledCourseIds(new Set());
+      return;
+    }
+    let isMounted = true;
+    const fetchEnrolledCourses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('course_requests')
+          .select('course_id, status')
+          .eq('student_id', userId);
+
+        if (!error && data && isMounted) {
+          const approvedIds = new Set(
+            data
+              .filter(r => !r.status || r.status === 'approved' || r.status === 'active')
+              .map(r => String(r.course_id))
+          );
+          setEnrolledCourseIds(approvedIds);
+        }
+      } catch (e) {
+        console.warn('Could not fetch enrolled courses in catalog:', e);
+      }
+    };
+    fetchEnrolledCourses();
+    return () => { isMounted = false; };
+  }, [userId]);
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -247,7 +281,10 @@ const Courses = ({ embedded = false }) => {
                     key={course.id}
                     variants={itemVariants}
                   >
-                    <CourseCard course={course} />
+                    <CourseCard 
+                      course={course} 
+                      isEnrolled={enrolledCourseIds.has(String(course.id))}
+                    />
                   </motion.div>
                 ))}
               </motion.div>

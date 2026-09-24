@@ -135,9 +135,9 @@ const StudentOverview = () => {
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-[#E8E2D5] dark:border-gray-700 shadow-sm min-h-75 flex flex-col transition-colors">
               <div className="flex items-center justify-between mb-6">
-                <a className="text-sm font-semibold text-primary dark:text-orange-400 hover:underline flex items-center" href="#">
+                <Link to="/dashboard/certificates" className="text-sm font-semibold text-primary dark:text-orange-400 hover:underline flex items-center">
                   <i className="fa-solid fa-arrow-left ml-1 text-xs"></i> {t('instructorOverview.viewAll')}
-                </a>
+                </Link>
                 <div className="text-right">
                   <h2 className="text-lg font-bold text-dark dark:text-white">{t('studentOverview.recentBadges')}</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">0 {t('common.of')} 8 {t('studentOverview.badgesUnlocked')}</p>

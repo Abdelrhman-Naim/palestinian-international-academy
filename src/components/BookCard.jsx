@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { getLocalizedCategory } from '../utils/categoryUtils';
 
 const BookCard = ({
   book,
@@ -8,7 +9,7 @@ const BookCard = ({
   isSaved = false,
   showBookmark = false
 }) => {
-  const { t, dir } = useLanguage();
+  const { t, dir, lang } = useLanguage();
   const isRtl = dir === 'rtl';
 
   if (!book) return null;
@@ -19,7 +20,7 @@ const BookCard = ({
   const viewBookText = isRtl ? 'عرض وتحميل الكتاب' : 'View & Download Book';
 
   const formattedDownloads = (book.downloads || 0).toLocaleString();
-  const categoryDisplay = book.category || (isRtl ? 'عام' : 'General');
+  const categoryDisplay = getLocalizedCategory(book.category, lang);
   const badgeText = rank ? `#${rank} ${categoryDisplay}` : categoryDisplay;
 
   return (

@@ -35,28 +35,57 @@ const StudentAssignments = () => {
       return;
     }
 
+    let isMounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 2500);
+
     const fetchData = async () => {
       try {
-        const { data: requests } = await supabase
+        // Query both course_requests and enrollments
+        const reqPromise = supabase
           .from('course_requests')
+          .select('course_id, status')
+          .eq('student_id', userId);
+
+        const enrollPromise = supabase
+          .from('enrollments')
           .select('course_id')
           .eq('student_id', userId);
 
-        const courseIds = (requests || []).map(r => r.course_id).filter(Boolean);
+        const [reqRes, enrollRes] = await Promise.allSettled([reqPromise, enrollPromise]);
+
+        const reqs = reqRes.status === 'fulfilled' && reqRes.value.data ? reqRes.value.data : [];
+        const enrolls = enrollRes.status === 'fulfilled' && enrollRes.value.data ? enrollRes.value.data : [];
+
+        const mergedIds = new Set([
+          ...reqs.map(r => r.course_id),
+          ...enrolls.map(e => e.course_id)
+        ]);
+
+        const courseIds = Array.from(mergedIds).filter(Boolean);
 
         if (courseIds.length === 0) {
-          setAssignments([]);
-          setLoading(false);
+          if (isMounted) {
+            setAssignments([]);
+            setLoading(false);
+          }
           return;
         }
 
-        const { data: assignmentsData } = await supabase.from('assignments').select('*');
-        const { data: coursesData } = await supabase.from('courses').select('*');
-        const { data: submissionsData } = await supabase.from('submitted_assignments').select('*').eq('student_id', userId);
+        const [assignRes, coursesRes, subRes] = await Promise.allSettled([
+          supabase.from('assignments').select('*'),
+          supabase.from('courses').select('*'),
+          supabase.from('submitted_assignments').select('*').eq('student_id', userId)
+        ]);
+
+        const assignmentsData = assignRes.status === 'fulfilled' && assignRes.value.data ? assignRes.value.data : [];
+        const coursesData = coursesRes.status === 'fulfilled' && coursesRes.value.data ? coursesRes.value.data : [];
+        const submissionsData = subRes.status === 'fulfilled' && subRes.value.data ? subRes.value.data : [];
 
         const cMap = {};
         (coursesData || []).forEach(c => { cMap[c.id] = c; });
-        setCoursesMap(cMap);
+        if (isMounted) setCoursesMap(cMap);
 
         const subMap = {};
         (submissionsData || []).forEach(s => { subMap[s.assignment_id] = s; });
@@ -96,15 +125,25 @@ const StudentAssignments = () => {
             };
           });
 
-        setAssignments(filteredAssignments);
+        if (isMounted) {
+          setAssignments(filteredAssignments);
+        }
       } catch (err) {
         console.error('Error fetching student assignments:', err);
       } finally {
-        setLoading(false);
+        clearTimeout(safetyTimer);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, [userId]);
 
   const handleDownloadAttachment = async (url, customFileName) => {

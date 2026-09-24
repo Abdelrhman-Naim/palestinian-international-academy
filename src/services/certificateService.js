@@ -82,16 +82,23 @@ export async function toggleLessonCompletion({
       }
     }
 
+    const updatePayload = {
+      student_id: studentId,
+      course_id: courseId,
+      course_title: courseTitle,
+      student_name: studentName,
+      status: 'approved',
+      progress,
+      details,
+      updated_at: new Date().toISOString()
+    };
+    if (existing?.id) {
+      updatePayload.id = existing.id;
+    }
+
     await supabase
       .from('course_requests')
-      .upsert({
-        student_id: studentId,
-        course_id: courseId,
-        course_title: courseTitle,
-        student_name: studentName,
-        status: 'approved',
-        updated_at: new Date()
-      });
+      .upsert(updatePayload);
 
     return { success: true, progress, completedLessons, isNowCompleted };
   } catch (error) {

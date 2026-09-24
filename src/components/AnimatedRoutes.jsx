@@ -195,6 +195,8 @@ export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGua
         <Route path="/support" element={<PageWrapper><SupportCenter /></PageWrapper>} />
         <Route path="/partnerships" element={<PageWrapper><Partnerships /></PageWrapper>} />
         <Route path="/virtual-lab" element={<PageWrapper><VirtualLab /></PageWrapper>} />
+        <Route path="/assignments" element={<Navigate to="/dashboard/assignments" replace />} />
+        <Route path="/saved-books" element={<Navigate to="/dashboard/saved-books" replace />} />
         <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />
       </Routes>
     </AnimatePresence>

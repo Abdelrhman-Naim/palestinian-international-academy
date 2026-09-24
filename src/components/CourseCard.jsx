@@ -15,7 +15,7 @@ export const getCourseIcon = (course) => {
   return 'school';
 };
 
-const CourseCard = ({ course }) => {
+const CourseCard = ({ course, isEnrolled = false }) => {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
 
@@ -58,7 +58,10 @@ const CourseCard = ({ course }) => {
   const priceDisplay = isFree ? (isRtl ? 'مجاني' : 'Free') : course.price;
 
   const startLearningText = isRtl ? 'ابدأ التعلم الآن' : 'Start Learning Now';
+  const continueLearningText = isRtl ? 'متابعة الدراسة' : 'Continue Learning';
   const availableText = isRtl ? 'متاح للالتحاق' : 'Available for Enrollment';
+  const enrolledBadgeText = isRtl ? 'مسجل به' : 'Enrolled';
+  const activeStatusText = isRtl ? 'مشترك بالفعل' : 'Enrolled';
 
   return (
     <div className="bg-white dark:bg-[#161412] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl overflow-hidden shadow-sm dark:shadow-xl hover:shadow-[0_20px_40px_-15px_rgba(212,175,55,0.25)] transition-all duration-300 group flex flex-col justify-between text-right rtl:text-right ltr:text-left h-full">
@@ -68,6 +71,14 @@ const CourseCard = ({ course }) => {
         <div className="absolute top-4 inset-e-4 bg-amber-100 dark:bg-[#2B231B] text-amber-800 dark:text-[#D9A54C] border border-amber-300/80 dark:border-[#423524] text-[11px] font-bold px-3 py-1 rounded-full shadow-xs tracking-wide">
           {levelDisplay}
         </div>
+
+        {/* Top Enrolled Badge */}
+        {isEnrolled && (
+          <div className="absolute top-4 inset-s-4 bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs flex items-center gap-1 z-10">
+            <span className="material-symbols-outlined text-xs">verified</span>
+            <span>{enrolledBadgeText}</span>
+          </div>
+        )}
 
         {/* Center Course Icon Box */}
         <div className="w-20 h-20 rounded-2xl bg-white dark:bg-[#28221B] border border-amber-300/80 dark:border-[#3E3326] flex items-center justify-center text-amber-600 dark:text-[#D9A54C] shadow-sm dark:shadow-inner group-hover:scale-110 transition-transform duration-300">
@@ -117,18 +128,30 @@ const CourseCard = ({ course }) => {
 
         {/* Bottom Action Row */}
         <div className="flex items-center justify-between pt-4 border-t border-[#E8E2D5] dark:border-[#2C2722] mt-auto">
-          {/* Left: Start Learning Button */}
+          {/* Action Button */}
           <Link
             to={`/courses/${course.id}`}
-            className="bg-primary dark:bg-[#D9A54C] hover:bg-secondary dark:hover:bg-[#E5B65C] text-white dark:text-[#12100E] font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all duration-300 flex items-center justify-center gap-1.5"
+            className={`${
+              isEnrolled
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-primary dark:bg-[#D9A54C] hover:bg-secondary dark:hover:bg-[#E5B65C] text-white dark:text-[#12100E]'
+            } font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all duration-300 flex items-center justify-center gap-1.5`}
           >
-            <span>{startLearningText}</span>
+            {isEnrolled && <span className="material-symbols-outlined text-sm">play_circle</span>}
+            <span>{isEnrolled ? continueLearningText : startLearningText}</span>
           </Link>
 
-          {/* Right: Price */}
-          <span className="text-primary dark:text-[#D9A54C] font-bold text-base md:text-lg">
-            {priceDisplay}
-          </span>
+          {/* Right: Price or Enrolled status */}
+          {isEnrolled ? (
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">school</span>
+              <span>{activeStatusText}</span>
+            </span>
+          ) : (
+            <span className="text-primary dark:text-[#D9A54C] font-bold text-base md:text-lg">
+              {priceDisplay}
+            </span>
+          )}
         </div>
       </div>
     </div>

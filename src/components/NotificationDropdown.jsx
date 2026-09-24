@@ -28,21 +28,22 @@ export default function NotificationDropdown() {
 
   // Subscribe to real-time notifications
   useEffect(() => {
-    if (!currentUser?.uid) {
+    const userId = currentUser?.id || currentUser?.uid;
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
       setLoading(false);
       return;
     }
 
-    const unsub = subscribeToUserNotifications(currentUser.uid, (data) => {
+    const unsub = subscribeToUserNotifications(userId, (data) => {
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
       setLoading(false);
     });
 
     return () => unsub();
-  }, [currentUser?.uid]);
+  }, [currentUser?.id, currentUser?.uid]);
 
   // Click outside to close
   useEffect(() => {
@@ -300,15 +301,21 @@ export default function NotificationDropdown() {
   // Mark all as read
   const handleMarkAllAsRead = async (e) => {
     e.stopPropagation();
-    if (!currentUser?.uid) return;
-    await markAllNotificationsAsRead(currentUser.uid);
+    const uid = currentUser?.id || currentUser?.uid;
+    if (!uid) return;
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+    await markAllNotificationsAsRead(uid);
   };
 
   // Clear all notifications
   const handleClearAll = async (e) => {
     e.stopPropagation();
-    if (!currentUser?.uid) return;
-    await clearAllNotifications(currentUser.uid);
+    const uid = currentUser?.id || currentUser?.uid;
+    if (!uid) return;
+    setNotifications([]);
+    setUnreadCount(0);
+    await clearAllNotifications(uid);
   };
 
   // Delete single notification
@@ -426,8 +433,8 @@ export default function NotificationDropdown() {
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
             className={`absolute top-full mt-2.5 z-50 ${
-              dir === 'rtl' ? 'right-0 sm:right-0' : 'left-0 sm:left-0'
-            } w-[320px] sm:w-[380px] max-w-[calc(100vw-24px)] rounded-2xl bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col text-start`}
+              dir === 'rtl' ? 'right-0' : 'left-0'
+            } w-[calc(100vw-1.5rem)] sm:w-[380px] max-w-[380px] rounded-2xl bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col text-start`}
           >
             {/* Header */}
             <div className="p-3.5 sm:p-4 border-b border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900/60 flex items-center justify-between gap-2">

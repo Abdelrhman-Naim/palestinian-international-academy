@@ -12,6 +12,7 @@ import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../context/AuthContext';
 import { useSavedBooks } from '../hooks/useSavedBooks';
+import { getLocalizedCategory, matchesCategory } from '../utils/categoryUtils';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -37,7 +38,7 @@ const Library = () => {
   const isRtl = dir === 'rtl';
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(lang === 'en' ? 'All' : '');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState('highest');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(24);
@@ -62,7 +63,7 @@ const Library = () => {
   };
 
   useEffect(() => {
-    setSelectedCategory(lang === 'en' ? 'All' : '');
+    setSelectedCategory('');
     setCurrentPage(1);
   }, [lang]);
 
@@ -75,19 +76,20 @@ const Library = () => {
     const counts = {};
     (booksData || []).forEach((b) => {
       if (b.category) {
-        counts[b.category] = (counts[b.category] || 0) + 1;
+        const localized = getLocalizedCategory(b.category, lang);
+        counts[localized] = (counts[localized] || 0) + 1;
       }
     });
     return counts;
-  }, [booksData]);
+  }, [booksData, lang]);
 
   const categories = useMemo(() => {
-    const allOption = { name: lang === 'en' ? 'All' : '', label: t('library.all') };
-    const availableCategories = (contextCategories?.library || [])
-      .filter((cat) => (categoryCounts[cat] || 0) > 0)
+    const allOption = { name: '', label: t('library.all') };
+    const availableCategories = Object.keys(categoryCounts)
+      .sort((a, b) => a.localeCompare(b))
       .map((cat) => ({ name: cat, label: cat }));
     return [allOption, ...availableCategories];
-  }, [lang, t, contextCategories?.library, categoryCounts]);
+  }, [t, categoryCounts]);
 
   const sortOptions = useMemo(() => [
     { value: 'highest', label: isRtl ? 'الأعلى تقييماً' : 'Highest Rated' },
@@ -109,7 +111,7 @@ const Library = () => {
       const matchSearch = !searchQuery || 
                           (book.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (book.author || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchCategory = selectedCategory === (lang === 'en' ? 'All' : '') || book.category === selectedCategory;
+      const matchCategory = !selectedCategory || matchesCategory(book.category, selectedCategory);
       return matchSearch && matchCategory;
     });
 
@@ -204,7 +206,7 @@ const Library = () => {
                 <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => { setSelectedCategory(lang === 'en' ? 'All' : ''); setSearchQuery(''); }}
+                    onClick={() => { setSelectedCategory(''); setSearchQuery(''); }}
                     className="text-xs text-gray-500 hover:text-primary transition-colors min-h-[44px] px-2 flex items-center"
                   >
                     {t('library.reset')}
@@ -230,7 +232,7 @@ const Library = () => {
                     >
                       <span className={`text-sm ${selectedCategory === cat.name ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
                       <span className={`text-xs px-2 py-1 rounded-full ${selectedCategory === cat.name ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : ''}`}>
-                        {cat.name === (lang === 'en' ? 'All' : '') ? (booksData || []).length : (categoryCounts[cat.name] || 0)}
+                        {!cat.name ? (booksData || []).length : (categoryCounts[cat.name] || 0)}
                       </span>
                     </label>
                   ))}

@@ -71,7 +71,7 @@ export async function toggleSaveBook(userId, book) {
 
     // Try Supabase insert in background
     try {
-      await supabase.from('saved_books').upsert({
+      const { error } = await supabase.from('saved_books').upsert({
         user_id: userId,
         book_id: bId,
         title: newItem.title,
@@ -79,6 +79,17 @@ export async function toggleSaveBook(userId, book) {
         category: newItem.category,
         description: newItem.description
       }, { onConflict: 'user_id,book_id' });
+
+      if (error) {
+        await supabase.from('saved_books').insert({
+          user_id: userId,
+          book_id: bId,
+          title: newItem.title,
+          author: newItem.author,
+          category: newItem.category,
+          description: newItem.description
+        });
+      }
     } catch (e) {
       console.warn('Supabase insert saved_books warning:', e);
     }

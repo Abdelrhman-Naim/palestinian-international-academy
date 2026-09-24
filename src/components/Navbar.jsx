@@ -179,7 +179,7 @@ const Navbar = () => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute left-0 top-14 w-56 bg-white dark:bg-gray-800 border border-stone-200 dark:border-gray-700 rounded-2xl shadow-xl py-2 z-50 origin-top-left"
+                    className="absolute rtl:left-0 ltr:right-0 top-14 w-56 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-gray-800 border border-stone-200 dark:border-gray-700 rounded-2xl shadow-xl py-2 z-50 origin-top rtl:origin-top-left ltr:origin-top-right"
                   >
                     
                     {/* User Info */}

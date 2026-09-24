@@ -220,10 +220,12 @@ export function subscribeToUserNotifications(userId, callback) {
         createdAt: n.created_at
       }));
 
-      // Deduplicate identical notifications displayed in feed
+      // Deduplicate identical notifications displayed in feed (keep most recent)
       const seen = new Set();
       const items = rawItems.filter(item => {
-        const key = `${item.title}:${item.message}:${item.courseId || ''}:${Math.floor(new Date(item.createdAt).getTime() / 60000)}`;
+        const titleKey = (item.title || '').trim().toLowerCase();
+        const msgKey = (item.message || '').trim().toLowerCase();
+        const key = `${titleKey}:${msgKey}:${item.courseId || ''}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

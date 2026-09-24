@@ -35,8 +35,37 @@ export default function CourseDetail() {
   const [showCertModal, setShowCertModal] = useState(false);
   const [courseExam, setCourseExam] = useState(null);
   const [showExamModal, setShowExamModal] = useState(false);
-  const [examPassed, setExamPassed] = useState(false);
   const [showEnrollConfirmModal, setShowEnrollConfirmModal] = useState(false);
+  const [activeLectureModal, setActiveLectureModal] = useState(null);
+
+  const getEmbedUrl = (rawUrl) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return null;
+    const url = rawUrl.trim();
+    if (url === '#' || url.startsWith('javascript:')) return null;
+
+    // YouTube match
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    if (ytMatch && ytMatch[1]) {
+      return { type: 'youtube', url: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0` };
+    }
+
+    // Vimeo match
+    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
+    if (vimeoMatch && vimeoMatch[1]) {
+      return { type: 'vimeo', url: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1` };
+    }
+
+    // Direct video (mp4, webm, etc.)
+    if (url.match(/\.(mp4|webm|ogg)($|\?)/i)) {
+      return { type: 'video', url };
+    }
+
+    if (url.startsWith('http') && !url.includes('example.com') && !url.includes('dummy')) {
+      return { type: 'external', url };
+    }
+
+    return null;
+  };
 
   // Fetch course graduation exam
   useEffect(() => {
@@ -656,11 +685,12 @@ export default function CourseDetail() {
                             </div>
                           )}
 
-                          {/* Title and auto-complete trigger */}
+                          {/* Title and lecture open trigger */}
                           <div 
                             className="flex-1 cursor-pointer select-none"
                             onClick={() => {
-                              if (enrolled) {
+                              setActiveLectureModal({ ...lec, index: i });
+                              if (enrolled && !isDone && !isProcessing) {
                                 handleToggleLesson(i, lec.title);
                               }
                             }}
@@ -672,7 +702,7 @@ export default function CourseDetail() {
                             </span>
                             {enrolled && (
                               <span className="text-[11px] text-stone-400 block mt-0.5">
-                                {isDone ? (dir === 'rtl' ? '✓ تم إكمال هذه المحاضرة' : '✓ Completed') : (dir === 'rtl' ? 'انقر لتحديد المحاضرة كمكتملة' : 'Click to mark completed')}
+                                {isDone ? (dir === 'rtl' ? '✓ تم إكمال هذه المحاضرة' : '✓ Completed') : (dir === 'rtl' ? 'انقر لتشغيل المحاضرة ومتابعة دراستها' : 'Click to watch and track lesson')}
                               </span>
                             )}
                           </div>
@@ -684,19 +714,20 @@ export default function CourseDetail() {
                             </span>
                           )}
 
-                          {lec.link && (
-                            <a 
-                              href={lec.link} 
-                              target="_blank" 
-                              rel="noreferrer" 
-                              onClick={handleOpenLecture}
-                              className="text-primary hover:text-orange-700 opacity-80 group-hover:opacity-100 transition-opacity p-2 rounded-xl hover:bg-primary/10 flex items-center gap-1 text-xs font-bold" 
-                              title={dir === 'rtl' ? 'فتح المحاضرة' : 'Open Lecture'}
-                            >
-                              <span className="material-symbols-outlined text-base">open_in_new</span>
-                              <span className="hidden md:inline">{dir === 'rtl' ? 'مشاهدة' : 'Watch'}</span>
-                            </a>
-                          )}
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActiveLectureModal({ ...lec, index: i });
+                              if (enrolled && !isDone && !isProcessing) {
+                                handleToggleLesson(i, lec.title);
+                              }
+                            }}
+                            className="text-primary hover:text-orange-700 opacity-80 group-hover:opacity-100 transition-opacity p-2 rounded-xl hover:bg-primary/10 flex items-center gap-1 text-xs font-bold cursor-pointer" 
+                            title={dir === 'rtl' ? 'مشاهدة المحاضرة' : 'Watch Lecture'}
+                          >
+                            <span className="material-symbols-outlined text-base">play_circle</span>
+                            <span className="hidden md:inline">{dir === 'rtl' ? 'مشاهدة' : 'Watch'}</span>
+                          </button>
                         </div>
                       );
                     })}
@@ -842,6 +873,176 @@ export default function CourseDetail() {
               >
                 {dir === 'rtl' ? 'إلغاء' : 'Cancel'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Educational Lecture Video & Preview Modal */}
+      {activeLectureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-stone-200 dark:border-gray-700 flex flex-col" dir={dir}>
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 border-b border-stone-200 dark:border-gray-700 flex items-center justify-between bg-[#FAF7F2] dark:bg-gray-900/60">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  {activeLectureModal.number || (activeLectureModal.index + 1)}
+                </span>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-dark dark:text-white line-clamp-1">
+                    {activeLectureModal.title || `${dir === 'rtl' ? 'المحاضرة' : 'Lecture'} ${activeLectureModal.index + 1}`}
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    {course.title} • {course.instructor}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveLectureModal(null)}
+                className="w-8 h-8 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Video Player or Educational Fallback Screen */}
+            <div className="bg-black relative aspect-video flex items-center justify-center overflow-hidden">
+              {(() => {
+                const embed = getEmbedUrl(activeLectureModal.link);
+                if (embed?.type === 'youtube' || embed?.type === 'vimeo') {
+                  return (
+                    <iframe
+                      src={embed.url}
+                      title={activeLectureModal.title}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                }
+                if (embed?.type === 'video') {
+                  return (
+                    <video
+                      src={embed.url}
+                      controls
+                      autoPlay
+                      className="w-full h-full object-contain"
+                    />
+                  );
+                }
+                // Educational Fallback Preview Screen
+                return (
+                  <div className="w-full h-full bg-gradient-to-br from-stone-900 via-gray-900 to-[#1e1b18] p-6 sm:p-8 flex flex-col justify-between text-white select-none">
+                    <div className="flex items-center justify-between">
+                      <span className="px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30 text-xs font-bold flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm">ondemand_video</span>
+                        <span>{dir === 'rtl' ? 'معاينة تعليمية للمحاضرة' : 'Educational Lecture Preview'}</span>
+                      </span>
+                      <span className="text-xs text-stone-400 font-mono">
+                        {dir === 'rtl' ? 'المحاضرة رقم' : 'Lecture #'}{activeLectureModal.number || (activeLectureModal.index + 1)}
+                      </span>
+                    </div>
+
+                    <div className="my-auto text-center max-w-lg mx-auto py-4">
+                      <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mx-auto mb-4 text-amber-400 shadow-xl">
+                        <span className="material-symbols-outlined text-3xl">play_circle</span>
+                      </div>
+                      <h4 className="text-base sm:text-lg font-bold text-white mb-2">
+                        {activeLectureModal.title}
+                      </h4>
+                      <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+                        {dir === 'rtl'
+                          ? 'تتناول هذه المحاضرة الشرح النظري والتطبيق العملي للمفاهيم الأساسية، بالإضافة لمتابعة إنجاز مشاريع الطلاب وتوجيهات المدرب.'
+                          : 'This lecture covers theoretical foundations, practical applications, student project reviews, and instructor guidance.'}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-400 border-t border-stone-800 pt-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
+                        <span>{dir === 'rtl' ? 'ضمن الخطة الدراسية المعتمدة' : 'Curriculum verified'}</span>
+                      </div>
+                      {activeLectureModal.link && activeLectureModal.link !== '#' && (
+                        <a
+                          href={activeLectureModal.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline flex items-center gap-1 font-bold"
+                        >
+                          <span>{dir === 'rtl' ? 'فتح الرابط الأصلي' : 'Open Source Link'}</span>
+                          <span className="material-symbols-outlined text-xs">open_in_new</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="p-3.5 sm:p-4 border-t border-stone-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2">
+                {enrolled && (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleLesson(activeLectureModal.index, activeLectureModal.title)}
+                    disabled={updatingLesson === `lesson_${activeLectureModal.index}`}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      completedLessons.includes(`lesson_${activeLectureModal.index}`)
+                        ? 'bg-emerald-500 text-white shadow-xs'
+                        : 'bg-stone-100 dark:bg-gray-700 text-stone-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 border border-stone-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {completedLessons.includes(`lesson_${activeLectureModal.index}`) ? 'check_circle' : 'radio_button_unchecked'}
+                    </span>
+                    <span>
+                      {completedLessons.includes(`lesson_${activeLectureModal.index}`)
+                        ? (dir === 'rtl' ? 'تمت المشاهدة وإكمال المحاضرة' : 'Completed')
+                        : (dir === 'rtl' ? 'تحديد كمكتملة' : 'Mark as Completed')}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {activeLectureModal.index > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prevIdx = activeLectureModal.index - 1;
+                      setActiveLectureModal({ ...course.lectures[prevIdx], index: prevIdx });
+                    }}
+                    className="px-3 py-2 rounded-xl bg-stone-100 dark:bg-gray-700 hover:bg-stone-200 text-stone-700 dark:text-gray-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm rtl:rotate-180">arrow_back</span>
+                    <span>{dir === 'rtl' ? 'المحاضرة السابقة' : 'Previous'}</span>
+                  </button>
+                )}
+
+                {activeLectureModal.index < (course.lectures?.length || 0) - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextIdx = activeLectureModal.index + 1;
+                      setActiveLectureModal({ ...course.lectures[nextIdx], index: nextIdx });
+                    }}
+                    className="px-3 py-2 rounded-xl bg-primary hover:bg-orange-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                  >
+                    <span>{dir === 'rtl' ? 'المحاضرة التالية' : 'Next'}</span>
+                    <span className="material-symbols-outlined text-sm rtl:rotate-180">arrow_forward</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setActiveLectureModal(null)}
+                  className="px-4 py-2 rounded-xl bg-stone-100 dark:bg-gray-700 hover:bg-stone-200 text-stone-600 dark:text-gray-300 text-xs font-bold cursor-pointer transition-colors"
+                >
+                  {dir === 'rtl' ? 'إغلاق' : 'Close'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -10,9 +10,10 @@ import PageLoader from '../components/PageLoader';
 import ReviewSection from '../components/ReviewSection';
 import { useAuth } from '../context/AuthContext';
 import { useSavedBooks } from '../hooks/useSavedBooks';
+import { getLocalizedCategory } from '../utils/categoryUtils';
 
 export default function BookDetail() {
-  const { t, dir } = useLanguage();
+  const { t, dir, lang } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { books, loading } = useLibrary();
@@ -159,7 +160,7 @@ export default function BookDetail() {
               <>
                 <span className="material-symbols-outlined text-xs rtl:rotate-180 shrink-0 text-gray-400">chevron_right</span>
                 <span className="shrink-0 font-medium text-gray-600 dark:text-gray-300">
-                  {book.category}
+                  {getLocalizedCategory(book.category, lang)}
                 </span>
               </>
             )}
@@ -182,7 +183,7 @@ export default function BookDetail() {
             {/* Info */}
             <div className="flex-1 text-start">
               <div className="flex flex-wrap gap-2 mb-3">
-                <span className="bg-primary/20 text-primary text-xs px-3 py-1 rounded-full font-bold">{book.category}</span>
+                <span className="bg-primary/20 text-primary text-xs px-3 py-1 rounded-full font-bold">{getLocalizedCategory(book.category, lang)}</span>
               </div>
 
               <h1 className="text-3xl md:text-4xl font-extrabold mb-3 leading-snug text-dark dark:text-white">{book.title}</h1>
@@ -298,7 +299,7 @@ export default function BookDetail() {
                 <ul className="space-y-3 text-sm">
                   {[
                     { icon: 'person', label: t('bookDetail.author'), value: book.author },
-                    { icon: 'category', label: t('bookDetail.category'), value: book.category },
+                    { icon: 'category', label: t('bookDetail.category'), value: getLocalizedCategory(book.category, lang) },
                     { icon: 'calendar_today', label: t('bookDetail.publicationYear'), value: book.year },
                     { icon: 'menu_book', label: t('bookDetail.pages'), value: book.pages && Number(book.pages) > 0 ? `${book.pages} ${t('bookDetail.pages')}` : (dir === 'rtl' ? 'نسخة رقمية' : 'Digital Edition') },
                     { icon: 'star', label: dir === 'rtl' ? 'التقييم' : 'Rating', value: (book.ratingCount && book.ratingCount > 0) ? `${(book.ratingAverage || 0).toFixed(1)} (${book.ratingCount})` : (dir === 'rtl' ? 'لا يوجد تقييمات بعد' : 'No ratings yet') },

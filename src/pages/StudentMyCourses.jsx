@@ -353,7 +353,7 @@ const StudentMyCourses = () => {
                 disabled={isSubmitting || selectedRating === 0}
                 className="flex-1 py-3 text-sm font-bold text-white bg-primary hover:bg-orange-600 rounded-xl transition-colors disabled:opacity-50"
               >
-                {isSubmitting ? t('submittedAssignments.saving') : t('submittedAssignments.saveGrade')}
+                {isSubmitting ? t('studentCourses.saving') : t('studentCourses.saveRating')}
               </button>
             </div>
           </div>

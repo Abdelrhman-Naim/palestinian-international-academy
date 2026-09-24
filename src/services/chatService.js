@@ -635,14 +635,43 @@ export async function fetchChatMembers(chatOrId) {
   // B) Direct / Other Chats
   if (chat.participantDetails || chat.participant_details) {
     const detailsObj = chat.participantDetails || chat.participant_details;
-    return Object.entries(detailsObj)
+    const fromDetails = Object.entries(detailsObj)
       .filter(([uid]) => !uid.startsWith('_'))
       .map(([uid, details]) => ({
-        uid,
+        uid: String(uid),
         name: details.name || 'مستخدم',
         role: details.role || 'student',
-        isInstructor: details.role === 'instructor' || uid === chat.instructorId
+        isInstructor: details.role === 'instructor' || String(uid) === String(chat.instructorId)
       }));
+    if (fromDetails.length > 0) return fromDetails;
+  }
+
+  if (Array.isArray(chat.participants) && chat.participants.length > 0) {
+    const pUids = chat.participants.map(String).filter(Boolean);
+    try {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role, avatar_url')
+        .in('id', pUids);
+
+      if (profs && profs.length > 0) {
+        return profs.map(p => ({
+          uid: String(p.id),
+          name: p.full_name || p.email || 'مستخدم',
+          role: p.role || 'student',
+          email: p.email,
+          avatarUrl: p.avatar_url,
+          isInstructor: p.role === 'instructor' || String(p.id) === String(chat.instructorId)
+        }));
+      }
+    } catch (e) {}
+
+    return pUids.map(uid => ({
+      uid,
+      name: uid === String(chat.instructorId) ? (chat.instructorName || 'المدرب') : 'عضو في المحادثة',
+      role: uid === String(chat.instructorId) ? 'instructor' : 'student',
+      isInstructor: uid === String(chat.instructorId)
+    }));
   }
 
   try {
@@ -652,7 +681,7 @@ export async function fetchChatMembers(chatOrId) {
 
     if (profiles && profiles.length > 0) {
       return profiles.map(p => ({
-        uid: p.id,
+        uid: String(p.id),
         name: p.full_name || p.email,
         role: p.role,
         email: p.email,

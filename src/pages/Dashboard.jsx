@@ -40,6 +40,13 @@ const Dashboard = () => {
     }
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      import('./ChatPage').catch(() => {});
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   const toggleMenu = (menu) => {
 
     setOpenMenus(prev => ({
@@ -185,18 +192,18 @@ const Dashboard = () => {
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="space-y-1 pr-2 border-r-2 border-[#E8E2D5] dark:border-gray-700 mr-2 mt-1 overflow-hidden"
                 >
-                  <a className="flex items-center px-4 py-2.5 rounded-xl border border-transparent text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-dark dark:hover:text-white hover:border-[#E8E2D5] dark:hover:border-gray-700 hover:shadow-xs transition-all duration-200 group text-sm font-medium" href="#">
-                    <i className="fa-solid fa-briefcase w-6 text-center ml-2 text-sm group-hover:text-secondary transition-colors"></i>
+                  <NavLink to="/virtual-lab" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <i className="fa-solid fa-briefcase w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.workspace')}
-                  </a>
-                  <a className="flex items-center px-4 py-2.5 rounded-xl border border-transparent text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-dark dark:hover:text-white hover:border-[#E8E2D5] dark:hover:border-gray-700 hover:shadow-xs transition-all duration-200 group text-sm font-medium" href="#">
-                    <i className="fa-solid fa-rocket w-6 text-center ml-2 text-sm group-hover:text-secondary transition-colors"></i>
+                  </NavLink>
+                  <NavLink to="/virtual-lab" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <i className="fa-solid fa-rocket w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.myProject')}
-                  </a>
-                  <a className="flex items-center px-4 py-2.5 rounded-xl border border-transparent text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-dark dark:hover:text-white hover:border-[#E8E2D5] dark:hover:border-gray-700 hover:shadow-xs transition-all duration-200 group text-sm font-medium" href="#">
-                    <i className="fa-solid fa-diagram-project w-6 text-center ml-2 text-sm group-hover:text-secondary transition-colors"></i>
+                  </NavLink>
+                  <Link to="/#projects" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <i className="fa-solid fa-diagram-project w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.projectsShowcase')}
-                  </a>
+                  </Link>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -221,12 +228,12 @@ const Dashboard = () => {
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="space-y-1 pr-2 border-r-2 border-[#E8E2D5] dark:border-gray-700 mr-2 mt-1 overflow-hidden"
                 >
-                  <a className="flex items-center px-4 py-2.5 rounded-xl border border-transparent text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-dark dark:hover:text-white hover:border-[#E8E2D5] dark:hover:border-gray-700 hover:shadow-xs transition-all duration-200 group text-sm font-medium" href="#">
-                    <i className="fa-solid fa-trophy w-6 text-center ml-2 text-sm group-hover:text-secondary transition-colors"></i>
+                  <NavLink to="/dashboard/certificates" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <i className="fa-solid fa-trophy w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.achievementsSection')}
-                  </a>
-                  <NavLink to="/dashboard/certificates" className={navItemClass}>
-                    <i className="fa-solid fa-certificate w-6 text-center ml-2 text-sm group-hover:text-secondary transition-colors"></i>
+                  </NavLink>
+                  <NavLink to="/dashboard/certificates" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <i className="fa-solid fa-certificate w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.certificates')}
                   </NavLink>
                 </motion.div>
