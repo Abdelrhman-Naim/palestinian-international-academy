@@ -254,19 +254,375 @@ export async function syncEnrolledCourseChatsForStudent(studentId, studentName) 
 }
 
 // -------------------------------------------------------------
+// SYSTEM MESSAGES & GROUP SETTINGS
+// -------------------------------------------------------------
+export async function sendSystemMessage(chatId, text) {
+  if (!chatId || !text) return null;
+  return await sendMessage({
+    chatId,
+    senderId: 'system',
+    senderName: 'نظام المجموعة',
+    senderRole: 'system',
+    text,
+    type: 'system'
+  });
+}
+
+export async function updateGroupChatSettings(chatId, newSettings = {}) {
+  if (!chatId) return false;
+
+  const now = new Date().toISOString();
+  let updatedChat = null;
+
+  // 1. Update in LocalStorage for all stored user chats
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(LOCAL_CHATS_KEY_PREFIX)) {
+        const uId = key.replace(LOCAL_CHATS_KEY_PREFIX, '');
+        const list = getLocalChats(uId);
+        let changed = false;
+        const mapped = list.map(c => {
+          if (c.id === chatId) {
+            changed = true;
+            const metaSettings = {
+              ...(c.participantDetails?._group_settings || {}),
+              ...(c.participant_details?._group_settings || {})
+            };
+            if (newSettings.onlyAdminsCanSend !== undefined) metaSettings.onlyAdminsCanSend = newSettings.onlyAdminsCanSend;
+            if (newSettings.assistantAdmins !== undefined) metaSettings.assistantAdmins = newSettings.assistantAdmins;
+            if (newSettings.removedMembers !== undefined) metaSettings.removedMembers = newSettings.removedMembers;
+
+            const next = {
+              ...c,
+              onlyAdminsCanSend: newSettings.onlyAdminsCanSend !== undefined ? newSettings.onlyAdminsCanSend : (c.onlyAdminsCanSend ?? metaSettings.onlyAdminsCanSend ?? false),
+              assistantAdmins: newSettings.assistantAdmins !== undefined ? newSettings.assistantAdmins : (c.assistantAdmins || metaSettings.assistantAdmins || []),
+              removedMembers: newSettings.removedMembers !== undefined ? newSettings.removedMembers : (c.removedMembers || metaSettings.removedMembers || []),
+              participantDetails: {
+                ...(c.participantDetails || {}),
+                _group_settings: metaSettings
+              },
+              participant_details: {
+                ...(c.participant_details || {}),
+                _group_settings: metaSettings
+              },
+              updatedAt: now,
+              updated_at: now
+            };
+            updatedChat = next;
+            return next;
+          }
+          return c;
+        });
+
+        if (changed) {
+          saveLocalChats(uId, mapped);
+          notifyUserChatListeners(uId, mapped);
+        }
+      }
+    }
+  } catch (lsErr) {
+    console.warn('LocalStorage chat settings update error:', lsErr);
+  }
+
+  // 2. Update Supabase
+  try {
+    const payload = {
+      updated_at: now
+    };
+
+    if (newSettings.onlyAdminsCanSend !== undefined) {
+      payload.only_admins_can_send = newSettings.onlyAdminsCanSend;
+    }
+    if (newSettings.assistantAdmins !== undefined) {
+      payload.assistant_admins = newSettings.assistantAdmins;
+    }
+    if (newSettings.removedMembers !== undefined) {
+      payload.removed_members = newSettings.removedMembers;
+    }
+
+    // Try column-based update
+    const { error } = await supabase.from('chats').update(payload).eq('id', chatId);
+
+    // If custom columns don't exist yet, save inside participant_details._group_settings
+    if (error) {
+      const { data: existingChat } = await supabase
+        .from('chats')
+        .select('participant_details')
+        .eq('id', chatId)
+        .maybeSingle();
+
+      const pDetails = existingChat?.participant_details || {};
+      const currentMeta = pDetails._group_settings || {};
+
+      await supabase.from('chats').update({
+        participant_details: {
+          ...pDetails,
+          _group_settings: {
+            ...currentMeta,
+            ...(newSettings.onlyAdminsCanSend !== undefined ? { onlyAdminsCanSend: newSettings.onlyAdminsCanSend } : {}),
+            ...(newSettings.assistantAdmins !== undefined ? { assistantAdmins: newSettings.assistantAdmins } : {}),
+            ...(newSettings.removedMembers !== undefined ? { removedMembers: newSettings.removedMembers } : {})
+          }
+        },
+        updated_at: now
+      }).eq('id', chatId);
+    }
+  } catch (sbErr) {
+    console.warn('Supabase updateGroupChatSettings error:', sbErr);
+  }
+
+  return updatedChat || true;
+}
+
+export async function toggleGroupLock(chatId, onlyAdminsCanSend, actorName = 'المشرف') {
+  await updateGroupChatSettings(chatId, { onlyAdminsCanSend });
+  const text = onlyAdminsCanSend
+    ? `🔒 قام ${actorName} بتعديل إعدادات المجموعة: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل.`
+    : `🌐 قام ${actorName} بتعديل إعدادات المجموعة: يمكن لكافة الأعضاء إرسال الرسائل.`;
+  await sendSystemMessage(chatId, text);
+}
+
+export async function promoteToAssistantAdmin(chatId, memberId, memberName = 'العضو', currentAssistantAdmins = [], actorName = 'المشرف') {
+  if (!chatId || !memberId) return;
+  const set = new Set(currentAssistantAdmins.map(String));
+  set.add(String(memberId));
+  const nextList = Array.from(set);
+  await updateGroupChatSettings(chatId, { assistantAdmins: nextList });
+  await sendSystemMessage(chatId, `🛡️ قام ${actorName} بتعيين "${memberName}" كمساعد مشرف في المجموعة.`);
+}
+
+export async function demoteAssistantAdmin(chatId, memberId, memberName = 'العضو', currentAssistantAdmins = [], actorName = 'المشرف') {
+  if (!chatId || !memberId) return;
+  const nextList = currentAssistantAdmins.filter(id => String(id) !== String(memberId));
+  await updateGroupChatSettings(chatId, { assistantAdmins: nextList });
+  await sendSystemMessage(chatId, `👤 قام ${actorName} بإلغاء صفة مساعد المشرف عن "${memberName}".`);
+}
+
+export async function kickMemberFromGroup(chatId, memberId, memberName = 'الطالب', currentRemoved = [], currentAssistants = [], actorName = 'المشرف') {
+  if (!chatId || !memberId) return;
+  const setRemoved = new Set(currentRemoved.map(String));
+  setRemoved.add(String(memberId));
+  const nextRemoved = Array.from(setRemoved);
+  const nextAssistants = currentAssistants.filter(id => String(id) !== String(memberId));
+
+  await updateGroupChatSettings(chatId, {
+    removedMembers: nextRemoved,
+    assistantAdmins: nextAssistants
+  });
+  await sendSystemMessage(chatId, `⚠️ قام ${actorName} بطرد "${memberName}" من المجموعة.`);
+}
+
+// -------------------------------------------------------------
 // CHAT MEMBERS
 // -------------------------------------------------------------
 export async function fetchChatMembers(chatOrId) {
   if (!chatOrId) return [];
   const chat = typeof chatOrId === 'object' ? chatOrId : { id: chatOrId, participants: [] };
 
-  if (chat.participantDetails) {
-    return Object.entries(chat.participantDetails).map(([uid, details]) => ({
-      uid,
-      name: details.name || 'مستخدم',
-      role: details.role || 'student',
-      isInstructor: details.role === 'instructor' || uid === chat.instructorId
-    }));
+  // A) Course Group Chat: Resolve Instructor as Admin, Approved Students, and Assistant Admins
+  if (chat.type === 'course_group' || String(chat.id).startsWith('group_')) {
+    const courseId = chat.courseId || String(chat.id).replace('group_', '');
+    const membersMap = new Map();
+
+    // 1. Instructor details
+    let instructorUid = chat.instructorId ? String(chat.instructorId) : null;
+    let instructorName = chat.instructorName || 'المدرب';
+
+    if ((!instructorUid || instructorUid === 'undefined') && courseId) {
+      try {
+        const { data: courseData } = await supabase
+          .from('courses')
+          .select('id, title, instructor, instructor_name, instructor_id')
+          .eq('id', courseId)
+          .maybeSingle();
+
+        if (courseData) {
+          if (courseData.instructor_id) instructorUid = String(courseData.instructor_id);
+          instructorName = courseData.instructor || courseData.instructor_name || instructorName;
+        }
+      } catch (e) {}
+    }
+
+    if (instructorUid) {
+      membersMap.set(instructorUid, {
+        uid: instructorUid,
+        name: instructorName,
+        role: 'instructor',
+        groupRole: 'admin',
+        isInstructor: true,
+        isGroupAdmin: true,
+        isAssistantAdmin: false
+      });
+    }
+
+    // 2. Fetch approved enrolled students from course_requests
+    try {
+      const { data: requests } = await supabase
+        .from('course_requests')
+        .select('student_id, student_name, student_email')
+        .eq('course_id', courseId)
+        .eq('status', 'approved');
+
+      if (requests && requests.length > 0) {
+        requests.forEach(r => {
+          if (r.student_id) {
+            const sid = String(r.student_id);
+            if (!membersMap.has(sid)) {
+              membersMap.set(sid, {
+                uid: sid,
+                name: r.student_name || 'طالب',
+                email: r.student_email || '',
+                role: 'student',
+                groupRole: 'member',
+                isInstructor: false,
+                isGroupAdmin: false,
+                isAssistantAdmin: false
+              });
+            }
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 3. Fetch from enrollments table if exists
+    try {
+      const { data: enrolls } = await supabase
+        .from('enrollments')
+        .select('student_id, student_name, student_email')
+        .eq('course_id', courseId);
+
+      if (enrolls && enrolls.length > 0) {
+        enrolls.forEach(e => {
+          if (e.student_id) {
+            const sid = String(e.student_id);
+            if (!membersMap.has(sid)) {
+              membersMap.set(sid, {
+                uid: sid,
+                name: e.student_name || 'طالب',
+                email: e.student_email || '',
+                role: 'student',
+                groupRole: 'member',
+                isInstructor: false,
+                isGroupAdmin: false,
+                isAssistantAdmin: false
+              });
+            }
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 4. Participants already in chat.participantDetails
+    const pDetails = chat.participantDetails || chat.participant_details;
+    if (pDetails && typeof pDetails === 'object') {
+      Object.entries(pDetails).forEach(([uid, details]) => {
+        if (uid.startsWith('_')) return; // ignore metadata keys like _group_settings
+        const sid = String(uid);
+        if (!membersMap.has(sid)) {
+          const isInst = details.role === 'instructor' || sid === instructorUid;
+          membersMap.set(sid, {
+            uid: sid,
+            name: details.name || 'مستخدم',
+            role: details.role || (isInst ? 'instructor' : 'student'),
+            groupRole: isInst ? 'admin' : (details.groupRole || 'member'),
+            isInstructor: isInst,
+            isGroupAdmin: isInst,
+            isAssistantAdmin: details.groupRole === 'assistant_admin'
+          });
+        }
+      });
+    }
+
+    // 5. If instructor still not mapped, add entry with fallback ID
+    if (instructorName && (!instructorUid || !membersMap.has(instructorUid))) {
+      const fallbackId = instructorUid || `inst_${courseId}`;
+      membersMap.set(fallbackId, {
+        uid: fallbackId,
+        name: instructorName,
+        role: 'instructor',
+        groupRole: 'admin',
+        isInstructor: true,
+        isGroupAdmin: true,
+        isAssistantAdmin: false
+      });
+    }
+
+    // 6. Enrich with profiles from Supabase
+    try {
+      const uids = Array.from(membersMap.keys()).filter(id => !id.startsWith('inst_'));
+      if (uids.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, role, avatar_url')
+          .in('id', uids);
+
+        if (profs && profs.length > 0) {
+          profs.forEach(p => {
+            const sid = String(p.id);
+            if (membersMap.has(sid)) {
+              const current = membersMap.get(sid);
+              membersMap.set(sid, {
+                ...current,
+                name: p.full_name || current.name,
+                email: p.email || current.email,
+                avatarUrl: p.avatar_url,
+                role: current.isInstructor ? 'instructor' : (p.role || current.role)
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 7. Apply Assistant Admins and Removed (kicked) members
+    const assistantAdminsList = (chat.assistantAdmins || chat.assistant_admins || chat.participant_details?._group_settings?.assistantAdmins || []).map(String);
+    const removedMembersList = (chat.removedMembers || chat.removed_members || chat.participant_details?._group_settings?.removedMembers || []).map(String);
+
+    const memberList = [];
+    membersMap.forEach((member) => {
+      // Exclude kicked members
+      if (removedMembersList.includes(String(member.uid))) {
+        return;
+      }
+
+      if (member.isInstructor || String(member.uid) === instructorUid) {
+        member.isGroupAdmin = true;
+        member.groupRole = 'admin';
+      } else if (assistantAdminsList.includes(String(member.uid))) {
+        member.isAssistantAdmin = true;
+        member.groupRole = 'assistant_admin';
+      } else {
+        member.isAssistantAdmin = false;
+        member.groupRole = 'member';
+      }
+
+      memberList.push(member);
+    });
+
+    // Sort: Instructor (Admin) first, then Assistant Admins, then members
+    memberList.sort((a, b) => {
+      if (a.isGroupAdmin && !b.isGroupAdmin) return -1;
+      if (!a.isGroupAdmin && b.isGroupAdmin) return 1;
+      if (a.isAssistantAdmin && !b.isAssistantAdmin) return -1;
+      if (!a.isAssistantAdmin && b.isAssistantAdmin) return 1;
+      return (a.name || '').localeCompare(b.name || '', 'ar');
+    });
+
+    return memberList;
+  }
+
+  // B) Direct / Other Chats
+  if (chat.participantDetails || chat.participant_details) {
+    const detailsObj = chat.participantDetails || chat.participant_details;
+    return Object.entries(detailsObj)
+      .filter(([uid]) => !uid.startsWith('_'))
+      .map(([uid, details]) => ({
+        uid,
+        name: details.name || 'مستخدم',
+        role: details.role || 'student',
+        isInstructor: details.role === 'instructor' || uid === chat.instructorId
+      }));
   }
 
   try {
@@ -317,6 +673,8 @@ export function subscribeToUserChats(userId, callback) {
         if (!error && Array.isArray(data)) {
           remoteChats = data.filter(c => {
             const parts = c.participants || [];
+            const removed = (c.removed_members || c.removedMembers || c.participant_details?._group_settings?.removedMembers || []).map(String);
+            if (removed.includes(String(userId))) return false;
             return c.type === 'course_group' || parts.includes(userId);
           }).map(normalizeChat);
         }
@@ -363,11 +721,16 @@ export function subscribeToUserChats(userId, callback) {
       // 3. Add remote chats (overwriting with latest state)
       remoteChats.forEach(rc => mergedMap.set(rc.id, rc));
 
-      const finalList = Array.from(mergedMap.values()).sort((a, b) => {
-        const timeA = new Date(a.updatedAt || a.updated_at || 0).getTime();
-        const timeB = new Date(b.updatedAt || b.updated_at || 0).getTime();
-        return timeB - timeA;
-      });
+      const finalList = Array.from(mergedMap.values())
+        .filter(c => {
+          const removed = (c.removedMembers || c.removed_members || c.participantDetails?._group_settings?.removedMembers || []).map(String);
+          return !removed.includes(String(userId));
+        })
+        .sort((a, b) => {
+          const timeA = new Date(a.updatedAt || a.updated_at || 0).getTime();
+          const timeB = new Date(b.updatedAt || b.updated_at || 0).getTime();
+          return timeB - timeA;
+        });
 
       saveLocalChats(userId, finalList);
 
@@ -709,6 +1072,7 @@ export function listenToCallSession(callId, callback) {
 // NORMALIZERS
 // -------------------------------------------------------------
 function normalizeChat(c) {
+  const metaSettings = c.participant_details?._group_settings || c.participantDetails?._group_settings || {};
   return {
     ...c,
     id: c.id,
@@ -721,7 +1085,10 @@ function normalizeChat(c) {
     participantDetails: c.participant_details || c.participantDetails || {},
     unreadCounts: c.unread_counts || c.unreadCounts || {},
     lastMessage: c.last_message || c.lastMessage || null,
-    updatedAt: c.updated_at || c.updatedAt || new Date().toISOString()
+    updatedAt: c.updated_at || c.updatedAt || new Date().toISOString(),
+    onlyAdminsCanSend: c.only_admins_can_send !== undefined ? c.only_admins_can_send : (c.onlyAdminsCanSend !== undefined ? c.onlyAdminsCanSend : (metaSettings.onlyAdminsCanSend ?? false)),
+    assistantAdmins: c.assistant_admins || c.assistantAdmins || metaSettings.assistantAdmins || [],
+    removedMembers: c.removed_members || c.removedMembers || metaSettings.removedMembers || []
   };
 }
 

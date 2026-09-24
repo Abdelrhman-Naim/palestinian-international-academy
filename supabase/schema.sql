@@ -287,9 +287,17 @@ CREATE TABLE IF NOT EXISTS public.chats (
   participant_details JSONB DEFAULT '{}'::jsonb,
   unread_counts JSONB DEFAULT '{}'::jsonb,
   last_message JSONB,
+  only_admins_can_send BOOLEAN DEFAULT FALSE,
+  assistant_admins TEXT[] DEFAULT '{}',
+  removed_members TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure group settings columns exist
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS only_admins_can_send BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS assistant_admins TEXT[] DEFAULT '{}';
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS removed_members TEXT[] DEFAULT '{}';
 
 -- 12. CHAT MESSAGES TABLE
 CREATE TABLE IF NOT EXISTS public.chat_messages (

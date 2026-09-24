@@ -17,7 +17,11 @@ import {
   listenToIncomingCalls,
   listenToCallSession,
   markChatAsRead,
-  markMessagesAsRead
+  markMessagesAsRead,
+  toggleGroupLock,
+  promoteToAssistantAdmin,
+  demoteAssistantAdmin,
+  kickMemberFromGroup
 } from '../services/chatService';
 import VoicePlayer from '../components/chat/VoicePlayer';
 import CallModal from '../components/chat/CallModal';
@@ -52,10 +56,13 @@ export default function ChatPage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Group members modal state
+  // WhatsApp-style Group settings & members modal state
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [updatingSettings, setUpdatingSettings] = useState(false);
 
   // Calls state
   const [activeCall, setActiveCall] = useState(null);
@@ -212,9 +219,37 @@ export default function ChatPage() {
   }, [activeChatId, currentUser?.uid, currentUser?.id]);
 
   const activeChat = chats.find(c => c.id === activeChatId) || null;
-
-  // Helper to extract current user name
+  const currentUserId = currentUser?.uid || currentUser?.id;
   const currentUserName = userData?.name || userData?.fullName || currentUser?.displayName || currentUser?.email || 'مستخدم';
+
+  // Group Admin & Permissions for course groups
+  const isCourseGroup = activeChat?.type === 'course_group';
+  
+  // The course instructor is the group admin ("المدرب هو أدمن المجموعة")
+  const isInstructorAdmin = isCourseGroup && (
+    (activeChat.instructorId && String(activeChat.instructorId) === String(currentUserId)) ||
+    (userRole === 'instructor' && (
+      activeChat.instructorName === currentUserName ||
+      activeChat.instructorName === userData?.name ||
+      activeChat.instructorName === userData?.fullName ||
+      activeChat.instructorName === currentUser?.displayName
+    ))
+  );
+
+  // Platform admins also have full admin privileges
+  const isPlatformAdmin = userRole === 'admin';
+  const isGroupAdmin = isCourseGroup && (isInstructorAdmin || isPlatformAdmin);
+  const isAssistantAdmin = isCourseGroup && (
+    (activeChat.assistantAdmins || []).some(id => String(id) === String(currentUserId))
+  );
+
+  // Management rights: toggle send permissions, promote/demote, kick students
+  const canManageGroup = isGroupAdmin;
+  // Moderation rights: delete any student's message
+  const canModerateMessages = isGroupAdmin || isAssistantAdmin;
+  // Can send when group is locked
+  const isGroupLocked = isCourseGroup && Boolean(activeChat.onlyAdminsCanSend);
+  const canSendInCurrentChat = !isGroupLocked || isGroupAdmin || isAssistantAdmin;
 
   // Sync participants for @ mentions whenever active chat changes
   useEffect(() => {
@@ -287,10 +322,14 @@ export default function ChatPage() {
     return m.name.toLowerCase().includes(mentionQuery);
   });
 
-  // Handle Delete Message
-  const handleDeleteMessage = async (msgId) => {
+  // Handle Delete Message (Personal or Moderation by Group Admin/Assistant)
+  const handleDeleteMessage = async (msgId, isModeration = false) => {
     if (!activeChatId || !msgId) return;
-    if (window.confirm(t('chat.deleteConfirm'))) {
+    const confirmText = isModeration
+      ? (isRtl ? 'هل أنت متأكد من حذف رسالة الطالب من المجموعة؟ سيتم حذفها لجميع الأعضاء.' : 'Are you sure you want to delete this student message for all members?')
+      : (t('chat.deleteConfirm') || 'هل أنت متأكد من حذف هذه الرسالة؟');
+
+    if (window.confirm(confirmText)) {
       try {
         await deleteMessage(activeChatId, msgId);
         if (editingMessage?.id === msgId) {
@@ -302,7 +341,7 @@ export default function ChatPage() {
         }
       } catch (err) {
         console.error('Failed to delete message:', err);
-        alert('فشل حذف الرسالة');
+        alert(isRtl ? 'فشل حذف الرسالة' : 'Failed to delete message');
       }
     }
   };
@@ -347,6 +386,11 @@ export default function ChatPage() {
   const handleSendText = async (e) => {
     e?.preventDefault();
     if (!inputText.trim() || !activeChatId || !currentUser) return;
+
+    if (!canSendInCurrentChat) {
+      alert(isRtl ? 'المجموعة مغلقة حالياً: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل.' : 'The group is locked: only admins and assistants can send messages.');
+      return;
+    }
 
     // Handle Edit Mode Save
     if (editingMessage) {
@@ -402,6 +446,10 @@ export default function ChatPage() {
   // VOICE RECORDING LOGIC
   // -------------------------------------------------------------
   const startRecording = async () => {
+    if (!canSendInCurrentChat) {
+      alert(isRtl ? 'المجموعة مغلقة حالياً: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل.' : 'The group is locked: only admins and assistants can send messages.');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       recordingStreamRef.current = stream;
@@ -539,6 +587,10 @@ export default function ChatPage() {
   // FILE UPLOAD LOGIC
   // -------------------------------------------------------------
   const handleFileClick = () => {
+    if (!canSendInCurrentChat) {
+      alert(isRtl ? 'المجموعة مغلقة حالياً: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل.' : 'The group is locked: only admins and assistants can send messages.');
+      return;
+    }
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -547,6 +599,12 @@ export default function ChatPage() {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !activeChatId) return;
+
+    if (!canSendInCurrentChat) {
+      alert(isRtl ? 'المجموعة مغلقة حالياً: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل.' : 'The group is locked: only admins and assistants can send messages.');
+      e.target.value = '';
+      return;
+    }
 
     // Reset input so same file can be re-selected if desired
     e.target.value = '';
@@ -722,20 +780,139 @@ export default function ChatPage() {
     }
   };
 
-  // Open Group Members Modal
-  const openMembersModal = async () => {
+  // Open Group Settings & Info Modal
+  const openGroupSettingsModal = async () => {
     if (!activeChat || activeChat.type !== 'course_group') return;
+    setIsGroupSettingsOpen(true);
     setIsMembersModalOpen(true);
     setLoadingMembers(true);
+    setMemberSearchQuery('');
     try {
       const members = await fetchChatMembers(activeChat);
-      setGroupMembers(members);
+      setGroupMembers(members || []);
     } catch (err) {
       console.error('Error fetching group members:', err);
     } finally {
       setLoadingMembers(false);
     }
   };
+
+  const openMembersModal = openGroupSettingsModal;
+
+  // Toggle Only Admins Can Send Messages
+  const handleToggleGroupLock = async (newLockState) => {
+    if (!activeChat || !canManageGroup) return;
+    try {
+      setUpdatingSettings(true);
+      // Update locally
+      setChats(prevChats => prevChats.map(c => {
+        if (c.id === activeChat.id) {
+          return { ...c, onlyAdminsCanSend: newLockState };
+        }
+        return c;
+      }));
+
+      await toggleGroupLock(activeChat.id, newLockState, currentUserName);
+    } catch (err) {
+      console.error('Failed to toggle group lock:', err);
+    } finally {
+      setUpdatingSettings(false);
+    }
+  };
+
+  // Promote Member to Assistant Admin
+  const handlePromoteMember = async (member) => {
+    if (!activeChat || !canManageGroup || !member) return;
+    try {
+      const currentAssistants = (activeChat.assistantAdmins || []).map(String);
+      const nextList = [...currentAssistants, String(member.uid)];
+
+      setChats(prevChats => prevChats.map(c => {
+        if (c.id === activeChat.id) {
+          return { ...c, assistantAdmins: nextList };
+        }
+        return c;
+      }));
+
+      setGroupMembers(prev => prev.map(m => {
+        if (String(m.uid) === String(member.uid)) {
+          return { ...m, isAssistantAdmin: true, groupRole: 'assistant_admin' };
+        }
+        return m;
+      }));
+
+      await promoteToAssistantAdmin(activeChat.id, member.uid, member.name, currentAssistants, currentUserName);
+    } catch (err) {
+      console.error('Failed to promote member:', err);
+    }
+  };
+
+  // Demote Assistant Admin back to Member
+  const handleDemoteMember = async (member) => {
+    if (!activeChat || !canManageGroup || !member) return;
+    try {
+      const currentAssistants = (activeChat.assistantAdmins || []).map(String);
+      const nextList = currentAssistants.filter(id => String(id) !== String(member.uid));
+
+      setChats(prevChats => prevChats.map(c => {
+        if (c.id === activeChat.id) {
+          return { ...c, assistantAdmins: nextList };
+        }
+        return c;
+      }));
+
+      setGroupMembers(prev => prev.map(m => {
+        if (String(m.uid) === String(member.uid)) {
+          return { ...m, isAssistantAdmin: false, groupRole: 'member' };
+        }
+        return m;
+      }));
+
+      await demoteAssistantAdmin(activeChat.id, member.uid, member.name, currentAssistants, currentUserName);
+    } catch (err) {
+      console.error('Failed to demote member:', err);
+    }
+  };
+
+  // Kick Member from Group
+  const handleKickMember = async (member) => {
+    if (!activeChat || !canManageGroup || !member) return;
+    const confirmKick = window.confirm(
+      isRtl
+        ? `هل أنت متأكد من طرد الطالب "${member.name}" من مجموعة الدورة؟ لن يتمكن من رؤية المحادثة أو إرسال الرسائل مجدداً.`
+        : `Are you sure you want to kick "${member.name}" from this course group?`
+    );
+    if (!confirmKick) return;
+
+    try {
+      const currentRemoved = (activeChat.removedMembers || []).map(String);
+      const currentAssistants = (activeChat.assistantAdmins || []).map(String);
+
+      setGroupMembers(prev => prev.filter(m => String(m.uid) !== String(member.uid)));
+
+      setChats(prevChats => prevChats.map(c => {
+        if (c.id === activeChat.id) {
+          return {
+            ...c,
+            removedMembers: [...currentRemoved, String(member.uid)],
+            assistantAdmins: currentAssistants.filter(id => String(id) !== String(member.uid))
+          };
+        }
+        return c;
+      }));
+
+      await kickMemberFromGroup(activeChat.id, member.uid, member.name, currentRemoved, currentAssistants, currentUserName);
+    } catch (err) {
+      console.error('Failed to kick member:', err);
+    }
+  };
+
+  // Filter Group Members for modal search
+  const filteredGroupMembers = groupMembers.filter(m => {
+    if (!memberSearchQuery.trim()) return true;
+    const q = memberSearchQuery.toLowerCase();
+    return (m.name || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q);
+  });
 
   // Filter chats by search and tab
   const filteredChats = chats.filter(c => {
@@ -1050,12 +1227,12 @@ export default function ChatPage() {
                   {activeChat.type === 'course_group' ? (
                     <button
                       type="button"
-                      onClick={openMembersModal}
-                      className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl bg-[#FAF7F2] dark:bg-gray-700 hover:bg-[#E8E2D5] dark:hover:bg-gray-600 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
-                      title={t('chat.groupMembers')}
+                      onClick={openGroupSettingsModal}
+                      className="w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg sm:rounded-xl bg-[#FAF7F2] dark:bg-gray-700 hover:bg-[#E8E2D5] dark:hover:bg-gray-600 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white flex items-center justify-center transition-all shadow-xs active:scale-95 shrink-0 cursor-pointer"
+                      title={isRtl ? "إعدادات ومعلومات المجموعة" : "Group Info & Settings"}
+                      aria-label={isRtl ? "إعدادات ومعلومات المجموعة" : "Group Info & Settings"}
                     >
-                      <span className="material-symbols-outlined text-base sm:text-lg text-primary">group</span>
-                      <span className="hidden sm:inline">{t('chat.members')}</span>
+                      <span className="material-symbols-outlined text-base sm:text-xl text-primary">settings</span>
                     </button>
                   ) : (
                     <>
@@ -1432,17 +1609,17 @@ export default function ChatPage() {
                               </button>
                             )}
 
-                            {/* 3. Delete Button (Only for own messages) */}
-                            {isMe && (
+                            {/* 3. Delete Button (For own messages, OR for admins/assistants moderating student messages in group chats) */}
+                            {(isMe || (activeChat.type === 'course_group' && canModerateMessages)) && (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteMessage(msg.id);
+                                  handleDeleteMessage(msg.id, !isMe);
                                 }}
                                 className="w-7 h-7 rounded-full bg-white dark:bg-gray-800 hover:bg-rose-500 hover:text-white dark:hover:bg-rose-500 text-rose-500 border border-[#E8E2D5] dark:border-gray-700 shadow-xs flex items-center justify-center transition-all cursor-pointer"
-                                title={t('chat.delete')}
-                                aria-label={t('chat.delete')}
+                                title={!isMe ? (isRtl ? "حذف رسالة الطالب (إشراف)" : "Delete student message (moderation)") : t('chat.delete')}
+                                aria-label={!isMe ? (isRtl ? "حذف رسالة الطالب" : "Delete student message") : t('chat.delete')}
                               >
                                 <span className="material-symbols-outlined text-[15px]">delete</span>
                               </button>
@@ -1466,7 +1643,13 @@ export default function ChatPage() {
 
               {/* Message Input Box & Voice Recorder Bar */}
               <div className="p-3 sm:p-4 border-t border-[#E8E2D5] dark:border-gray-700 bg-[#F3EFE6]/50 dark:bg-gray-800/60 shrink-0">
-                {isRecording ? (
+                {!canSendInCurrentChat ? (
+                  /* WhatsApp-style locked group banner for students */
+                  <div className="flex items-center justify-center gap-2.5 py-4 px-4 bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20 dark:border-amber-800/40 rounded-2xl text-amber-800 dark:text-amber-300 text-xs sm:text-sm font-bold text-center shadow-xs">
+                    <span className="material-symbols-outlined text-lg sm:text-xl text-amber-600 dark:text-amber-400">lock</span>
+                    <span>{isRtl ? "المجموعة مغلقة: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل في هذه المجموعة" : "Only admins and assistant admins can send messages in this group"}</span>
+                  </div>
+                ) : isRecording ? (
                   /* Live Voice Recording Bar */
                   <div className="flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl px-4 py-3 animate-pulse">
                     <div className="flex items-center gap-3">
@@ -1505,6 +1688,24 @@ export default function ChatPage() {
                   </div>
                 ) : (
                   <div>
+                    {/* Locked Group Admin Reminder */}
+                    {isGroupLocked && canSendInCurrentChat && (
+                      <div className="mb-2 flex items-center justify-between px-3 py-1.5 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/20 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                        <span className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm text-amber-600 dark:text-amber-400">lock</span>
+                          <span>{isRtl ? "المجموعة مغلقة للطلاب: أنت ترسل بصفتك مشرف/مساعد" : "Group is locked for students: You are posting as admin/assistant"}</span>
+                        </span>
+                        {canManageGroup && (
+                          <button
+                            type="button"
+                            onClick={openGroupSettingsModal}
+                            className="underline hover:text-primary transition-colors text-[10px] cursor-pointer"
+                          >
+                            {isRtl ? "تعديل الإعدادات" : "Settings"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {/* 1. Reply Preview Banner (WhatsApp Style) */}
                     {replyingToMessage && (
                       <div className="mb-2 flex items-center justify-between gap-3 bg-white dark:bg-gray-800 border-s-4 border-primary border border-[#E8E2D5] dark:border-gray-700 rounded-2xl p-2.5 shadow-xs animate-fade-in">
@@ -1711,76 +1912,310 @@ export default function ChatPage() {
       </div>
 
       {/* ========================================================
-          GROUP MEMBERS MODAL
+          WHATSAPP-STYLE GROUP SETTINGS & INFO MODAL
       ======================================================== */}
-      {isMembersModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in font-alexandria">
+      {(isGroupSettingsOpen || isMembersModalOpen) && activeChat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in font-alexandria">
           <div 
             dir={dir}
-            className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-3xl border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
           >
-            {/* Modal Header */}
-            <div className="p-5 border-b border-[#E8E2D5] dark:border-gray-700 bg-[#F3EFE6]/60 dark:bg-gray-800 flex items-center justify-between">
+            {/* Modal Top Bar */}
+            <div className="px-5 py-4 border-b border-[#E8E2D5] dark:border-gray-700 bg-[#F3EFE6]/60 dark:bg-gray-800/80 flex items-center justify-between shrink-0">
               <h3 className="font-extrabold text-base text-dark dark:text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">group</span>
-                {t('chat.groupMembers')}
+                <span className="material-symbols-outlined text-primary text-xl">settings</span>
+                <span>{isRtl ? "معلومات وإعدادات المجموعة" : "Group Info & Settings"}</span>
               </h3>
               <button
                 type="button"
-                onClick={() => setIsMembersModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 hover:bg-gray-100 flex items-center justify-center text-gray-500 dark:text-gray-300"
+                onClick={() => {
+                  setIsGroupSettingsOpen(false);
+                  setIsMembersModalOpen(false);
+                }}
+                className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors cursor-pointer"
+                title={t('common.close') || 'Close'}
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            {/* Modal Members List */}
-            <div className="flex-1 overflow-y-auto p-4 divide-y divide-[#E8E2D5]/60 dark:divide-gray-700/60 custom-scrollbar">
-              {loadingMembers ? (
-                <div className="p-8 text-center text-gray-400 flex flex-col items-center gap-2">
-                  <span className="material-symbols-outlined text-2xl animate-spin text-primary">sync</span>
-                  <span className="text-xs font-bold">{t('chat.loading')}</span>
+            {/* Scrollable Modal Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 custom-scrollbar">
+              
+              {/* 1. Group Profile & Meta Header */}
+              <div className="bg-[#FAF7F2] dark:bg-gray-700/40 rounded-2xl p-4 sm:p-5 border border-[#E8E2D5] dark:border-gray-700 text-center flex flex-col items-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-primary/15 text-primary border-2 border-primary/20 flex items-center justify-center mb-3 shadow-sm">
+                  <span className="material-symbols-outlined text-3xl sm:text-4xl">groups</span>
                 </div>
-              ) : groupMembers.length === 0 ? (
-                <p className="text-center py-6 text-xs text-gray-400 font-semibold">
-                  لا يوجد أعضاء مسجلين حالياً
-                </p>
-              ) : (
-                groupMembers.map((member) => {
-                  const isCurrentUser = member.uid === currentUser?.uid;
+                <h4 className="font-extrabold text-base sm:text-lg text-dark dark:text-white mb-1">
+                  {activeChat.title}
+                </h4>
+                <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                    {t('chat.courseGroup')}
+                  </span>
+                  <span>•</span>
+                  <span className="font-semibold">
+                    {groupMembers.length || activeChat.participants?.length || 0} {t('chat.members')}
+                  </span>
+                </div>
 
-                  return (
-                    <div key={member.uid} className="py-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-[#F3EFE6] dark:bg-gray-700 text-primary border border-[#E8E2D5] dark:border-gray-600 flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                          {member.name?.[0] || 'م'}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-dark dark:text-white truncate">
-                            {member.name} {isCurrentUser && `(${t('chat.you')})`}
-                          </p>
-                          <span className="text-[11px] text-gray-400">
-                            {member.isInstructor ? t('chat.instructor') : member.role === 'admin' ? t('chat.admin') : t('chat.student')}
-                          </span>
-                        </div>
-                      </div>
+                {activeChat.instructorName && (
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 text-xs font-bold">
+                    <span className="material-symbols-outlined text-sm text-amber-500">verified_user</span>
+                    <span>{isRtl ? "مشرف المجموعة (المدرب):" : "Group Admin (Instructor):"} {activeChat.instructorName}</span>
+                  </div>
+                )}
+              </div>
 
-                      {/* Direct Message Action */}
-                      {!isCurrentUser && (
-                        <button
-                          type="button"
-                          onClick={() => handleStartDirectChatWithUser(member)}
-                          className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary hover:text-white text-primary text-xs font-bold flex items-center gap-1 transition-all shrink-0 shadow-xs"
-                          title={t('chat.directMessage')}
-                        >
-                          <span className="material-symbols-outlined text-sm">chat</span>
-                          <span>{t('chat.sendMessage')}</span>
-                        </button>
-                      )}
+              {/* 2. Group Permissions / Settings (WhatsApp Style) */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-[#E8E2D5] dark:border-gray-700 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-lg">tune</span>
+                    <h5 className="font-extrabold text-sm text-dark dark:text-white">
+                      {isRtl ? "إعدادات وصلاحيات المجموعة" : "Group Settings & Permissions"}
+                    </h5>
+                  </div>
+                  {canManageGroup && (
+                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md font-bold">
+                      {isRtl ? "أنت مشرف المجموعة" : "You are Admin"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Send Messages Setting */}
+                <div className="p-3 rounded-xl bg-[#FAF7F2] dark:bg-gray-700/50 border border-[#E8E2D5]/70 dark:border-gray-600/60">
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <div>
+                      <p className="font-bold text-xs sm:text-sm text-dark dark:text-white flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-base text-gray-500">chat</span>
+                        {isRtl ? "إرسال الرسائل" : "Send Messages"}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        {isRtl 
+                          ? "اختر من يمكنه إرسال الرسائل في هذه المجموعة" 
+                          : "Choose who can send messages in this group"}
+                      </p>
                     </div>
-                  );
-                })
-              )}
+                  </div>
+
+                  {canManageGroup ? (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <button
+                        type="button"
+                        disabled={updatingSettings}
+                        onClick={() => handleToggleGroupLock(false)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          !activeChat.onlyAdminsCanSend
+                            ? 'bg-primary text-white shadow-xs'
+                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-[#E8E2D5] dark:border-gray-600 hover:bg-[#FAF7F2]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">public</span>
+                        <span>{isRtl ? "كافة الأعضاء" : "All Members"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={updatingSettings}
+                        onClick={() => handleToggleGroupLock(true)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          activeChat.onlyAdminsCanSend
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-[#E8E2D5] dark:border-gray-600 hover:bg-[#FAF7F2]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">lock</span>
+                        <span>{isRtl ? "المشرفون فقط" : "Admins Only"}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200">
+                      <span className={`material-symbols-outlined text-base ${activeChat.onlyAdminsCanSend ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {activeChat.onlyAdminsCanSend ? 'lock' : 'check_circle'}
+                      </span>
+                      <span>
+                        {activeChat.onlyAdminsCanSend
+                          ? (isRtl ? "مغلقة: فقط المشرفون ومساعدوهم يمكنهم إرسال الرسائل" : "Locked: Only admins and assistant admins can send messages")
+                          : (isRtl ? "مفتوحة: يمكن لكافة الأعضاء إرسال الرسائل" : "Open: All members can send messages")
+                        }
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. Group Members Section (أعضاء المجموعة) */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-[#E8E2D5] dark:border-gray-700 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-lg">group</span>
+                    <h5 className="font-extrabold text-sm text-dark dark:text-white">
+                      {isRtl ? "أعضاء المجموعة" : "Group Members"}
+                    </h5>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                    {groupMembers.length} {t('chat.members')}
+                  </span>
+                </div>
+
+                {/* Member Search Bar */}
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute inset-s-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    placeholder={isRtl ? "بحث في الأعضاء بالاسم أو البريد..." : "Search members by name or email..."}
+                    className="w-full bg-[#FAF7F2] dark:bg-gray-700/60 border border-[#E8E2D5] dark:border-gray-600 rounded-xl ps-8 pe-3 py-1.5 text-xs text-dark dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                {/* Members List */}
+                <div className="divide-y divide-[#E8E2D5]/60 dark:divide-gray-700/60 max-h-64 overflow-y-auto custom-scrollbar">
+                  {loadingMembers ? (
+                    <div className="p-8 text-center text-gray-400 flex flex-col items-center gap-2">
+                      <span className="material-symbols-outlined text-2xl animate-spin text-primary">sync</span>
+                      <span className="text-xs font-bold">{t('chat.loading')}</span>
+                    </div>
+                  ) : filteredGroupMembers.length === 0 ? (
+                    <p className="text-center py-6 text-xs text-gray-400 font-semibold">
+                      {isRtl ? "لا يوجد أعضاء مطابقين للبحث" : "No matching members found"}
+                    </p>
+                  ) : (
+                    filteredGroupMembers.map((member) => {
+                      const isMeMember = String(member.uid) === String(currentUserId);
+                      const isInstructorMember = Boolean(member.isInstructor || member.isGroupAdmin);
+                      const isAssistant = Boolean(member.isAssistantAdmin);
+
+                      return (
+                        <div key={member.uid} className="py-3 flex items-center justify-between gap-3">
+                          
+                          {/* Member Avatar & Details */}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="relative shrink-0">
+                              {member.avatarUrl ? (
+                                <img 
+                                  src={member.avatarUrl} 
+                                  alt={member.name}
+                                  className="w-10 h-10 rounded-xl object-cover border border-[#E8E2D5] dark:border-gray-600 shadow-xs"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-[#F3EFE6] dark:bg-gray-700 text-primary border border-[#E8E2D5] dark:border-gray-600 flex items-center justify-center font-bold text-sm shadow-xs">
+                                  {member.name?.[0] || 'م'}
+                                </div>
+                              )}
+                              {isInstructorMember && (
+                                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[9px] shadow-xs" title={isRtl ? "مشرف" : "Admin"}>
+                                  ★
+                                </span>
+                              )}
+                              {isAssistant && !isInstructorMember && (
+                                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] shadow-xs" title={isRtl ? "مساعد مشرف" : "Assistant"}>
+                                  🛡
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-bold text-xs sm:text-sm text-dark dark:text-white truncate">
+                                  {member.name}
+                                </p>
+                                {isMeMember && (
+                                  <span className="text-[10px] text-gray-400 font-medium">({t('chat.you')})</span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {isInstructorMember ? (
+                                  <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.2 rounded font-bold inline-flex items-center gap-0.5">
+                                    <span className="material-symbols-outlined text-[11px]">shield</span>
+                                    {isRtl ? "مشرف المجموعة" : "Group Admin"}
+                                  </span>
+                                ) : isAssistant ? (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.2 rounded font-bold inline-flex items-center gap-0.5">
+                                    <span className="material-symbols-outlined text-[11px]">verified</span>
+                                    {isRtl ? "مساعد مشرف" : "Assistant Admin"}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                                    {isRtl ? "طالب" : "Student"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons for this Member */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* 1. Direct Message (for everyone except self) */}
+                            {!isMeMember && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsGroupSettingsOpen(false);
+                                  setIsMembersModalOpen(false);
+                                  handleStartDirectChatWithUser(member);
+                                }}
+                                className="w-8 h-8 rounded-xl bg-primary/10 hover:bg-primary hover:text-white text-primary flex items-center justify-center transition-all shadow-xs cursor-pointer"
+                                title={t('chat.directMessage')}
+                                aria-label={t('chat.directMessage')}
+                              >
+                                <span className="material-symbols-outlined text-base">chat</span>
+                              </button>
+                            )}
+
+                            {/* 2. Admin Controls: Promote/Demote Assistant & Kick */}
+                            {canManageGroup && !isInstructorMember && !isMeMember && (
+                              <>
+                                {/* Toggle Assistant Role */}
+                                {isAssistant ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDemoteMember(member)}
+                                    className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-amber-100 text-gray-600 dark:text-gray-300 hover:text-amber-700 flex items-center justify-center transition-all shadow-xs cursor-pointer"
+                                    title={isRtl ? "إلغاء صلاحية مساعد المشرف" : "Demote to Member"}
+                                    aria-label={isRtl ? "إلغاء صلاحية مساعد المشرف" : "Demote to Member"}
+                                  >
+                                    <span className="material-symbols-outlined text-base">person</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePromoteMember(member)}
+                                    className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-500 hover:text-white text-emerald-600 flex items-center justify-center transition-all shadow-xs cursor-pointer"
+                                    title={isRtl ? "ترقية إلى مساعد أدمن" : "Promote to Assistant Admin"}
+                                    aria-label={isRtl ? "ترقية إلى مساعد أدمن" : "Promote to Assistant Admin"}
+                                  >
+                                    <span className="material-symbols-outlined text-base">shield_person</span>
+                                  </button>
+                                )}
+
+                                {/* Kick / Remove Member */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleKickMember(member)}
+                                  className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-500 hover:text-white text-rose-600 flex items-center justify-center transition-all shadow-xs cursor-pointer"
+                                  title={isRtl ? "طرد من المجموعة" : "Kick from Group"}
+                                  aria-label={isRtl ? "طرد من المجموعة" : "Kick from Group"}
+                                >
+                                  <span className="material-symbols-outlined text-base">person_remove</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
