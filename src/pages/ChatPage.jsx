@@ -78,36 +78,56 @@ export default function ChatPage() {
 
   // Auto-sync student enrollments with existing course groups
   useEffect(() => {
-    if (currentUser?.uid && userRole === 'student') {
-      syncEnrolledCourseChatsForStudent(currentUser.uid);
+    const uid = currentUser?.uid || currentUser?.id;
+    if (uid && userRole === 'student') {
+      syncEnrolledCourseChatsForStudent(uid);
     }
-  }, [currentUser, userRole]);
+  }, [currentUser?.uid, currentUser?.id, userRole]);
 
   // Subscribe to all chats for this user
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    const userId = currentUser?.uid || currentUser?.id;
+    if (!userId) {
+      setLoadingChats(false);
+      return;
+    }
 
     setLoadingChats(true);
-    const unsubChats = subscribeToUserChats(currentUser.uid, (userChats) => {
-      setChats(userChats);
+    let isMounted = true;
+
+    const unsubChats = subscribeToUserChats(userId, (userChats) => {
+      if (!isMounted) return;
+      const list = userChats || [];
+      setChats(list);
       setLoadingChats(false);
 
-      if (queryChatId) {
+      if (queryChatId && list.some(c => c.id === queryChatId)) {
         setActiveChatId(queryChatId);
         setIsMobileListOpen(false);
-      } else if (!activeChatId && userChats.length > 0 && window.innerWidth >= 768) {
-        setActiveChatId(userChats[0].id);
+      } else {
+        setActiveChatId(prev => {
+          if (prev && list.some(c => c.id === prev)) return prev;
+          if (queryChatId && list.some(c => c.id === queryChatId)) return queryChatId;
+          if (list.length > 0 && typeof window !== 'undefined' && window.innerWidth >= 768) {
+            return list[0].id;
+          }
+          return null;
+        });
       }
     });
 
-    return () => unsubChats();
-  }, [currentUser, queryChatId]);
+    return () => {
+      isMounted = false;
+      if (typeof unsubChats === 'function') unsubChats();
+    };
+  }, [currentUser?.uid, currentUser?.id]);
 
   // Listen to incoming calls for current user
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    const uid = currentUser?.uid || currentUser?.id;
+    if (!uid) return;
 
-    const unsubCall = listenToIncomingCalls(currentUser.uid, (incoming) => {
+    const unsubCall = listenToIncomingCalls(uid, (incoming) => {
       if (incoming) {
         // If not already in an active connected call, show incoming call modal
         if (!activeCallRef.current || activeCallRef.current.status !== 'connected') {
@@ -118,7 +138,7 @@ export default function ChatPage() {
       } else {
         // Incoming call ended / cancelled before callee answered
         // Only close if we are still waiting in 'ringing' status
-        if (activeCallRef.current && activeCallRef.current.status === 'ringing' && activeCallRef.current.calleeId === currentUser.uid) {
+        if (activeCallRef.current && activeCallRef.current.status === 'ringing' && activeCallRef.current.calleeId === uid) {
           setIsCallModalOpen(false);
           setActiveCall(null);
           setIsIncomingCall(false);
@@ -127,7 +147,7 @@ export default function ChatPage() {
     });
 
     return () => unsubCall();
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, currentUser?.id]);
 
   // Listen to active call updates if caller or ongoing
   useEffect(() => {
@@ -152,7 +172,7 @@ export default function ChatPage() {
   // Update query param when activeChat changes
   const selectChat = (chatId) => {
     setActiveChatId(chatId);
-    setSearchParams({ chatId });
+    setSearchParams(chatId ? { chatId } : {}, { replace: true });
     setIsMobileListOpen(false);
   };
 
@@ -165,12 +185,17 @@ export default function ChatPage() {
     }
 
     setLoadingMessages(true);
+    let isMounted = true;
     const unsubMessages = subscribeToMessages(activeChatId, (msgs) => {
-      setMessages(msgs);
+      if (!isMounted) return;
+      setMessages(msgs || []);
       setLoadingMessages(false);
     });
 
-    return () => unsubMessages();
+    return () => {
+      isMounted = false;
+      if (typeof unsubMessages === 'function') unsubMessages();
+    };
   }, [activeChatId]);
 
   // Auto-scroll to bottom on new message
@@ -178,24 +203,13 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mark chat and messages as read when active chat is open
+  // Mark chat as read when active chat is open
   useEffect(() => {
-    if (!activeChatId || !currentUser?.uid) return;
+    const uid = currentUser?.uid || currentUser?.id;
+    if (!activeChatId || !uid) return;
 
-    // Reset unread count for current user on this chat
-    markChatAsRead(activeChatId, currentUser.uid);
-
-    // Mark any unread incoming messages from others as read
-    if (messages.length > 0) {
-      const unreadIds = messages
-        .filter(m => m.senderId !== currentUser.uid && (!m.readBy || !m.readBy.includes(currentUser.uid)))
-        .map(m => m.id);
-
-      if (unreadIds.length > 0) {
-        markMessagesAsRead(activeChatId, unreadIds, currentUser.uid);
-      }
-    }
-  }, [activeChatId, messages, currentUser?.uid]);
+    markChatAsRead(activeChatId, uid);
+  }, [activeChatId, currentUser?.uid, currentUser?.id]);
 
   const activeChat = chats.find(c => c.id === activeChatId) || null;
 
@@ -207,7 +221,7 @@ export default function ChatPage() {
     let active = true;
     if (activeChat) {
       fetchChatMembers(activeChat).then(members => {
-        if (active) setParticipantsList(members);
+        if (active) setParticipantsList(members || []);
       }).catch(err => console.warn('Could not fetch participants for mentions:', err));
     } else {
       setParticipantsList([]);
@@ -217,18 +231,18 @@ export default function ChatPage() {
     setActiveActionMenuId(null);
     setShowMentions(false);
     return () => { active = false; };
-  }, [activeChatId, activeChat]);
+  }, [activeChatId]);
 
-  // Deselect active chat if it does not match the active filter type (B10 fix)
+  // Deselect active chat if it does not match the active filter type
   useEffect(() => {
     if (activeChatId && filterType !== 'all' && chats.length > 0) {
       const currentActive = chats.find(c => c.id === activeChatId);
       if (currentActive && currentActive.type !== filterType) {
         setActiveChatId(null);
-        setSearchParams({});
+        setSearchParams({}, { replace: true });
       }
     }
-  }, [filterType, activeChatId, chats, setSearchParams]);
+  }, [filterType]);
 
   // Input change with @ mention detection
   const handleInputChange = (e) => {

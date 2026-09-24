@@ -39,7 +39,13 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    setCurrentUser(user);
+    const normalizedUser = {
+      ...user,
+      uid: user.id,
+      id: user.id
+    };
+
+    setCurrentUser(normalizedUser);
     const profile = await fetchUserProfile(user.id);
 
     const roleFromMeta = user.user_metadata?.role || 'student';

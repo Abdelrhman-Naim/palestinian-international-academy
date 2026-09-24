@@ -275,8 +275,57 @@ CREATE POLICY "Allow authenticated certificates" ON public.certificates FOR ALL 
 DROP POLICY IF EXISTS "Allow authenticated activity_logs" ON public.activity_logs;
 CREATE POLICY "Allow authenticated activity_logs" ON public.activity_logs FOR ALL USING (true);
 
+-- 11. CHATS TABLE
+CREATE TABLE IF NOT EXISTS public.chats (
+  id TEXT PRIMARY KEY,
+  type TEXT DEFAULT 'direct', -- 'direct' | 'course_group'
+  title TEXT,
+  course_id UUID REFERENCES public.courses(id) ON DELETE CASCADE,
+  instructor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  instructor_name TEXT,
+  participants TEXT[] DEFAULT '{}',
+  participant_details JSONB DEFAULT '{}'::jsonb,
+  unread_counts JSONB DEFAULT '{}'::jsonb,
+  last_message JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 12. CHAT MESSAGES TABLE
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id TEXT NOT NULL REFERENCES public.chats(id) ON DELETE CASCADE,
+  sender_id TEXT NOT NULL,
+  sender_name TEXT,
+  sender_role TEXT DEFAULT 'student',
+  recipient_id TEXT,
+  text TEXT DEFAULT '',
+  type TEXT DEFAULT 'text', -- 'text' | 'image' | 'file' | 'voice' | 'call'
+  media_url TEXT,
+  media_type TEXT,
+  file_name TEXT,
+  file_size TEXT,
+  voice_duration INT DEFAULT 0,
+  reply_to JSONB,
+  is_read BOOLEAN DEFAULT FALSE,
+  read_by TEXT[] DEFAULT '{}',
+  is_edited BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for chat tables
+ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all on chats" ON public.chats;
+CREATE POLICY "Allow all on chats" ON public.chats FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on chat_messages" ON public.chat_messages;
+CREATE POLICY "Allow all on chat_messages" ON public.chat_messages FOR ALL USING (true) WITH CHECK (true);
+
 -- Storage Buckets Configuration Note:
 -- Create public buckets in Supabase Dashboard -> Storage:
 -- 1. 'avatars'
 -- 2. 'courses'
 -- 3. 'books'
+
