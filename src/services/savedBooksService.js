@@ -28,34 +28,39 @@ function setLocalSavedBooks(userId, list) {
   } catch (e) {}
 }
 
-export async function toggleSaveBook(userId, book) {
+export async function toggleSaveBook(userId, book, currentlySaved = null) {
   if (!userId || !book || !book.id) {
     throw new Error('User ID and valid Book object are required');
   }
 
   const bId = String(book.id);
   const localList = getLocalSavedBooks(userId);
-  const existingLocalIndex = localList.findIndex(item => String(item.bookId || item.book_id || item.id) === bId);
+  const existingLocalIndex = localList.findIndex(item => {
+    const itemId = String(item.bookId || item.book_id || item.id);
+    return itemId === bId || itemId.endsWith(`_${bId}`);
+  });
 
+  const shouldRemove = currentlySaved !== null ? Boolean(currentlySaved) : (existingLocalIndex >= 0);
   let isSaved = false;
 
-  if (existingLocalIndex >= 0) {
+  if (shouldRemove) {
     // Remove locally
-    localList.splice(existingLocalIndex, 1);
-    setLocalSavedBooks(userId, localList);
+    const filtered = localList.filter(item => {
+      const itemId = String(item.bookId || item.book_id || item.id);
+      return itemId !== bId && !itemId.endsWith(`_${bId}`);
+    });
+    setLocalSavedBooks(userId, filtered);
     isSaved = false;
 
-    // Try Supabase delete only if remote sync is enabled
-    if (isRemoteSyncEnabled()) {
-      try {
-        await supabase
-          .from('saved_books')
-          .delete()
-          .eq('user_id', userId)
-          .eq('book_id', bId);
-      } catch (e) {
-        console.warn('Supabase delete saved_books warning:', e);
-      }
+    // Send Supabase delete
+    try {
+      await supabase
+        .from('saved_books')
+        .delete()
+        .eq('user_id', userId)
+        .eq('book_id', bId);
+    } catch (e) {
+      console.warn('Supabase delete saved_books warning:', e);
     }
   } else {
     // Add locally
@@ -75,35 +80,37 @@ export async function toggleSaveBook(userId, book) {
       ratingAverage: book.ratingAverage || book.rating || 5.0,
       saved_at: new Date().toISOString()
     };
-    localList.unshift(newItem);
-    setLocalSavedBooks(userId, localList);
+    const cleaned = localList.filter(item => {
+      const itemId = String(item.bookId || item.book_id || item.id);
+      return itemId !== bId && !itemId.endsWith(`_${bId}`);
+    });
+    cleaned.unshift(newItem);
+    setLocalSavedBooks(userId, cleaned);
     isSaved = true;
 
-    // Try Supabase insert only if remote sync is enabled
-    if (isRemoteSyncEnabled()) {
-      try {
-        const { error } = await supabase.from('saved_books').upsert({
+    // Send Supabase insert/upsert
+    try {
+      const { error } = await supabase.from('saved_books').upsert({
+        user_id: userId,
+        book_id: bId,
+        title: newItem.title,
+        author: newItem.author,
+        category: newItem.category,
+        description: newItem.description
+      }, { onConflict: 'user_id,book_id' });
+
+      if (error) {
+        await supabase.from('saved_books').insert({
           user_id: userId,
           book_id: bId,
           title: newItem.title,
           author: newItem.author,
           category: newItem.category,
           description: newItem.description
-        }, { onConflict: 'user_id,book_id' });
-
-        if (error) {
-          await supabase.from('saved_books').insert({
-            user_id: userId,
-            book_id: bId,
-            title: newItem.title,
-            author: newItem.author,
-            category: newItem.category,
-            description: newItem.description
-          });
-        }
-      } catch (e) {
-        console.warn('Supabase insert saved_books warning:', e);
+        });
       }
+    } catch (e) {
+      console.warn('Supabase insert saved_books warning:', e);
     }
   }
 

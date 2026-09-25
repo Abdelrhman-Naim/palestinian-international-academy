@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS public.assignments (
 -- 7. SUBMITTED ASSIGNMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.submitted_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID REFERENCES public.courses(id) ON DELETE CASCADE,
   assignment_id UUID REFERENCES public.assignments(id) ON DELETE CASCADE,
   student_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   student_name TEXT,
@@ -152,6 +153,9 @@ CREATE TABLE IF NOT EXISTS public.submitted_assignments (
   feedback TEXT,
   submitted_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure course_id exists if table was created previously
+ALTER TABLE public.submitted_assignments ADD COLUMN IF NOT EXISTS course_id UUID REFERENCES public.courses(id) ON DELETE CASCADE;
 
 -- 8. EXAM RESULTS TABLE
 CREATE TABLE IF NOT EXISTS public.exam_results (

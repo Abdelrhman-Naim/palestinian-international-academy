@@ -40,7 +40,7 @@ export default function SubmittedAssignments() {
   };
 
     useEffect(() => {
-        if (!id) return;
+        if (!id || id === 'undefined') return;
         const q = query(collection(db, 'submissions'), where('courseId', '==', id));
         const unsub = onSnapshot(q, (snap) => {
             setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));

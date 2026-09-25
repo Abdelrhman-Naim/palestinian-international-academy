@@ -33,16 +33,19 @@ export function useSavedBooks() {
     return savedBookIds.has(String(bookId));
   };
 
-  const handleToggleSave = async (book) => {
+  const handleToggleSave = async (book, explicitSavedState = null) => {
     if (!currentUser || !book) return { saved: false };
     const userId = currentUser.id || currentUser.uid;
     const bId = String(book.id);
+    const currentlySaved = explicitSavedState !== null ? explicitSavedState : isSaved(bId);
 
     // Optimistic UI state update immediately
     setSavedList((prev) => {
-      const exists = prev.some((item) => String(item.bookId || item.book_id || item.id) === bId);
-      if (exists) {
-        return prev.filter((item) => String(item.bookId || item.book_id || item.id) !== bId);
+      if (currentlySaved) {
+        return prev.filter((item) => {
+          const itemId = String(item.bookId || item.book_id || item.id);
+          return itemId !== bId && !itemId.endsWith(`_${bId}`);
+        });
       } else {
         const optimisticItem = {
           id: `saved_${Date.now()}_${bId}`,
@@ -58,11 +61,15 @@ export function useSavedBooks() {
           rating: book.rating || 5.0,
           saved_at: new Date().toISOString()
         };
-        return [optimisticItem, ...prev];
+        const cleaned = prev.filter((item) => {
+          const itemId = String(item.bookId || item.book_id || item.id);
+          return itemId !== bId && !itemId.endsWith(`_${bId}`);
+        });
+        return [optimisticItem, ...cleaned];
       }
     });
 
-    return await toggleSaveBook(userId, book);
+    return await toggleSaveBook(userId, book, currentlySaved);
   };
 
   const handleRemove = async (bookId) => {

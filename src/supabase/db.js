@@ -151,7 +151,8 @@ export const getDocs = async (target) => {
 
     const invalidColsByTable = {
       enrollments: ['status', 'is_approved', 'role', 'email', 'name', 'title'],
-      exam_results: ['courseId', 'course_id'] // if exam_results lacks course_id
+      exam_results: ['courseId', 'course_id'], // if exam_results lacks course_id
+      submitted_assignments: ['courseId', 'course_id'] // submitted_assignments table links via assignment_id
     };
 
     if (target?.filters && target.filters.length > 0) {
@@ -159,6 +160,13 @@ export const getDocs = async (target) => {
       target.filters.forEach(f => {
         const colName = mapFieldToColumn(table, f.field);
         const isKnownInvalid = invalidColsByTable[table]?.includes(f.field) || invalidColsByTable[table]?.includes(colName);
+        
+        // Guard against undefined/null/invalid filter values causing 400 Bad Request
+        if (f.value === undefined || f.value === null || f.value === 'undefined' || f.value === '') {
+          clientSideFilters.push(f);
+          return;
+        }
+
         if (isKnownInvalid) {
           clientSideFilters.push(f);
           return;
@@ -171,10 +179,30 @@ export const getDocs = async (target) => {
       data = res.data;
       error = res.error;
 
+      // Special handling for submitted_assignments filtered by course_id:
+      // Resolve valid assignment IDs for this course so submissions match accurately
+      let courseAssignmentIds = null;
+      const courseFilter = clientSideFilters.find(f => (f.field === 'courseId' || f.field === 'course_id') && f.op === '==');
+      if (table === 'submitted_assignments' && courseFilter && courseFilter.value) {
+        try {
+          const { data: cAssigns } = await supabase.from('assignments').select('id').eq('course_id', courseFilter.value);
+          if (cAssigns && cAssigns.length > 0) {
+            courseAssignmentIds = new Set(cAssigns.map(a => String(a.id)));
+          } else {
+            courseAssignmentIds = new Set();
+          }
+        } catch (e) {}
+      }
+
       if (data && clientSideFilters.length > 0) {
         data = data.filter(item => {
           const mapped = mapDocData(item);
           return clientSideFilters.every(f => {
+            if ((f.field === 'courseId' || f.field === 'course_id') && table === 'submitted_assignments') {
+              if (courseAssignmentIds) {
+                return (mapped.course_id === f.value) || courseAssignmentIds.has(String(item.assignment_id));
+              }
+            }
             const val = mapped[f.field] ?? mapped[mapFieldToColumn(table, f.field)];
             if (f.op === '==') return val === f.value;
             if (f.op === '!=') return val !== f.value;
@@ -192,6 +220,11 @@ export const getDocs = async (target) => {
           data = fallbackRes.data.filter(item => {
             const mapped = mapDocData(item);
             return target.filters.every(f => {
+              if ((f.field === 'courseId' || f.field === 'course_id') && table === 'submitted_assignments') {
+                if (courseAssignmentIds) {
+                  return (mapped.course_id === f.value) || courseAssignmentIds.has(String(item.assignment_id));
+                }
+              }
               const val = mapped[f.field] ?? mapped[mapFieldToColumn(table, f.field)];
               if (f.op === '==') return val === f.value;
               if (f.op === '!=') return val !== f.value;
@@ -480,6 +513,9 @@ export const addDoc = async (colRef, data) => {
   const table = mapTableName(rawTable);
   if (!table) return { id: 'error' };
   try {
+    const raw = data || {};
+    const record = {};
+
     if (table === 'books') {
       if (raw.title !== undefined) record.title = raw.title;
       if (raw.description !== undefined) record.description = raw.description || raw.title;

@@ -69,12 +69,12 @@ export default function AddCourse() {
         if (!category?.trim()) {
             errs.category = dir === 'rtl' ? 'يرجى اختيار تصنيف الدورة' : 'Category is required';
         }
+        if (!lecturesCount || Number(lecturesCount) <= 0) {
+            errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح أكبر من صفر' : 'Valid lecture count (> 0) is required';
+        }
         if (!isDraft) {
             if (!description?.trim()) {
                 errs.description = dir === 'rtl' ? 'يرجى كتابة نبذة عن الدورة' : 'Description is required';
-            }
-            if (!lecturesCount || Number(lecturesCount) <= 0) {
-                errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح (> 0)' : 'Valid lecture count (> 0) is required';
             }
             const hasValidGoal = goals?.some(g => g && g.trim() !== '');
             if (!hasValidGoal) {
@@ -446,10 +446,23 @@ export default function AddCourse() {
                                 <input
                                     type="number"
                                     min="1"
+                                    step="1"
+                                    required={true}
                                     value={lecturesCount}
-                                    onChange={(e) => setLecturesCount(e.target.value)}
-                                    className="w-full rounded-xl border border-[#E8E2D5] bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-orange-500"
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '' || Number(v) >= 1) {
+                                            setLecturesCount(v);
+                                            if (errors.lecturesCount) setErrors(p => ({ ...p, lecturesCount: null }));
+                                        }
+                                    }}
+                                    className={`w-full rounded-xl border px-4 py-3 text-sm text-gray-700 outline-none transition ${
+                                        errors.lecturesCount 
+                                            ? "border-rose-500 ring-2 ring-rose-500/10" 
+                                            : "border-[#E8E2D5] focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700"
+                                    } bg-white dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500`}
                                 />
+                                {errors.lecturesCount && <p className="mt-1.5 text-xs font-semibold text-rose-500">{errors.lecturesCount}</p>}
                             </div>
 
                             {/* Goals */}

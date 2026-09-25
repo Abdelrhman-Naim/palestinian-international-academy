@@ -62,9 +62,25 @@ const normalizeBookKey = (title) => {
 export function LibraryProvider({ children }) {
   const [rawBooks, setRawBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const { lang } = useLanguage();
 
   const fetchBooks = async () => {
+    setLoading(true);
+    setFetchError(null);
+    let isFinished = false;
+
+    // Safety timeout prevents infinite spinner on aborted, stalled, or cancelled requests
+    const timer = setTimeout(() => {
+      if (!isFinished) {
+        setLoading(false);
+        const local = getStoredLocalBooks();
+        if (local && local.length > 0) {
+          setRawBooks(local);
+        }
+      }
+    }, 4000);
+
     try {
       const { data, error } = await supabase
         .from('books')
@@ -112,7 +128,12 @@ export function LibraryProvider({ children }) {
       });
 
       saveLocalBooks(cleanedLocalBooks);
-      setRawBooks(Array.from(mergedMap.values()));
+      const finalBooks = Array.from(mergedMap.values());
+      setRawBooks(finalBooks);
+
+      if (error && finalBooks.length === 0) {
+        setFetchError(error.message);
+      }
 
       // Clean up remote duplicate rows if found
       if (duplicateRemoteIdsToDelete.length > 0) {
@@ -122,7 +143,10 @@ export function LibraryProvider({ children }) {
       }
     } catch (err) {
       console.warn('Books fetch error:', err.message);
+      setFetchError(err.message || 'Fetch failed');
     } finally {
+      isFinished = true;
+      clearTimeout(timer);
       setLoading(false);
     }
   };
@@ -349,7 +373,7 @@ export function LibraryProvider({ children }) {
   };
 
   return (
-    <LibraryContext.Provider value={{ books, rawBooks, loading, addBook, removeBook, updateBook, fetchBooks }}>
+    <LibraryContext.Provider value={{ books, rawBooks, loading, error: fetchError, addBook, removeBook, updateBook, fetchBooks, retryFetchBooks: fetchBooks }}>
       {children}
     </LibraryContext.Provider>
   );

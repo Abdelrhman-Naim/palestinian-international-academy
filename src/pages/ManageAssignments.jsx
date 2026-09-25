@@ -3,13 +3,15 @@ import { useParams, Link } from "react-router-dom";
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, getDoc, db } from '../supabase/db';
 import { supabase } from '../supabase/client';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import { notifyEnrolledStudents } from '../services/notificationService';
 import CustomDatePicker from '../components/CustomDatePicker';
 import Pagination from '../components/Pagination';
 
 export default function ManageAssignments() {
   const { t, dir } = useLanguage();
-    const { id } = useParams(); // courseId
+  const { toast } = useToast();
+  const { id } = useParams(); // courseId
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(null);
     const [newAssignment, setNewAssignment] = useState({ title: "", description: "", dueDate: "", imageName: "", fileUrl: "", file_url: "" });
@@ -184,12 +186,15 @@ export default function ManageAssignments() {
     };
 
     const handleAddAssignment = async () => {
-        if (!validateAssignmentForm()) return;
+        if (!validateAssignmentForm()) {
+            toast.error(dir === 'rtl' ? 'يرجى استكمال جميع الحقول المطلوبة' : 'Please fill in all required fields');
+            return;
+        }
         setIsSubmitting(true);
         const assignmentTitle = newAssignment.title.trim();
         const formattedDueDate = formatDueDate(newAssignment.dueDate, dir === 'rtl');
         try {
-            await addDoc(collection(db, 'assignments'), {
+            const addRes = await addDoc(collection(db, 'assignments'), {
                 courseId: id,
                 course_id: id,
                 title: assignmentTitle,
@@ -206,6 +211,12 @@ export default function ManageAssignments() {
                 createdAt: new Date().toISOString(),
                 created_at: new Date().toISOString(),
             });
+
+            if (addRes && addRes.error) {
+                throw addRes.error;
+            }
+
+            toast.success(dir === 'rtl' ? 'تمت إضافة الواجب بنجاح!' : 'Assignment created successfully!');
 
             // Notify enrolled students in real-time
             try {
@@ -224,6 +235,7 @@ export default function ManageAssignments() {
             handleCloseAddModal();
         } catch (err) {
             console.error("Error adding assignment:", err);
+            toast.error(dir === 'rtl' ? 'حدث خطأ أثناء حفظ الواجب. يرجى المحاولة مرة أخرى.' : 'Error saving assignment. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -444,6 +456,7 @@ export default function ManageAssignments() {
                                 </label>
                                 <input
                                     type="text"
+                                    required={true}
                                     value={newAssignment.title}
                                     onChange={(e) => {
                                         setNewAssignment((prev) => ({ ...prev, title: e.target.value }));
@@ -494,6 +507,7 @@ export default function ManageAssignments() {
                                 </label>
                                 <textarea
                                     rows="3"
+                                    required={true}
                                     value={newAssignment.description}
                                     onChange={(e) => {
                                         setNewAssignment((prev) => ({ ...prev, description: e.target.value }));

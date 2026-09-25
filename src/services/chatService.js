@@ -1012,7 +1012,28 @@ export async function sendMessage(chatIdOrObj, senderId, senderName, senderRole,
 
   // 2. Try inserting into Supabase
   try {
-    await supabase.from('chat_messages').insert([{
+    // A) Ensure parent chat exists in public.chats before inserting message (prevents FK HTTP 409 Conflict)
+    const isGroup = String(chatId).startsWith('group_');
+    const courseId = isGroup ? String(chatId).replace('group_', '') : null;
+    const isCourseIdValidUuid = courseId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+
+    const { data: chatRow } = await supabase.from('chats').select('id').eq('id', chatId).maybeSingle();
+    if (!chatRow) {
+      await supabase.from('chats').upsert([{
+        id: chatId,
+        type: isGroup ? 'course_group' : (extra.type || 'direct'),
+        title: extra.chatTitle || (isGroup ? 'مجموعة الدورة' : sName),
+        course_id: isCourseIdValidUuid ? courseId : null,
+        participants: [sId],
+        last_message: messageDoc.last_message,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString()
+      }], { onConflict: 'id' });
+    }
+
+    // B) Insert message with valid UUID if available or let DB generate
+    const validUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const msgInsertPayload = {
       chat_id: chatId,
       sender_id: sId,
       sender_name: sName,
@@ -1025,7 +1046,12 @@ export async function sendMessage(chatIdOrObj, senderId, senderName, senderRole,
       voice_duration: messageDoc.duration,
       reply_to: messageDoc.replyTo,
       created_at: now.toISOString()
-    }]);
+    };
+    if (msgId && validUuidPattern.test(msgId)) {
+      msgInsertPayload.id = msgId;
+    }
+
+    await supabase.from('chat_messages').insert([msgInsertPayload]);
 
     await supabase.from('chats').update({
       last_message: messageDoc.last_message,
@@ -1067,7 +1093,7 @@ export async function editMessage(chatId, messageId, newText) {
   } catch (e) {}
 }
 
-export async function deleteMessage(chatId, messageId) {
+export async function deleteMessage(chatId, messageId, currentUserId = null) {
   if (!chatId || !messageId) return;
 
   const msgs = getLocalMessages(chatId);
@@ -1075,8 +1101,64 @@ export async function deleteMessage(chatId, messageId) {
   saveLocalMessages(chatId, updated);
   notifyChatListeners(chatId, updated);
 
+  // Recalculate new last message to prevent stale conversation previews
+  const newLastMsgDoc = updated.length > 0 ? updated[updated.length - 1] : null;
+  const newLastMessageData = newLastMsgDoc ? {
+    text: newLastMsgDoc.text || (newLastMsgDoc.type === 'voice' ? '🎤 تسجيل صوتي' : newLastMsgDoc.type === 'image' ? '📷 صورة' : '📎 مرفق'),
+    senderId: newLastMsgDoc.senderId || newLastMsgDoc.sender_id,
+    sender_id: newLastMsgDoc.senderId || newLastMsgDoc.sender_id,
+    senderName: newLastMsgDoc.senderName || newLastMsgDoc.sender_name,
+    sender_name: newLastMsgDoc.senderName || newLastMsgDoc.sender_name,
+    senderRole: newLastMsgDoc.senderRole || newLastMsgDoc.sender_role,
+    sender_role: newLastMsgDoc.senderRole || newLastMsgDoc.sender_role,
+    timestamp: newLastMsgDoc.timestamp || newLastMsgDoc.created_at || new Date().toISOString()
+  } : null;
+
+  // Update in local chats cache across all active listeners / known users
+  try {
+    const updateLocalChatLastMsg = (c) => {
+      if (c.id === chatId) {
+        return {
+          ...c,
+          lastMessage: newLastMessageData,
+          last_message: newLastMessageData,
+          updatedAt: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
+      return c;
+    };
+
+    const targetUserIds = new Set();
+    if (currentUserId) targetUserIds.add(currentUserId);
+    userChatListeners.forEach((_, uid) => targetUserIds.add(uid));
+
+    // Also scan pia_chats_ keys in localStorage
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(LOCAL_CHATS_KEY_PREFIX)) {
+          targetUserIds.add(k.replace(LOCAL_CHATS_KEY_PREFIX, ''));
+        }
+      }
+    }
+
+    targetUserIds.forEach((uid) => {
+      try {
+        const uChats = getLocalChats(uid);
+        const modChats = uChats.map(updateLocalChatLastMsg);
+        saveLocalChats(uid, modChats);
+        notifyUserChatListeners(uid, modChats);
+      } catch (e) {}
+    });
+  } catch (e) {}
+
   try {
     await supabase.from('chat_messages').delete().eq('id', messageId);
+    await supabase.from('chats').update({
+      last_message: newLastMessageData,
+      updated_at: new Date().toISOString()
+    }).eq('id', chatId);
   } catch (e) {}
 }
 

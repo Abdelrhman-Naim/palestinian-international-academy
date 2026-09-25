@@ -374,7 +374,7 @@ export default function ChatPage() {
 
     if (window.confirm(confirmText)) {
       try {
-        await deleteMessage(activeChatId, msgId);
+        await deleteMessage(activeChatId, msgId, currentUserId);
         if (editingMessage?.id === msgId) {
           setEditingMessage(null);
           setInputText('');

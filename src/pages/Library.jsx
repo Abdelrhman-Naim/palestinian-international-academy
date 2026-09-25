@@ -47,7 +47,7 @@ const Library = () => {
   const gridRef = useRef(null);
 
   const { categories: contextCategories } = useCategories();
-  const { books: booksData, loading } = useLibrary();
+  const { books: booksData, loading, error, retryFetchBooks } = useLibrary();
   const { currentUser } = useAuth();
   const { isSaved, toggleSave } = useSavedBooks();
 
@@ -59,7 +59,8 @@ const Library = () => {
       navigate('/login');
       return;
     }
-    await toggleSave(book);
+    const currentlySaved = isSaved(book.id);
+    await toggleSave(book, currentlySaved);
   };
 
   useEffect(() => {
@@ -286,8 +287,28 @@ const Library = () => {
             
             {/* Books Grid */}
             {loading ? (
-              <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center min-h-80 text-center transition-colors">
+              <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center min-h-80 p-8 text-center transition-colors">
                 <PageLoader message={isRtl ? 'جاري تحميل المكتبة...' : 'Loading library...'} />
+              </div>
+            ) : error && currentBooks.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 border border-rose-200 dark:border-rose-900/40 rounded-3xl p-8 sm:p-12 flex flex-col items-center justify-center text-center shadow-sm my-4">
+                <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-500 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center mb-4">
+                  <span className="material-symbols-outlined text-3xl">wifi_off</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                  {isRtl ? 'تعذر تحميل بيانات المكتبة' : 'Failed to load library books'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6 leading-relaxed">
+                  {isRtl ? 'حدث انقطاع مؤقت في الاتصال أو تم إلغاء الطلب. يمكنك النقر على الزر أدناه لإعادة المحاولة فوراً.' : 'Connection timed out or was cancelled. Click below to retry.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => retryFetchBooks()}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-secondary transition flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">refresh</span>
+                  <span>{isRtl ? 'إعادة المحاولة' : 'Retry'}</span>
+                </button>
               </div>
             ) : currentBooks.length > 0 ? (
               <>

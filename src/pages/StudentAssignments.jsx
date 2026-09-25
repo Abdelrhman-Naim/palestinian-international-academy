@@ -193,14 +193,24 @@ const StudentAssignments = () => {
     if (!submitText.trim() && !submitFileName) return;
     setIsSubmitting(true);
     try {
-      await supabase.from('submitted_assignments').insert([{
+      const subPayload = {
         assignment_id: submitModal.id,
         student_id: userId,
         student_name: currentUser.name || currentUser.email || 'طالب',
         notes: submitText,
         file_url: submitFileData || submitFileName,
-        submitted_at: new Date()
-      }]);
+        submitted_at: new Date().toISOString()
+      };
+      const cId = submitModal.courseId || submitModal.course_id;
+      if (cId && typeof cId === 'string' && cId !== 'undefined') {
+        subPayload.course_id = cId;
+      }
+
+      const { error } = await supabase.from('submitted_assignments').insert([subPayload]);
+      if (error && error.message?.includes('course_id')) {
+        delete subPayload.course_id;
+        await supabase.from('submitted_assignments').insert([subPayload]);
+      }
 
       setAssignments(prev => prev.map(a => 
         a.id === submitModal.id ? { ...a, status: 'submitted' } : a
