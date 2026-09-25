@@ -114,12 +114,14 @@ function App() {
     <CoursesProvider>
     <CategoriesProvider>
     <Router>
+      <div className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors flex-1 w-full">
         <ScrollToTop />
         <RouteTransitionLoader />
         <ErrorBoundary>
           <AnimatedRoutes StudentGuard={StudentGuard} AdminGuard={AdminGuard} InstructorGuard={InstructorGuard} />
         </ErrorBoundary>
         <MobileBottomNav />
+      </div>
     </Router>
     </CategoriesProvider>
     </CoursesProvider>

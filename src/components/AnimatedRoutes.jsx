@@ -87,9 +87,9 @@ const PageWrapper = ({ children }) => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="w-full h-full"
+      className="w-full flex-1 flex flex-col min-h-screen"
     >
-      <Suspense fallback={<PageLoader />}>
+      <Suspense fallback={<PageLoader fullScreen={true} />}>
         {children}
       </Suspense>
     </motion.div>

@@ -141,14 +141,14 @@ export default function PageLoader({
 
   if (fullScreen) {
     return (
-      <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-md p-4 transition-all ${pointerEventsNone ? 'pointer-events-none' : ''}`}>
+      <div className={`fixed inset-0 z-[99999] flex items-center justify-center bg-[#FAF7F2]/90 dark:bg-[#12100e]/95 backdrop-blur-xl p-4 transition-all ${pointerEventsNone ? 'pointer-events-none' : ''}`}>
         {cardContent}
       </div>
     );
   }
 
   return (
-    <div className={`${isSmall ? 'py-6' : 'py-14'} w-full flex items-center justify-center p-4`}>
+    <div className={`${isSmall ? 'py-6 min-h-[160px]' : 'min-h-[75vh] py-14'} w-full flex-1 flex items-center justify-center p-4`}>
       {cardContent}
     </div>
   );
