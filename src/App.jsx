@@ -37,14 +37,15 @@ function InstructorGuard({ children }) {
   const [safetyTimedOut, setSafetyTimedOut] = useState(false);
 
   useEffect(() => {
-    if (loading) {
+    if (loading || (currentUser && !userRole)) {
       const timer = setTimeout(() => setSafetyTimedOut(true), 1200);
       return () => clearTimeout(timer);
     }
-  }, [loading]);
+  }, [loading, currentUser, userRole]);
 
-  if (loading && !safetyTimedOut) return <PageLoader fullScreen={true} />;
+  if ((loading || (currentUser && !userRole)) && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <Navigate to="/login-trainer" replace />;
+  if (!userRole) return <PageLoader fullScreen={true} />;
   if (userRole !== 'instructor') {
     return <UnauthorizedPage redirectTo="/login-trainer" redirectLabel={t('app.goInstructorLogin')} />;
   }
@@ -69,14 +70,15 @@ function AdminGuard({ children }) {
   const [safetyTimedOut, setSafetyTimedOut] = useState(false);
 
   useEffect(() => {
-    if (loading) {
+    if (loading || (currentUser && !userRole)) {
       const timer = setTimeout(() => setSafetyTimedOut(true), 1200);
       return () => clearTimeout(timer);
     }
-  }, [loading]);
+  }, [loading, currentUser, userRole]);
 
-  if (loading && !safetyTimedOut) return <PageLoader fullScreen={true} />;
+  if ((loading || (currentUser && !userRole)) && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <Navigate to="/login-admin" replace />;
+  if (!userRole) return <PageLoader fullScreen={true} />;
   if (userRole !== 'admin') {
     return <UnauthorizedPage redirectTo="/login-admin" redirectLabel={t('app.goAdminLogin')} />;
   }
@@ -89,14 +91,15 @@ function StudentGuard({ children }) {
   const [safetyTimedOut, setSafetyTimedOut] = useState(false);
 
   useEffect(() => {
-    if (loading) {
+    if (loading || (currentUser && !userRole)) {
       const timer = setTimeout(() => setSafetyTimedOut(true), 1200);
       return () => clearTimeout(timer);
     }
-  }, [loading]);
+  }, [loading, currentUser, userRole]);
 
-  if (loading && !safetyTimedOut) return <PageLoader fullScreen={true} />;
+  if ((loading || (currentUser && !userRole)) && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <Navigate to="/login" replace />;
+  if (!userRole) return <PageLoader fullScreen={true} />;
   if (userRole !== 'student') {
     return <UnauthorizedPage redirectTo="/login" redirectLabel={t('app.goStudentLogin')} />;
   }

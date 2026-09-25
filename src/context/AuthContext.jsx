@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const applyUserSession = async (user) => {
+  const applyUserSession = async (user, preloadedProfile = null) => {
     if (!user) {
       setCurrentUser(null);
       setUserRole(null);
@@ -81,12 +81,11 @@ export function AuthProvider({ children }) {
       id: user.id
     };
 
-    setCurrentUser(normalizedUser);
-    const profile = await fetchUserProfile(user.id);
-
     const roleFromMeta = user.user_metadata?.role || 'student';
     const nameFromMeta = user.user_metadata?.full_name || user.email;
     const statusFromMeta = user.user_metadata?.status || 'active';
+
+    const profile = preloadedProfile !== null ? preloadedProfile : await fetchUserProfile(user.id);
 
     const role = profile?.role || roleFromMeta;
     let status = profile?.status;
@@ -102,6 +101,8 @@ export function AuthProvider({ children }) {
       ? { ...profile, uid: profile.id, status, name: profile.full_name || nameFromMeta } 
       : { uid: user.id, id: user.id, email: user.email, role, status, name: nameFromMeta };
 
+    // Set all states atomically together so userRole is never null when currentUser is set
+    setCurrentUser(normalizedUser);
     setUserRole(role);
     setUserStatus(status);
     setUserData(finalUserData);
@@ -184,7 +185,7 @@ export function AuthProvider({ children }) {
       throw new Error('role_mismatch');
     }
 
-    await applyUserSession(data.user);
+    await applyUserSession(data.user, profile);
     return { userCredential: { user: data.user }, role: actualRole };
   };
 
