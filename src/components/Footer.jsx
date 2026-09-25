@@ -37,80 +37,70 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Column 2: المسارات (Tracks / Courses) */}
+          {/* Column 2: المسارات والدورات (Courses & Tracks) */}
           <div>
             <h4 className="font-bold text-dark dark:text-white text-base mb-4 font-headline-sm">
-              {isRtl ? 'المسارات' : 'Tracks'}
+              {isRtl ? 'المسارات والدورات' : 'Courses & Tracks'}
             </h4>
             <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 dark:text-stone-400 font-body-md">
               <li>
                 <Link to="/courses" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'الهندسة المدنية والإنشائية' : 'Civil & Structural Engineering'}
+                  {isRtl ? 'جميع الدورات والبرامج' : 'All Courses & Programs'}
                 </Link>
               </li>
-              <li>
-                <Link to="/courses" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'الميكانيكا والمحاكاة FEA' : 'Mechanical & FEA Simulation'}
-                </Link>
-              </li>
-              <li>
-                <Link to="/courses" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'البرمجة ونظم الذكاء الاصطناعي' : 'AI Systems & Programming'}
-                </Link>
-              </li>
-              <li>
-                <Link to="/courses" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'الإظهار والتصميم المعماري' : 'Architecture & 3D Rendering'}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 3: المصادر (Resources) */}
-          <div>
-            <h4 className="font-bold text-dark dark:text-white text-base mb-4 font-headline-sm">
-              {isRtl ? 'المصادر' : 'Resources'}
-            </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 dark:text-stone-400 font-body-md">
               <li>
                 <Link to="/library" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'المكتبة الهندسية' : 'Engineering Library'}
+                  {isRtl ? 'المكتبة الهندسية والرقمية' : 'Engineering Digital Library'}
                 </Link>
               </li>
               <li>
                 <Link to="/virtual-lab" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'المعمل السحابي' : 'Cloud Lab'}
-                </Link>
-              </li>
-              <li>
-                <Link to="/courses" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'التحقق من الشهادة الرقمية' : 'Certificate Verification'}
+                  {isRtl ? 'المعمل السحابي الافتراضي' : 'Virtual Cloud Lab'}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'مدونة الأكاديمية' : 'PIA Blog'}
+                  {isRtl ? 'عن الأكاديمية والاعتماد' : 'About PIA & Accreditation'}
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 4: الدعم والشراكات (Support & Partnerships) */}
+          {/* Column 3: الخدمات والتحقق (Services & Verification) */}
           <div>
             <h4 className="font-bold text-dark dark:text-white text-base mb-4 font-headline-sm">
-              {isRtl ? 'الدعم والشراكات' : 'Support & Partnerships'}
+              {isRtl ? 'الخدمات والتحقق' : 'Services & Verification'}
             </h4>
             <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 dark:text-stone-400 font-body-md">
               <li>
-                <Link to="/about" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'المؤسسات والمكاتب الهندسية' : 'Institutions & Offices'}
+                <Link to="/verify-certificate" className="hover:text-primary dark:hover:text-amber-400 transition-colors font-bold text-primary dark:text-amber-400">
+                  {isRtl ? 'التحقق من الشهادة الرقمية' : 'Certificate Verification'}
+                </Link>
+              </li>
+              <li>
+                <Link to="/partnerships" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
+                  {isRtl ? 'المؤسسات والشراكات الهندسية' : 'Partnerships & Organizations'}
+                </Link>
+              </li>
+              <li>
+                <Link to="/support" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
+                  {isRtl ? 'مركز المساعدة والدعم الفني' : 'Help & Support Center'}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
-                  {isRtl ? 'مركز المساعدة والدعم الفني' : 'Help & Technical Support'}
+                  {isRtl ? 'فريق العمل والمدربون' : 'Instructors & Team'}
                 </Link>
               </li>
+            </ul>
+          </div>
+
+          {/* Column 4: السياسات والدعم (Policies & Support) */}
+          <div>
+            <h4 className="font-bold text-dark dark:text-white text-base mb-4 font-headline-sm">
+              {isRtl ? 'السياسات والخصوصية' : 'Policies & Privacy'}
+            </h4>
+            <ul className="space-y-2.5 text-xs sm:text-sm text-gray-600 dark:text-stone-400 font-body-md">
               <li>
                 <Link to="/privacy" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
                   {isRtl ? 'سياسة الخصوصية' : 'Privacy Policy'}
@@ -119,6 +109,16 @@ const Footer = () => {
               <li>
                 <Link to="/terms" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
                   {isRtl ? 'شروط الاستخدام والخدمة' : 'Terms of Service'}
+                </Link>
+              </li>
+              <li>
+                <Link to="/support" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
+                  {isRtl ? 'الأسئلة الشائعة والدعم' : 'FAQ & Support'}
+                </Link>
+              </li>
+              <li>
+                <Link to="/verify-certificate" className="hover:text-primary dark:hover:text-amber-400 transition-colors">
+                  {isRtl ? 'فحص الكود والـ QR للشهادات' : 'QR Code Verification'}
                 </Link>
               </li>
             </ul>

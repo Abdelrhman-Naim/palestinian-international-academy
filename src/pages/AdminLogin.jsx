@@ -5,7 +5,7 @@ import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 
 const AdminLogin = () => {
-  const { t, dir } = useLanguage();
+  const { t, dir, toggleLang, lang } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -77,6 +77,19 @@ const AdminLogin = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#FAF7F2] dark:bg-gray-950 font-alexandria transition-colors relative" dir={dir}>
       
+      {/* Language Switcher Button */}
+      <div className="absolute top-4 sm:top-6 end-4 sm:end-6 z-20">
+        <button
+          type="button"
+          onClick={toggleLang}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-[#E8E2D5] dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-gray-700 dark:text-gray-200 hover:text-primary dark:hover:text-amber-400 transition-colors cursor-pointer shadow-xs"
+          title={lang === 'ar' ? 'English' : 'عربي'}
+        >
+          <span className="material-symbols-outlined text-sm">language</span>
+          <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+        </button>
+      </div>
+
       {/* Background glow effect */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/15 rounded-full blur-[120px] pointer-events-none opacity-60 hidden dark:block"></div>
       

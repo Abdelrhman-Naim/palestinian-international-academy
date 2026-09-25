@@ -33,16 +33,16 @@ const itemVariants = {
 };
 
 const Courses = ({ embedded = false }) => {
-  const { t, dir } = useLanguage();
+  const { t, dir, lang } = useLanguage();
   const isRtl = dir === 'rtl';
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const userId = currentUser?.uid || currentUser?.id;
-  const { categories: contextCategories } = useCategories();
+  const { rawCategories } = useCategories();
   const { courses: coursesData, loading } = useCourses();
-  const [selectedCategory, setSelectedCategory] = useState(t('studentAssignments.all'));
-  const [selectedLevel, setSelectedLevel] = useState(t('studentAssignments.all'));
-  const [selectedPrice, setSelectedPrice] = useState(t('studentAssignments.all'));
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedLevel, setSelectedLevel] = useState('ALL');
+  const [selectedPrice, setSelectedPrice] = useState('ALL');
   const [sortBy, setSortBy] = useState('popular');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
@@ -76,37 +76,57 @@ const Courses = ({ embedded = false }) => {
     return () => { isMounted = false; };
   }, [userId]);
 
+  // Bilingual category pairs to match Arabic & English categories seamlessly
+  const categoryPairs = useMemo(() => {
+    const arList = rawCategories?.courses || ['برمجة', 'تصميم', 'أمن سيبراني', 'إدارة أعمال'];
+    const enList = rawCategories?.courses_en || ['Programming', 'Design', 'Cybersecurity', 'Business'];
+    return arList.map((arName, idx) => ({
+      key: arName,
+      ar: arName,
+      en: enList[idx] || arName,
+      label: lang === 'en' ? (enList[idx] || arName) : arName
+    }));
+  }, [rawCategories, lang]);
+
   const categoryCounts = useMemo(() => {
     const counts = {};
     (coursesData || []).forEach((c) => {
       const isPublished = c.status !== '' && c.status !== 'Draft';
       if (c.category && isPublished) {
-        counts[c.category] = (counts[c.category] || 0) + 1;
+        const pair = categoryPairs.find(
+          p => p.ar === c.category || p.en === c.category || p.key === c.category
+        );
+        const key = pair ? pair.key : c.category;
+        counts[key] = (counts[key] || 0) + 1;
       }
     });
     return counts;
-  }, [coursesData]);
+  }, [coursesData, categoryPairs]);
 
   const categories = useMemo(() => {
-    const allOption = { name: t('studentAssignments.all'), label: t('studentAssignments.all') };
-    const availableCategories = (contextCategories?.courses || [])
-      .filter((cat) => (categoryCounts[cat] || 0) > 0)
-      .map((cat) => ({ name: cat, label: cat }));
+    const allOption = { key: 'ALL', name: 'ALL', label: t('studentAssignments.all') };
+    const availableCategories = categoryPairs
+      .filter((cat) => (categoryCounts[cat.key] || 0) > 0)
+      .map((cat) => ({
+        key: cat.key,
+        name: cat.key,
+        label: cat.label
+      }));
     return [allOption, ...availableCategories];
-  }, [t, contextCategories?.courses, categoryCounts]);
+  }, [t, categoryPairs, categoryCounts]);
 
-  const levels = [
-    { name: t('studentAssignments.all'), label: t('studentAssignments.all') },
-    { name: 'BEGINNER', label: t('addCourse.beginner') },
-    { name: 'INTERMEDIATE', label: t('addCourse.intermediate') },
-    { name: 'ADVANCED', label: t('addCourse.advanced') }
-  ];
+  const levels = useMemo(() => [
+    { value: 'ALL', label: t('studentAssignments.all') },
+    { value: 'BEGINNER', label: t('addCourse.beginner') },
+    { value: 'INTERMEDIATE', label: t('addCourse.intermediate') },
+    { value: 'ADVANCED', label: t('addCourse.advanced') }
+  ], [t]);
 
-  const prices = [
-    { name: t('studentAssignments.all'), label: t('studentAssignments.all') },
-    { name: 'Free', label: t('courseDetail.free') },
-    { name: 'Paid', label: t('courses.paid') }
-  ];
+  const prices = useMemo(() => [
+    { value: 'ALL', label: t('studentAssignments.all') },
+    { value: 'Free', label: t('courseDetail.free') },
+    { value: 'Paid', label: t('courses.paid') }
+  ], [t]);
 
   const sortOptions = useMemo(() => [
     { value: 'popular', label: t('courses.sortPopular') },
@@ -116,9 +136,22 @@ const Courses = ({ embedded = false }) => {
 
   const filteredCourses = useMemo(() => {
     const list = (coursesData || []).filter(course => {
-      const matchCategory = selectedCategory === t('studentAssignments.all') || course.category === selectedCategory;
-      const matchLevel = selectedLevel === t('studentAssignments.all') || course.level === selectedLevel;
-      const matchPrice = selectedPrice === t('studentAssignments.all') || (selectedPrice === 'Free' ? course.price === 'Free' : course.price !== 'Free');
+      let matchCategory = selectedCategory === 'ALL';
+      if (!matchCategory) {
+        const pair = categoryPairs.find(p => p.key === selectedCategory);
+        if (pair) {
+          matchCategory = course.category === pair.ar || course.category === pair.en || course.category === pair.key;
+        } else {
+          matchCategory = course.category === selectedCategory;
+        }
+      }
+
+      const matchLevel = selectedLevel === 'ALL' || course.level === selectedLevel;
+      const matchPrice = selectedPrice === 'ALL' || (
+        selectedPrice === 'Free' 
+          ? (course.price === 'Free' || course.price === 'free' || !course.price || course.price === 0) 
+          : (course.price !== 'Free' && course.price !== 'free' && course.price && course.price !== 0)
+      );
       const isPublished = course.status !== '' && course.status !== 'Draft';
       return matchCategory && matchLevel && matchPrice && isPublished;
     });
@@ -139,7 +172,7 @@ const Courses = ({ embedded = false }) => {
       }
       return 0;
     });
-  }, [coursesData, selectedCategory, selectedLevel, selectedPrice, sortBy, t]);
+  }, [coursesData, selectedCategory, selectedLevel, selectedPrice, sortBy, categoryPairs]);
 
   return (
     <div className={`${embedded ? 'min-h-full' : 'min-h-screen'} flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors`} dir={dir}>
@@ -176,13 +209,13 @@ const Courses = ({ embedded = false }) => {
                 <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => { setSelectedCategory(t('studentAssignments.all')); setSelectedLevel(t('studentAssignments.all')); setSelectedPrice(t('studentAssignments.all')); }}
-                    className="text-xs text-gray-500 hover:text-primary transition-colors min-h-[44px] px-2 flex items-center"
+                    onClick={() => { setSelectedCategory('ALL'); setSelectedLevel('ALL'); setSelectedPrice('ALL'); }}
+                    className="text-xs text-gray-500 hover:text-primary transition-colors min-h-[44px] px-2 flex items-center cursor-pointer"
                   >
                     {t('library.reset')}
                   </button>
                   <button 
-                    className="lg:hidden text-gray-500 hover:text-primary w-11 h-11 flex items-center justify-center rounded-lg"
+                    className="lg:hidden text-gray-500 hover:text-primary w-11 h-11 flex items-center justify-center rounded-lg cursor-pointer"
                     onClick={() => setIsMobileFiltersOpen(false)}
                   >
                     <span className="material-symbols-outlined">close</span>
@@ -196,13 +229,13 @@ const Courses = ({ embedded = false }) => {
                 <div className="space-y-2">
                   {categories.map(cat => (
                     <label 
-                      key={cat.name}
-                      onClick={() => setSelectedCategory(cat.name)}
-                      className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${selectedCategory === cat.name ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'}`}
+                      key={cat.key}
+                      onClick={() => setSelectedCategory(cat.key)}
+                      className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${selectedCategory === cat.key ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'}`}
                     >
-                      <span className={`text-sm ${selectedCategory === cat.name ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${selectedCategory === cat.name ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : ''}`}>
-                        {cat.name === t('studentAssignments.all') ? filteredCourses.length : (categoryCounts[cat.name] || 0)}
+                      <span className={`text-sm ${selectedCategory === cat.key ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${selectedCategory === cat.key ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : ''}`}>
+                        {cat.key === 'ALL' ? filteredCourses.length : (categoryCounts[cat.key] || 0)}
                       </span>
                     </label>
                   ))}
@@ -215,9 +248,9 @@ const Courses = ({ embedded = false }) => {
                 <div className="flex flex-col gap-2">
                   {levels.map(level => (
                     <button 
-                      key={level.name}
-                      onClick={() => setSelectedLevel(level.name)}
-                      className={`w-full text-start px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors ${selectedLevel === level.name ? 'border border-primary text-primary font-bold bg-primary/5' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
+                      key={level.value}
+                      onClick={() => setSelectedLevel(level.value)}
+                      className={`w-full text-start px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors cursor-pointer ${selectedLevel === level.value ? 'border border-primary text-primary font-bold bg-primary/5' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
                     >
                       {level.label}
                     </button>
@@ -231,9 +264,9 @@ const Courses = ({ embedded = false }) => {
                 <div className="flex gap-3">
                   {prices.map(price => (
                     <button 
-                      key={price.name}
-                      onClick={() => setSelectedPrice(price.name)}
-                      className={`flex-1 px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors ${selectedPrice === price.name ? 'border border-primary text-primary font-bold bg-primary/5' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
+                      key={price.value}
+                      onClick={() => setSelectedPrice(price.value)}
+                      className={`flex-1 px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors cursor-pointer ${selectedPrice === price.value ? 'border border-primary text-primary font-bold bg-primary/5' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
                     >
                       {price.label}
                     </button>
@@ -307,9 +340,9 @@ const Courses = ({ embedded = false }) => {
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <button 
                     onClick={() => {
-                      setSelectedCategory(t('studentAssignments.all'));
-                      setSelectedLevel(t('studentAssignments.all'));
-                      setSelectedPrice(t('studentAssignments.all'));
+                      setSelectedCategory('ALL');
+                      setSelectedLevel('ALL');
+                      setSelectedPrice('ALL');
                       setSortBy('popular');
                     }}
                     className="bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 py-3 rounded-xl min-h-[44px] transition-all shadow-md shadow-primary/20 flex items-center gap-2 cursor-pointer"

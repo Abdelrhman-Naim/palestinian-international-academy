@@ -5,7 +5,7 @@ import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 
 const Login = () => {
-  const { t, dir } = useLanguage();
+  const { t, dir, toggleLang, lang } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -37,17 +37,27 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
-    if (!email?.trim()) {
+    const trimmedEmail = (email || '').trim();
+    if (!trimmedEmail) {
       setError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
       return;
     }
     if (!password) {
       setError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter your password.');
       return;
     }
+    if (password.length < 6) {
+      setError(dir === 'rtl' ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.' : 'Password must be at least 6 characters.');
+      return;
+    }
 
     try {
-      await login(email.trim(), password, role);
+      await login(trimmedEmail, password, role);
       if (role === 'student') {
         navigate('/dashboard', { replace: true });
       } else {
@@ -76,6 +86,11 @@ const Login = () => {
     const targetEmail = (forgotEmail || '').trim();
     if (!targetEmail) {
       setForgotError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(targetEmail)) {
+      setForgotError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح.' : 'Please enter a valid email address.');
       return;
     }
 
@@ -122,7 +137,20 @@ const Login = () => {
         </div>
 
         {/* Right Side */}
-        <section className="w-full lg:w-1/2 p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+        <section className="w-full lg:w-1/2 p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center relative">
+          {/* Language Switcher Button */}
+          <div className="absolute top-4 sm:top-6 end-4 sm:end-6">
+            <button
+              type="button"
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:text-primary dark:hover:text-amber-400 transition-colors cursor-pointer shadow-xs"
+              title={lang === 'ar' ? 'English' : 'عربي'}
+            >
+              <span className="material-symbols-outlined text-sm">language</span>
+              <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+            </button>
+          </div>
+
           <div className="w-full max-w-sm mx-auto">
             
             <div className="mb-10 text-center">
@@ -137,12 +165,14 @@ const Login = () => {
             <div className="flex bg-[#F3EFE6] dark:bg-gray-700 p-1 rounded-xl mb-8 border border-[#E8E2D5] dark:border-gray-600">
               <Link 
                 to="/login"
+                onClick={() => setError('')}
                 className={`flex-1 py-2 text-sm font-bold rounded-lg text-center transition-all ${role === 'student' ? 'bg-white dark:bg-gray-800 text-primary shadow-sm' : 'text-gray-500 dark:text-gray-300 hover:text-dark dark:hover:text-white'}`}
               >
                 {t('common.students')}
               </Link>
               <Link 
                 to="/login-trainer"
+                onClick={() => setError('')}
                 className={`flex-1 py-2 text-sm font-bold rounded-lg text-center transition-all ${role === 'instructor' ? 'bg-white dark:bg-gray-800 text-primary shadow-sm' : 'text-gray-500 dark:text-gray-300 hover:text-dark dark:hover:text-white'}`}
               >
                 {t('instructorOverview.instructor')}
@@ -162,7 +192,8 @@ const Login = () => {
                   className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
                   id="email" 
                   required 
-                  type="text"
+                  type="email"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />

@@ -5,7 +5,7 @@ import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 
 const Register = () => {
-  const { t, dir } = useLanguage();
+  const { t, dir, toggleLang, lang } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +17,11 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
+
+  const handleRoleChange = (newRole) => {
+    setRole(newRole);
+    setError('');
+  };
 
   const isPasswordTooShort = password.length > 0 && password.length < 6;
   const isPasswordMismatch = (confirmTouched || confirmPassword.length > 0) && password !== confirmPassword;
@@ -30,8 +35,14 @@ const Register = () => {
       setError(dir === 'rtl' ? 'يرجى إدخال الاسم الكامل.' : 'Please enter your full name.');
       return;
     }
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       setError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email address.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
       return;
     }
     if (password.length < 6) {
@@ -47,7 +58,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register(email, password, fullName, role);
+      await register(trimmedEmail, password, fullName, role);
       setSuccess(true);
       if (role === 'student') {
         setTimeout(() => navigate('/login'), 1500);
@@ -93,7 +104,20 @@ const Register = () => {
         </div>
 
         {/* Right Side */}
-        <section className="w-full lg:w-1/2 p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+        <section className="w-full lg:w-1/2 p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center relative">
+          {/* Language Switcher Button */}
+          <div className="absolute top-4 sm:top-6 end-4 sm:end-6">
+            <button
+              type="button"
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:text-primary dark:hover:text-amber-400 transition-colors cursor-pointer shadow-xs"
+              title={lang === 'ar' ? 'English' : 'عربي'}
+            >
+              <span className="material-symbols-outlined text-sm">language</span>
+              <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+            </button>
+          </div>
+
           <div className="w-full max-w-sm mx-auto">
             
             <div className="mb-8 text-center">
@@ -114,7 +138,7 @@ const Register = () => {
                   type="button"
                   role="tab"
                   aria-selected={role === 'student'}
-                  onClick={() => setRole('student')}
+                  onClick={() => handleRoleChange('student')}
                   className={`py-2.5 px-3 text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     role === 'student' 
                       ? 'bg-primary text-white shadow-md shadow-primary/25 border-2 border-primary ring-2 ring-primary/20 dark:bg-amber-500 dark:text-amber-950 dark:border-amber-400 dark:ring-amber-400/30 scale-[1.02]' 
@@ -130,7 +154,7 @@ const Register = () => {
                   type="button"
                   role="tab"
                   aria-selected={role === 'instructor'}
-                  onClick={() => setRole('instructor')}
+                  onClick={() => handleRoleChange('instructor')}
                   className={`py-2.5 px-3 text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     role === 'instructor' 
                       ? 'bg-primary text-white shadow-md shadow-primary/25 border-2 border-primary ring-2 ring-primary/20 dark:bg-amber-500 dark:text-amber-950 dark:border-amber-400 dark:ring-amber-400/30 scale-[1.02]' 

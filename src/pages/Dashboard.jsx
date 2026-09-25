@@ -1,4 +1,4 @@
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';

@@ -5,7 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import logo from '../assets/logo.png';
 
 export default function ForgotPassword() {
-  const { t, dir } = useLanguage();
+  const { t, dir, toggleLang, lang } = useLanguage();
   const isRtl = dir === 'rtl';
 
   const [email, setEmail] = useState('');
@@ -15,14 +15,23 @@ export default function ForgotPassword() {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (!email || !email.trim()) return;
+    const trimmed = (email || '').trim();
+    if (!trimmed) {
+      setErrorMsg(dir === 'rtl' ? 'يرجى إدخال عنوان بريد إلكتروني صحيح.' : 'Please enter your email address.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      setErrorMsg(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
+      return;
+    }
 
     setLoading(true);
     setSuccessMsg('');
     setErrorMsg('');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
       if (error) throw error;
 
       setSuccessMsg(
@@ -41,7 +50,7 @@ export default function ForgotPassword() {
       } else if (err.code === 'auth/user-not-found') {
         setErrorMsg(
           t('forgotPasswordPage.userNotFound') ||
-            (isRtl ? 'لم نتمكن من العثور على حساب مرتبك بهذا البريد الإلكتروني.' : 'No account found with this email address.')
+            (isRtl ? 'لم نتمكن من العثور على حساب مرتبط بهذا البريد الإلكتروني.' : 'No account found with this email address.')
         );
       } else if (err.code === 'auth/too-many-requests') {
         setErrorMsg(
@@ -62,6 +71,18 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#FAF7F2] dark:bg-gray-900 font-alexandria transition-colors" dir={dir}>
       <main className="w-full max-w-md bg-white border border-[#E8E2D5] dark:bg-gray-800 dark:border-gray-700 rounded-3xl shadow-xl p-6 sm:p-8 relative">
+        {/* Language Switcher Button */}
+        <div className="absolute top-4 sm:top-6 end-4 sm:end-6">
+          <button
+            type="button"
+            onClick={toggleLang}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:text-primary dark:hover:text-amber-400 transition-colors cursor-pointer shadow-xs"
+            title={lang === 'ar' ? 'English' : 'عربي'}
+          >
+            <span className="material-symbols-outlined text-sm">language</span>
+            <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+          </button>
+        </div>
         <div className="text-center mb-8">
           <Link to="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
             <img src={logo} alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)" className="h-14 w-auto object-contain rounded-xl drop-shadow-md mx-auto" />
