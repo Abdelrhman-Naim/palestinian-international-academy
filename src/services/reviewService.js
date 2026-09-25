@@ -57,7 +57,7 @@ export async function addOrUpdateReview({ targetType, targetId, userId, userName
       updated_at: new Date()
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error adding/updating review:', error);
@@ -73,28 +73,38 @@ export async function deleteReview({ targetType, targetId, userId }) {
     throw new Error('Missing parameters to delete review');
   }
 
-  await supabase
-    .from('reviews')
-    .delete()
-    .eq('target_type', targetType)
-    .eq('target_id', targetId)
-    .eq('user_id', userId);
+  try {
+    await supabase
+      .from('reviews')
+      .delete()
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .eq('user_id', userId);
 
-  await recalculateTargetRating(targetType, targetId);
-  return { ok: true };
+    await recalculateTargetRating(targetType, targetId);
+    return { ok: true };
+  } catch (err) {
+    console.error('Error deleting review:', err);
+    return { ok: false, error: err };
+  }
 }
 
 export async function getUserReview(targetType, targetId, userId) {
   if (!targetType || !targetId || !userId) return null;
-  const { data } = await supabase
-    .from('reviews')
-    .select('*')
-    .eq('target_type', targetType)
-    .eq('target_id', targetId)
-    .eq('user_id', userId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch {
+    return null;
+  }
 }
 
 export function listenToTargetReviews(targetType, targetId, callback) {

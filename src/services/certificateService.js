@@ -34,7 +34,7 @@ export async function toggleLessonCompletion({
       .select('*')
       .eq('student_id', studentId)
       .eq('course_id', courseId)
-      .single();
+      .maybeSingle();
 
     let completedLessons = [];
     let prevProgress = 0;
@@ -117,7 +117,7 @@ export async function getCertificateByCode(code) {
       .from('certificates')
       .select('*')
       .eq('certificate_number', code.trim().toUpperCase())
-      .single();
+      .maybeSingle();
 
     if (error) return null;
     return data;

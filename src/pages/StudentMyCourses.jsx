@@ -84,7 +84,7 @@ const StudentMyCourses = () => {
           .from('courses')
           .select('instructor_id, instructor_name')
           .eq('id', enroll.courseId)
-          .single();
+          .maybeSingle();
 
         if (cData) {
           instructorUid = cData.instructor_id;
@@ -98,7 +98,7 @@ const StudentMyCourses = () => {
           .select('id, full_name')
           .eq('role', 'instructor')
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (instData) {
           instructorUid = instData.id;
@@ -286,7 +286,7 @@ const StudentMyCourses = () => {
                                 .select('*')
                                 .eq('student_id', userId)
                                 .eq('course_id', enroll.courseId)
-                                .single();
+                                .maybeSingle();
 
                               if (certData) {
                                 setActiveCertificate(certData);

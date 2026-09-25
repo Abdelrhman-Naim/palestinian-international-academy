@@ -4,6 +4,7 @@ import { supabase } from './client';
 const mapTableName = (table) => {
   if (table === 'users') return 'profiles';
   if (table === 'submissions') return 'submitted_assignments';
+  if (table === 'exam_attempts') return 'exam_results';
   return table;
 };
 
@@ -67,6 +68,9 @@ const mapDocData = (d) => {
     progress: d.details?.progress || d.progress || 0,
     completedLessons: d.completed_lessons || d.details?.completedLessons || d.completedLessons || [],
     completed_lessons: d.completed_lessons || d.details?.completedLessons || d.completedLessons || [],
+    score: d.score !== undefined ? Number(d.score) : 0,
+    total: d.total !== undefined ? Number(d.total) : 100,
+    passed: d.passed !== undefined ? Boolean(d.passed) : (Number(d.score || 0) >= 80),
     downloads: d.downloads_count !== undefined ? d.downloads_count : (d.downloads || 0),
     downloads_count: d.downloads_count !== undefined ? d.downloads_count : (d.downloads || 0),
     pdf_url: d.pdf_url || d.file_url || d.link || '',

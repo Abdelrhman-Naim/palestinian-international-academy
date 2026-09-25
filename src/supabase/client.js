@@ -15,6 +15,7 @@ supabase.from = (table) => {
   let mapped = table;
   if (table === 'users') mapped = 'profiles';
   if (table === 'submissions') mapped = 'submitted_assignments';
+  if (table === 'exam_attempts') mapped = 'exam_results';
   return originalFrom(mapped);
 };
 

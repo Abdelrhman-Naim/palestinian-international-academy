@@ -87,7 +87,7 @@ export default function ManageCourseExam() {
         }
 
         // Fetch exam statistics / attempts
-        const attemptsQ = query(collection(db, 'exam_attempts'), where('courseId', '==', id));
+        const attemptsQ = query(collection(db, 'exam_results'), where('courseId', '==', id));
         const attemptsSnap = await getDocs(attemptsQ);
         setExamAttempts(attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (err) {
@@ -250,7 +250,7 @@ export default function ManageCourseExam() {
     }
   };
 
-  const passedCount = examAttempts.filter(a => a.passed).length;
+  const passedCount = examAttempts.filter(a => a.passed || Number(a.score || 0) >= (passPercentage || 80)).length;
   const totalAttempts = examAttempts.length;
 
   if (loading) {

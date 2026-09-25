@@ -122,7 +122,7 @@ export async function notifyEnrolledStudents(courseId, {
 export async function resolveInstructorUid(courseOrId) {
   let course = null;
   if (typeof courseOrId === 'string') {
-    const { data } = await supabase.from('courses').select('*').eq('id', courseOrId).single();
+    const { data } = await supabase.from('courses').select('*').eq('id', courseOrId).maybeSingle();
     course = data;
   } else if (courseOrId && typeof courseOrId === 'object') {
     course = courseOrId;

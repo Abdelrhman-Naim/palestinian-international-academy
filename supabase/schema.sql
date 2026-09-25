@@ -331,9 +331,47 @@ CREATE POLICY "Allow all on chats" ON public.chats FOR ALL USING (true) WITH CHE
 DROP POLICY IF EXISTS "Allow all on chat_messages" ON public.chat_messages;
 CREATE POLICY "Allow all on chat_messages" ON public.chat_messages FOR ALL USING (true) WITH CHECK (true);
 
+-- 13. REVIEWS TABLE
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  target_type TEXT NOT NULL, -- 'course' | 'book'
+  target_id TEXT NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_name TEXT,
+  user_avatar TEXT,
+  rating NUMERIC DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read reviews" ON public.reviews;
+CREATE POLICY "Allow public read reviews" ON public.reviews FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow all on reviews" ON public.reviews;
+CREATE POLICY "Allow all on reviews" ON public.reviews FOR ALL USING (true) WITH CHECK (true);
+
+-- 14. SAVED BOOKS TABLE (Bookmarks)
+CREATE TABLE IF NOT EXISTS public.saved_books (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  book_id TEXT NOT NULL,
+  title TEXT,
+  author TEXT,
+  category TEXT,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, book_id)
+);
+
+ALTER TABLE public.saved_books ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all on saved_books" ON public.saved_books;
+CREATE POLICY "Allow all on saved_books" ON public.saved_books FOR ALL USING (true) WITH CHECK (true);
+
 -- Storage Buckets Configuration Note:
 -- Create public buckets in Supabase Dashboard -> Storage:
 -- 1. 'avatars'
 -- 2. 'courses'
 -- 3. 'books'
+
 

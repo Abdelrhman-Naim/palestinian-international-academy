@@ -51,7 +51,8 @@ export default function ReviewSection({
       setUserReview(null);
       return;
     }
-    getUserReview(targetType, targetId, currentUser.uid).then((rev) => {
+    const currentUserId = currentUser.id || currentUser.uid;
+    getUserReview(targetType, targetId, currentUserId).then((rev) => {
       if (rev) {
         setUserReview(rev);
         setRating(rev.rating || 5);
@@ -61,6 +62,8 @@ export default function ReviewSection({
         setRating(5);
         setComment('');
       }
+    }).catch(() => {
+      setUserReview(null);
     });
   }, [targetType, targetId, currentUser]);
 
@@ -95,10 +98,11 @@ export default function ReviewSection({
       const resolvedName = userData?.fullName || userData?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || (isRtl ? 'طالب المنصة' : 'Platform Student');
       const resolvedAvatar = userData?.photoURL || currentUser?.photoURL || '';
 
+      const activeUserId = currentUser.id || currentUser.uid;
       const res = await addOrUpdateReview({
         targetType,
         targetId,
-        userId: currentUser.uid,
+        userId: activeUserId,
         userName: resolvedName,
         userAvatar: resolvedAvatar,
         rating: Number(rating),
@@ -109,7 +113,7 @@ export default function ReviewSection({
         throw res.error;
       }
 
-      const updated = await getUserReview(targetType, targetId, currentUser.uid);
+      const updated = await getUserReview(targetType, targetId, activeUserId);
       setUserReview(updated);
       setIsEditing(false);
     } catch (err) {
@@ -124,10 +128,11 @@ export default function ReviewSection({
     if (!currentUser || isSubmitting) return;
     setIsSubmitting(true);
     try {
+      const activeUserId = currentUser.id || currentUser.uid;
       await deleteReview({
         targetType,
         targetId,
-        userId: currentUser.uid,
+        userId: activeUserId,
       });
       setUserReview(null);
       setRating(5);

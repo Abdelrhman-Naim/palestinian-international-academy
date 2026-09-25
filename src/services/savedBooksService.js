@@ -2,6 +2,14 @@ import { supabase } from '../supabase/client';
 
 const LOCAL_PREFIX = 'pia_saved_books_';
 
+// Check if remote sync with Supabase 'saved_books' table is enabled.
+// Defaults to false because 'saved_books' table is not created on Supabase by default,
+// which prevents repeated 404 network errors in the browser console.
+const isRemoteSyncEnabled = () => {
+  if (typeof window === 'undefined') return false;
+  return window.__PIA_ENABLE_SAVED_BOOKS_SYNC__ === true || localStorage.getItem('pia_sync_saved_books') === 'true';
+};
+
 function getLocalSavedBooks(userId) {
   if (!userId) return [];
   try {
@@ -37,15 +45,17 @@ export async function toggleSaveBook(userId, book) {
     setLocalSavedBooks(userId, localList);
     isSaved = false;
 
-    // Try Supabase delete in background
-    try {
-      await supabase
-        .from('saved_books')
-        .delete()
-        .eq('user_id', userId)
-        .eq('book_id', bId);
-    } catch (e) {
-      console.warn('Supabase delete saved_books warning:', e);
+    // Try Supabase delete only if remote sync is enabled
+    if (isRemoteSyncEnabled()) {
+      try {
+        await supabase
+          .from('saved_books')
+          .delete()
+          .eq('user_id', userId)
+          .eq('book_id', bId);
+      } catch (e) {
+        console.warn('Supabase delete saved_books warning:', e);
+      }
     }
   } else {
     // Add locally
@@ -69,29 +79,31 @@ export async function toggleSaveBook(userId, book) {
     setLocalSavedBooks(userId, localList);
     isSaved = true;
 
-    // Try Supabase insert in background
-    try {
-      const { error } = await supabase.from('saved_books').upsert({
-        user_id: userId,
-        book_id: bId,
-        title: newItem.title,
-        author: newItem.author,
-        category: newItem.category,
-        description: newItem.description
-      }, { onConflict: 'user_id,book_id' });
-
-      if (error) {
-        await supabase.from('saved_books').insert({
+    // Try Supabase insert only if remote sync is enabled
+    if (isRemoteSyncEnabled()) {
+      try {
+        const { error } = await supabase.from('saved_books').upsert({
           user_id: userId,
           book_id: bId,
           title: newItem.title,
           author: newItem.author,
           category: newItem.category,
           description: newItem.description
-        });
+        }, { onConflict: 'user_id,book_id' });
+
+        if (error) {
+          await supabase.from('saved_books').insert({
+            user_id: userId,
+            book_id: bId,
+            title: newItem.title,
+            author: newItem.author,
+            category: newItem.category,
+            description: newItem.description
+          });
+        }
+      } catch (e) {
+        console.warn('Supabase insert saved_books warning:', e);
       }
-    } catch (e) {
-      console.warn('Supabase insert saved_books warning:', e);
     }
   }
 
@@ -103,7 +115,7 @@ export async function isBookSaved(userId, bookId) {
   const bId = String(bookId);
   const localList = getLocalSavedBooks(userId);
   const foundLocal = localList.some(item => String(item.bookId || item.book_id || item.id) === bId);
-  if (foundLocal) return true;
+  if (foundLocal || !isRemoteSyncEnabled()) return foundLocal;
 
   try {
     const { data } = await supabase
@@ -126,10 +138,12 @@ export async function removeSavedBook(userId, bookId) {
   const updated = localList.filter(item => String(item.bookId || item.book_id || item.id) !== bId);
   setLocalSavedBooks(userId, updated);
 
-  try {
-    await supabase.from('saved_books').delete().eq('user_id', userId).eq('book_id', bId);
-  } catch (e) {
-    console.warn('Supabase remove saved book warning:', e);
+  if (isRemoteSyncEnabled()) {
+    try {
+      await supabase.from('saved_books').delete().eq('user_id', userId).eq('book_id', bId);
+    } catch (e) {
+      console.warn('Supabase remove saved book warning:', e);
+    }
   }
 }
 
@@ -151,52 +165,52 @@ export function listenToUserSavedBooks(userId, callback) {
   };
   window.addEventListener('pia_saved_books_changed', handleLocalChange);
 
-  // 3. Sync from Supabase
-  const syncRemote = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('saved_books')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (!error && data && data.length > 0) {
-        const remoteFormatted = data.map(item => ({
-          ...item,
-          bookId: String(item.book_id || item.bookId || item.id),
-          id: item.id
-        }));
-
-        // Merge remote + local ensuring no loss of offline saves
-        const mergedMap = new Map();
-        remoteFormatted.forEach(item => mergedMap.set(String(item.bookId), item));
-        getLocalSavedBooks(userId).forEach(item => {
-          const key = String(item.bookId || item.book_id || item.id);
-          if (!mergedMap.has(key)) {
-            mergedMap.set(key, item);
-          }
-        });
-
-        const mergedList = Array.from(mergedMap.values());
-        setLocalSavedBooks(userId, mergedList);
-        callback(mergedList);
-      }
-    } catch (e) {
-      console.warn('Supabase saved_books sync note:', e);
-    }
-  };
-
-  syncRemote();
-
-  // 4. Real-time Supabase subscription
+  // 3. Remote Sync & Subscription (only when remote table is enabled)
   let channel = null;
-  try {
-    channel = supabase
-      .channel(`saved_books_realtime_${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'saved_books' }, () => {
-        syncRemote();
-      })
-      .subscribe();
-  } catch (e) {}
+  if (isRemoteSyncEnabled()) {
+    const syncRemote = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('saved_books')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (!error && data && data.length > 0) {
+          const remoteFormatted = data.map(item => ({
+            ...item,
+            bookId: String(item.book_id || item.bookId || item.id),
+            id: item.id
+          }));
+
+          const mergedMap = new Map();
+          remoteFormatted.forEach(item => mergedMap.set(String(item.bookId), item));
+          getLocalSavedBooks(userId).forEach(item => {
+            const key = String(item.bookId || item.book_id || item.id);
+            if (!mergedMap.has(key)) {
+              mergedMap.set(key, item);
+            }
+          });
+
+          const mergedList = Array.from(mergedMap.values());
+          setLocalSavedBooks(userId, mergedList);
+          callback(mergedList);
+        }
+      } catch (e) {
+        console.warn('Supabase saved_books sync note:', e);
+      }
+    };
+
+    syncRemote();
+
+    try {
+      channel = supabase
+        .channel(`saved_books_realtime_${userId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'saved_books' }, () => {
+          syncRemote();
+        })
+        .subscribe();
+    } catch (e) {}
+  }
 
   return () => {
     window.removeEventListener('pia_saved_books_changed', handleLocalChange);
