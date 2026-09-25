@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabase/client';
 
 const AuthContext = createContext(null);
@@ -38,6 +38,7 @@ export function AuthProvider({ children }) {
   const [userStatus, setUserStatus] = useState(initial?.userStatus || null);
   const [userData, setUserData] = useState(initial?.userData || null);
   const [loading, setLoading] = useState(!initial);
+  const pendingLoginRoleRef = useRef(null);
 
   // Helper to fetch profile from Supabase profiles table using maybeSingle() with safety timeout
   const fetchUserProfile = async (userId) => {
@@ -150,9 +151,13 @@ export function AuthProvider({ children }) {
     // Listen for auth state changes without blocking GoTrue internal mutex locks
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
+      // If a login attempt is actively verifying the role, let login() manage session application
+      if (pendingLoginRoleRef.current) return;
+
       // Dispatch in separate macrotask to prevent GoTrue mutex deadlock on page reload
       setTimeout(async () => {
         if (!isMounted) return;
+        if (pendingLoginRoleRef.current) return;
         await applyUserSession(session?.user || null);
         setLoading(false);
       }, 0);
@@ -166,27 +171,57 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password, requestedRole) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    pendingLoginRoleRef.current = requestedRole || '__any__';
+    try {
+      let loginEmail = (email || '').trim();
+      // If admin login provides username without @, try resolving from profiles
+      if (requestedRole === 'admin' && !loginEmail.includes('@')) {
+        try {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('email')
+            .ilike('full_name', loginEmail)
+            .maybeSingle();
+          if (prof?.email) {
+            loginEmail = prof.email;
+          }
+        } catch (e) {
+          console.warn('Admin username resolution notice:', e);
+        }
+      }
 
-    if (error) {
-      throw error;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.user) {
+        throw new Error('invalid_credentials');
+      }
+
+      const profile = await fetchUserProfile(data.user.id);
+      const roleFromMeta = data.user.user_metadata?.role || 'student';
+      const actualRole = profile?.role || roleFromMeta;
+
+      if (requestedRole && actualRole !== requestedRole) {
+        await supabase.auth.signOut();
+        saveStoredSession(null);
+        setCurrentUser(null);
+        setUserRole(null);
+        setUserStatus(null);
+        setUserData(null);
+        throw new Error('invalid_credentials');
+      }
+
+      await applyUserSession(data.user, profile);
+      return { userCredential: { user: data.user }, role: actualRole };
+    } finally {
+      pendingLoginRoleRef.current = null;
     }
-
-    const profile = await fetchUserProfile(data.user.id);
-    const roleFromMeta = data.user.user_metadata?.role || 'student';
-    const actualRole = profile?.role || roleFromMeta;
-
-    if (requestedRole && actualRole !== requestedRole) {
-      await supabase.auth.signOut();
-      saveStoredSession(null);
-      throw new Error('role_mismatch');
-    }
-
-    await applyUserSession(data.user, profile);
-    return { userCredential: { user: data.user }, role: actualRole };
   };
 
   const register = async (email, password, fullName, role) => {

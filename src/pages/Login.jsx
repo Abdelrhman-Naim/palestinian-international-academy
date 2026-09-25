@@ -26,12 +26,14 @@ const Login = () => {
   const role = location.pathname === '/login-trainer' ? 'instructor' : 'student';
 
   useEffect(() => {
-    if (currentUser) {
-      if (userRole === 'admin') navigate('/admin-dashboard', { replace: true });
-      else if (userRole === 'instructor') navigate('/instructor-dashboard', { replace: true });
-      else navigate('/dashboard', { replace: true });
+    if (currentUser && userRole) {
+      if (role === 'student' && userRole === 'student') {
+        navigate('/dashboard', { replace: true });
+      } else if (role === 'instructor' && userRole === 'instructor') {
+        navigate('/instructor-dashboard', { replace: true });
+      }
     }
-  }, [currentUser, userRole, navigate]);
+  }, [currentUser, userRole, role, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -65,15 +67,11 @@ const Login = () => {
       }
     } catch (err) {
       console.error("Login error:", err);
-      const errMsg = err.message || '';
-      if (errMsg === 'role_mismatch') {
-        setError(role === 'student' ? t('login.notStudent') : t('login.notInstructor'));
-      } else if (errMsg.includes('Email not confirmed')) {
+      const errMsg = err?.message || '';
+      if (errMsg.includes('Email not confirmed')) {
         setError(dir === 'rtl' ? 'يرجى تفعيل حسابك من خلال رابط التفعيل المرسل إلى بريدك الإلكتروني.' : 'Please confirm your email via the link sent to your inbox.');
-      } else if (errMsg.includes('Invalid login credentials')) {
-        setError(dir === 'rtl' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
       } else {
-        setError(errMsg || t('login.invalidCredentials'));
+        setError(dir === 'rtl' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
       }
     }
   };

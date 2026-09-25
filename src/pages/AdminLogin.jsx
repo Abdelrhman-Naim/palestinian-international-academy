@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
@@ -20,7 +20,13 @@ const AdminLogin = () => {
   const [forgotError, setForgotError] = useState('');
 
   const navigate = useNavigate();
-  const { login, resetPassword } = useAuth();
+  const { login, resetPassword, currentUser, userRole } = useAuth();
+
+  useEffect(() => {
+    if (currentUser && userRole === 'admin') {
+      navigate('/admin-dashboard', { replace: true });
+    }
+  }, [currentUser, userRole, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -38,12 +44,14 @@ const AdminLogin = () => {
     setLoading(true);
     try {
       await login(username.trim(), password, 'admin');
-      navigate('/admin-dashboard');
+      navigate('/admin-dashboard', { replace: true });
     } catch (err) {
-      if (err.message === 'role_mismatch') {
-        setError(t('adminLogin.notAdmin'));
+      console.warn("Admin login error:", err);
+      const errMsg = err?.message || '';
+      if (errMsg.includes('Email not confirmed')) {
+        setError(dir === 'rtl' ? 'يرجى تفعيل حسابك من خلال رابط التفعيل المرسل إلى بريدك الإلكتروني.' : 'Please confirm your email via the link sent to your inbox.');
       } else {
-        setError(t('adminLogin.invalidCredentials'));
+        setError(dir === 'rtl' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
       }
     } finally {
       setLoading(false);
