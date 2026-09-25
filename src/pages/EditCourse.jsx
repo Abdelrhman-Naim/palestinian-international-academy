@@ -168,16 +168,22 @@ export default function EditCourse() {
                 const formattedSessions = (Array.isArray(rawSessions) && rawSessions.length > 0)
                     ? rawSessions.map((s, idx) => ({
                         number: s.number || idx + 1,
-                        title: s.title || s.name || '',
+                        title: s.title || s.name || (dir === 'rtl' ? `المحاضرة رقم ${idx + 1}` : `Lecture #${idx + 1}`),
                         link: s.link || s.url || s.videoUrl || s.video_url || ''
                     }))
-                    : [{ number: 1, title: '', link: '' }];
+                    : [{ number: 1, title: dir === 'rtl' ? 'المحاضرة التمهيدية' : 'Introductory Lecture', link: '' }];
 
                 setSessions(formattedSessions);
                 setLecturesCount(courseData.lecturesCount || courseData.lessons_count || formattedSessions.length || 1);
                 setInitialLecturesCount(formattedSessions.length);
                 setStatus(courseData.status || '');
-                setGoals((Array.isArray(courseData.goals) && courseData.goals.length > 0) ? courseData.goals : ['']);
+
+                const validGoals = Array.isArray(courseData.goals) 
+                    ? courseData.goals.filter(g => typeof g === 'string' && g.trim() !== '') 
+                    : [];
+                setGoals(validGoals.length > 0 
+                    ? validGoals 
+                    : [courseData.description?.slice(0, 100) || (dir === 'rtl' ? 'إتقان المهارات العملية وتطبيق المشاريع' : 'Master practical skills and project applications')]);
             } else {
                 setCourseNotFound(true);
             }
@@ -408,11 +414,12 @@ export default function EditCourse() {
                         <div className="space-y-5">
                             {/* Title */}
                             <div>
-                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="edit-course-title" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {t('addCourse.courseTitle')}
                                     {userRole === 'instructor' && <span className="mr-2 text-xs text-gray-400 font-normal">{t('editCourse.cannotEdit')}</span>}
                                 </label>
                                 <input
+                                    id="edit-course-title"
                                     type="text"
                                     value={loading ? t('common.loading') : courseTitle}
                                     onChange={(e) => { setCourseTitle(e.target.value); if (errors.courseTitle) setErrors(p => ({ ...p, courseTitle: null })); }}
@@ -424,17 +431,19 @@ export default function EditCourse() {
 
                             {/* Instructor */}
                             <div>
-                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="edit-course-instructor" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {t('adminInstructors.instructor')}
                                     {userRole === 'instructor' && <span className="mr-2 text-xs text-gray-400 font-normal">{t('editCourse.cannotEdit')}</span>}
                                 </label>
                                 <input
+                                    id="edit-course-instructor"
                                     type="text"
                                     value={loading ? t('common.loading') : courseInstructor}
-                                    onChange={(e) => setCourseInstructor(e.target.value)}
+                                    onChange={(e) => { setCourseInstructor(e.target.value); if (errors.courseInstructor) setErrors(p => ({ ...p, courseInstructor: null })); }}
                                     disabled={userRole === 'instructor'}
-                                    className={`w-full rounded-xl border border-[#E8E2D5] bg-gray-50 px-4 py-3 text-sm text-gray-500 outline-none ${userRole === 'instructor' ? 'cursor-not-allowed opacity-70' : 'bg-white focus:border-orange-500 focus:ring-2'} dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400`}
+                                    className={`w-full rounded-xl border border-[#E8E2D5] bg-gray-50 px-4 py-3 text-sm text-gray-500 outline-none ${userRole === 'instructor' ? 'cursor-not-allowed opacity-70' : 'bg-white focus:border-orange-500 focus:ring-2'} dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 ${errors.courseInstructor ? "border-rose-500 ring-2 ring-rose-500/10" : ""}`}
                                 />
+                                {errors.courseInstructor && <p className="mt-1.5 text-xs font-semibold text-rose-500">{errors.courseInstructor}</p>}
                             </div>
 
                             {/* Category */}
@@ -445,13 +454,14 @@ export default function EditCourse() {
                                 </label>
                                 <CustomSelect
                                     value={category}
-                                    onChange={setCategory}
+                                    onChange={(val) => { setCategory(val); if (errors.category) setErrors(p => ({ ...p, category: null })); }}
                                     disabled={userRole === 'instructor'}
                                     options={[
                                         { value: "", label: t('addCourse.selectCategory') },
                                         ...rawCategories.courses.map((item) => ({ value: item, label: item }))
                                     ]}
                                 />
+                                {errors.category && <p className="mt-1.5 text-xs font-semibold text-rose-500">{errors.category}</p>}
                             </div>
 
                             {/* Level */}
@@ -496,11 +506,12 @@ export default function EditCourse() {
 
                             {/* Description */}
                             <div>
-                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="edit-course-description" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {t('addCourse.aboutCourse')}
                                 </label>
 
                                 <textarea
+                                    id="edit-course-description"
                                     rows="4"
                                     value={description}
                                     onChange={(e) => { setDescription(e.target.value); if (errors.description) setErrors(p => ({ ...p, description: null })); }}
@@ -511,11 +522,12 @@ export default function EditCourse() {
 
                             {/* Lectures Count */}
                             <div>
-                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                <label htmlFor="edit-course-lectures" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {t('addCourse.lectureCount')}
                                 </label>
 
                                 <input
+                                    id="edit-course-lectures"
                                     type="number"
                                     min="1"
                                     step="1"

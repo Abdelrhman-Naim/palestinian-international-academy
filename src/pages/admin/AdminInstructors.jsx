@@ -219,6 +219,7 @@ export default function AdminInstructors() {
             </span>
             <input
               type="text"
+              aria-label={isRtl ? 'ابحث بالاسم، البريد، أو التخصص' : 'Search by name, email, or field'}
               placeholder={isRtl ? 'ابحث بالاسم، البريد، أو التخصص...' : 'Search by name, email, or field...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

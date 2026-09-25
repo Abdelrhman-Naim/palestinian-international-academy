@@ -762,7 +762,7 @@
   },
   "adminLibrary": {
     "parent": "Library Management",
-    "title": "Manage Books and Materials",
+    "title": "Digital Library & References Management",
     "subtitle": "Review digital library references and add new sources",
     "addBook": "Add Book",
     "edit": "Edit",

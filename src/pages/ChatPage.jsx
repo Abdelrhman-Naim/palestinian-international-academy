@@ -33,13 +33,31 @@ export default function ChatPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryChatId = searchParams.get('chatId');
 
-  const [chats, setChats] = useState([]);
+  const [chats, setChats] = useState(() => {
+    try {
+      const uid = currentUser?.uid || currentUser?.id;
+      if (!uid) return [];
+      const cached = sessionStorage.getItem(`pia_cached_chats_${uid}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeChatId, setActiveChatId] = useState(queryChatId || null);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [filterType, setFilterType] = useState('all'); // 'all' | 'course_group' | 'direct'
   const [searchQuery, setSearchQuery] = useState('');
-  const [loadingChats, setLoadingChats] = useState(true);
+  const [loadingChats, setLoadingChats] = useState(() => {
+    try {
+      const uid = currentUser?.uid || currentUser?.id;
+      if (!uid) return false;
+      const cached = sessionStorage.getItem(`pia_cached_chats_${uid}`);
+      return !Boolean(cached);
+    } catch {
+      return true;
+    }
+  });
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [isMobileListOpen, setIsMobileListOpen] = useState(!queryChatId);
 
@@ -107,6 +125,9 @@ export default function ChatPage() {
       const list = userChats || [];
       setChats(list);
       setLoadingChats(false);
+      try {
+        sessionStorage.setItem(`pia_cached_chats_${userId}`, JSON.stringify(list));
+      } catch {}
 
       if (queryChatId && list.some(c => c.id === queryChatId)) {
         setActiveChatId(queryChatId);
@@ -191,12 +212,27 @@ export default function ChatPage() {
       return;
     }
 
-    setLoadingMessages(true);
+    try {
+      const cached = sessionStorage.getItem(`pia_cached_msgs_${activeChatId}`);
+      if (cached) {
+        setMessages(JSON.parse(cached));
+        setLoadingMessages(false);
+      } else {
+        setLoadingMessages(true);
+      }
+    } catch {
+      setLoadingMessages(true);
+    }
+
     let isMounted = true;
     const unsubMessages = subscribeToMessages(activeChatId, (msgs) => {
       if (!isMounted) return;
-      setMessages(msgs || []);
+      const list = msgs || [];
+      setMessages(list);
       setLoadingMessages(false);
+      try {
+        sessionStorage.setItem(`pia_cached_msgs_${activeChatId}`, JSON.stringify(list.slice(-50)));
+      } catch {}
     });
 
     return () => {
@@ -1054,10 +1090,20 @@ export default function ChatPage() {
 
           {/* Conversations Scrollable List */}
           <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-[#E8E2D5]/60 dark:divide-gray-700/60">
-            {loadingChats ? (
-              <div className="p-8 text-center text-gray-400 text-sm font-bold flex flex-col items-center gap-3">
-                <span className="material-symbols-outlined text-3xl animate-spin text-primary">sync</span>
-                {t('chat.loading')}
+            {loadingChats && chats.length === 0 ? (
+              <div className="p-3 space-y-2.5 animate-pulse">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-[#FAF7F2]/60 dark:bg-gray-800/40 border border-[#E8E2D5]/60 dark:border-gray-700/60">
+                    <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded-md w-24"></div>
+                        <div className="h-2.5 bg-gray-100 dark:bg-gray-800 rounded-md w-8"></div>
+                      </div>
+                      <div className="h-2.5 bg-gray-100 dark:bg-gray-800 rounded-md w-36"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filteredChats.length === 0 ? (
               <div className="p-8 text-center text-gray-400 flex flex-col items-center justify-center h-full">
@@ -1271,12 +1317,39 @@ export default function ChatPage() {
 
               {/* Messages Flow Container */}
               <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar bg-[#FAF7F2]/40 dark:bg-gray-900/40">
-                {loadingMessages ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                      {isRtl ? 'جاري تحميل الرسائل...' : 'Loading messages...'}
-                    </p>
+                {loadingMessages && messages.length === 0 ? (
+                  <div className="space-y-4 animate-pulse p-4">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                      <div className="space-y-2 max-w-[65%]">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-md w-24"></div>
+                        <div className="h-12 bg-white/80 dark:bg-gray-800/80 rounded-2xl rounded-tr-sm p-3 w-56 border border-[#E8E2D5]/50 dark:border-gray-700/50"></div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5 flex-row-reverse">
+                      <div className="w-8 h-8 rounded-full bg-amber-200 dark:bg-amber-900/40 shrink-0"></div>
+                      <div className="space-y-2 max-w-[65%] items-end flex flex-col">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-md w-20"></div>
+                        <div className="h-10 bg-primary/20 dark:bg-amber-500/20 rounded-2xl rounded-tl-sm p-3 w-48 border border-primary/30"></div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                      <div className="space-y-2 max-w-[65%]">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-md w-20"></div>
+                        <div className="h-16 bg-white/80 dark:bg-gray-800/80 rounded-2xl rounded-tr-sm p-3 w-64 border border-[#E8E2D5]/50 dark:border-gray-700/50"></div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5 flex-row-reverse">
+                      <div className="w-8 h-8 rounded-full bg-amber-200 dark:bg-amber-900/40 shrink-0"></div>
+                      <div className="space-y-2 max-w-[65%] items-end flex flex-col">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-md w-16"></div>
+                        <div className="h-10 bg-primary/20 dark:bg-amber-500/20 rounded-2xl rounded-tl-sm p-3 w-36 border border-primary/30"></div>
+                      </div>
+                    </div>
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="text-center py-20 text-gray-400">

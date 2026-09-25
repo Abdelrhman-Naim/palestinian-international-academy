@@ -128,6 +128,7 @@ export default function AdminActivityLogs() {
           </span>
           <input
             type="text"
+            aria-label={t('adminOverview.searchPlaceholder') || 'البحث في الأنشطة...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('adminOverview.searchPlaceholder') || 'البحث في الأنشطة...'}

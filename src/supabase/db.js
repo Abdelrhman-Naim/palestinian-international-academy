@@ -149,9 +149,20 @@ export const getDocs = async (target) => {
     let data;
     let error;
 
+    const invalidColsByTable = {
+      enrollments: ['status', 'is_approved', 'role', 'email', 'name', 'title'],
+      exam_results: ['courseId', 'course_id'] // if exam_results lacks course_id
+    };
+
     if (target?.filters && target.filters.length > 0) {
+      const clientSideFilters = [];
       target.filters.forEach(f => {
         const colName = mapFieldToColumn(table, f.field);
+        const isKnownInvalid = invalidColsByTable[table]?.includes(f.field) || invalidColsByTable[table]?.includes(colName);
+        if (isKnownInvalid) {
+          clientSideFilters.push(f);
+          return;
+        }
         if (f.op === '==') q = q.eq(colName, f.value);
         if (f.op === '!=') q = q.neq(colName, f.value);
         if (f.op === 'in') q = q.in(colName, f.value);
@@ -159,6 +170,19 @@ export const getDocs = async (target) => {
       const res = await q;
       data = res.data;
       error = res.error;
+
+      if (data && clientSideFilters.length > 0) {
+        data = data.filter(item => {
+          const mapped = mapDocData(item);
+          return clientSideFilters.every(f => {
+            const val = mapped[f.field] ?? mapped[mapFieldToColumn(table, f.field)];
+            if (f.op === '==') return val === f.value;
+            if (f.op === '!=') return val !== f.value;
+            if (f.op === 'in') return Array.isArray(f.value) && f.value.includes(val);
+            return true;
+          });
+        });
+      }
 
       if (error) {
         console.warn(`[Supabase Bridge] Filtering on table ${table} failed, falling back to client-side filtering:`, error.message);

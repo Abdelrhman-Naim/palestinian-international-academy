@@ -39,6 +39,14 @@ export default function AdminAddBook() {
     if (!pages || Number(pages) <= 0) {
       errs.pages = dir === 'rtl' ? 'يرجى إدخال عدد صفحات صالح (أكبر من 0)' : 'Please enter a valid page count (> 0)';
     }
+    if (link.trim()) {
+      const urlPattern = /^(https?:\/\/)([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/[^\s]*)?$/i;
+      if (!urlPattern.test(link.trim())) {
+        errs.link = dir === 'rtl' 
+          ? 'يرجى إدخال رابط صالح يبدأ بـ https:// أو http://' 
+          : 'Please enter a valid URL starting with https:// or http://';
+      }
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -219,15 +227,30 @@ export default function AdminAddBook() {
           </div>
 
           <div>
-            <label htmlFor="book-link" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">{t('adminAddBook.fileLink')}</label>
+            <label htmlFor="book-link" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+              {t('adminAddBook.fileLink')}
+            </label>
             <input
               id="book-link"
               type="url"
               placeholder="https://..."
               value={link}
-              onChange={(e) => setLink(e.target.value)}
-              className="w-full rounded-xl border border-[#E8E2D5] bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              onChange={(e) => {
+                setLink(e.target.value);
+                if (errors.link) setErrors(prev => ({ ...prev, link: null }));
+              }}
+              className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-700 outline-none transition dark:bg-gray-800 dark:text-gray-100 ${
+                errors.link
+                  ? 'border-rose-500 ring-2 ring-rose-500/10 focus:border-rose-500'
+                  : 'border-[#E8E2D5] focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700'
+              }`}
             />
+            {errors.link && (
+              <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-500">
+                <span className="material-symbols-outlined text-xs">error</span>
+                {errors.link}
+              </p>
+            )}
           </div>
         </div>
 

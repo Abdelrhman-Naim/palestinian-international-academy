@@ -36,7 +36,10 @@ export default function AdminCategories() {
     if (!editModal) return;
     const trimmed = editModal.newName.trim();
     if (!trimmed) {
-      setEditModal(prev => ({ ...prev, error: t('adminCategories.editPlaceholder') || 'يرجى إدخال اسم التصنيف' }));
+      setEditModal(prev => ({ 
+        ...prev, 
+        error: isRtl ? 'اسم التصنيف مطلوب ولا يمكن تركه فارغاً' : 'Category name is required and cannot be empty' 
+      }));
       return;
     }
     setEditModal(prev => ({ ...prev, saving: true, error: '' }));
@@ -59,7 +62,11 @@ export default function AdminCategories() {
         onSubmit={handleAdd}
         className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#E8E2D5] bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row"
       >
+        <label htmlFor="add-course-category-input" className="sr-only">
+          {t('adminCategories.placeholder')}
+        </label>
         <input
+          id="add-course-category-input"
           type="text"
           value={name}
           onChange={(e) => {
@@ -159,22 +166,35 @@ export default function AdminCategories() {
             </p>
 
             <form onSubmit={handleSaveEdit} className="mt-5">
-              <label className="mb-1.5 block text-xs font-bold text-gray-600 dark:text-gray-300">
+              <label htmlFor="course-category-edit-input" className="mb-1.5 block text-xs font-bold text-gray-600 dark:text-gray-300">
                 {t('adminCategories.editTitle')}
               </label>
               <input
+                id="course-category-edit-input"
                 type="text"
                 autoFocus
                 disabled={editModal.saving}
                 value={editModal.newName}
-                onChange={(e) => setEditModal(prev => ({ ...prev, newName: e.target.value, error: '' }))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditModal(prev => ({ 
+                    ...prev, 
+                    newName: val, 
+                    error: val.trim() ? '' : (isRtl ? 'اسم التصنيف مطلوب ولا يمكن تركه فارغاً' : 'Category name is required and cannot be empty') 
+                  }));
+                }}
                 placeholder={t('adminCategories.editPlaceholder')}
-                className="w-full rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] px-4 py-3 text-sm text-dark outline-none transition focus:border-primary focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:bg-gray-900"
+                className={`w-full rounded-xl border bg-[#FAF7F2] px-4 py-3 text-sm text-dark outline-none transition focus:bg-white dark:bg-gray-900 dark:text-white dark:focus:bg-gray-900 ${
+                  editModal.error 
+                    ? 'border-rose-500 ring-2 ring-rose-500/20 dark:border-rose-500' 
+                    : 'border-[#E8E2D5] focus:border-primary dark:border-gray-700'
+                }`}
               />
 
               {editModal.error && (
-                <p className="mt-2 text-xs font-bold text-rose-500 dark:text-rose-400">
-                  {editModal.error}
+                <p className="mt-2 text-xs font-bold text-rose-500 dark:text-rose-400 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  <span>{editModal.error}</span>
                 </p>
               )}
 
@@ -189,8 +209,8 @@ export default function AdminCategories() {
                 </button>
                 <button
                   type="submit"
-                  disabled={editModal.saving}
-                  className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-all hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-primary/20"
+                  disabled={editModal.saving || !editModal.newName.trim()}
+                  className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-all hover:bg-secondary dark:bg-primary dark:text-gray-950 dark:hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-md shadow-primary/20"
                 >
                   {editModal.saving ? (
                     <>

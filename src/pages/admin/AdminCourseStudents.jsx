@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, increment, db } from '../../supabase/db';
+import { doc, updateDoc, increment, db } from '../../supabase/db';
+import { supabase } from '../../supabase/client';
 import AdminPageShell from './AdminPageShell';
 import { useCourses } from '../../context/CoursesContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -44,36 +45,106 @@ export default function AdminCourseStudents() {
       setCourse(fromContext);
     }
 
-    // Subscribe to course document for real-time changes
-    const unsubCourse = onSnapshot(doc(db, 'courses', courseId), (snap) => {
-      if (snap.exists()) {
-        setCourse({ id: snap.id, ...snap.data() });
+    const fetchCourseDoc = async () => {
+      try {
+        const { data } = await supabase.from('courses').select('*').eq('id', courseId).maybeSingle();
+        if (data) {
+          setCourse(prev => ({ ...(prev || {}), ...data }));
+        }
+      } catch (err) {
+        console.warn('Error fetching course doc:', err);
       }
-    }, (err) => {
-      console.warn('Error fetching course doc:', err);
-    });
-
-    return () => unsubCourse();
+    };
+    fetchCourseDoc();
   }, [courseId, rawCourses]);
 
-  // 2. Fetch Enrollments for this course
+  // 2. Fetch Enrollments for this course (unifying course_requests approved + enrollments)
   useEffect(() => {
     if (!courseId) return;
 
-    const q = query(collection(db, 'enrollments'), where('courseId', '==', courseId));
-    const unsubEnrollments = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }));
-      setEnrollments(docs);
-      setLoading(false);
-    }, (err) => {
-      console.warn('Error fetching enrollments:', err);
-      setLoading(false);
-    });
+    const fetchAllEnrollments = async () => {
+      try {
+        // Query approved requests
+        const { data: reqs, error: reqErr } = await supabase
+          .from('course_requests')
+          .select('*')
+          .eq('course_id', courseId)
+          .eq('status', 'approved');
 
-    return () => unsubEnrollments();
+        if (reqErr) console.warn('Error fetching course_requests:', reqErr);
+
+        // Query enrollments table
+        let enrList = [];
+        try {
+          const { data: enrData, error: enrErr } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('course_id', courseId);
+          if (!enrErr && Array.isArray(enrData)) {
+            enrList = enrData;
+          }
+        } catch {
+          // ignore
+        }
+
+        const mapByStudent = new Map();
+
+        (enrList || []).forEach(item => {
+          const sId = item.student_id || item.studentId || item.uid;
+          if (sId) {
+            mapByStudent.set(sId, {
+              id: item.id,
+              uid: sId,
+              courseId: item.course_id || courseId,
+              enrolledAt: item.created_at || item.enrolledAt,
+              progress: typeof item.progress === 'number' ? item.progress : 0,
+              studentName: item.student_name,
+              studentEmail: item.student_email,
+              ...item
+            });
+          }
+        });
+
+        (reqs || []).forEach(req => {
+          const sId = req.student_id || req.studentId;
+          if (sId) {
+            const existing = mapByStudent.get(sId);
+            mapByStudent.set(sId, {
+              id: req.id,
+              uid: sId,
+              courseId: req.course_id || courseId,
+              enrolledAt: req.created_at || existing?.enrolledAt,
+              progress: req.details?.progress ?? existing?.progress ?? 0,
+              studentName: req.student_name || existing?.studentName,
+              studentEmail: req.student_email || existing?.studentEmail,
+              status: req.status || 'approved',
+              ...req,
+              ...existing
+            });
+          }
+        });
+
+        setEnrollments(Array.from(mapByStudent.values()));
+      } catch (err) {
+        console.warn('Error fetching enrollments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllEnrollments();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel(`admin_course_students_${courseId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'course_requests', filter: `course_id=eq.${courseId}` }, () => {
+        fetchAllEnrollments();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [courseId]);
 
   // 3. Fetch Student User Details
@@ -224,16 +295,33 @@ export default function AdminCourseStudents() {
     if (!deleteModal) return;
     setIsDeleting(true);
     try {
-      // 1. Delete enrollment doc
-      await deleteDoc(doc(db, 'enrollments', deleteModal.enrollmentId));
+      // 1. Delete or update status in course_requests
+      await supabase
+        .from('course_requests')
+        .delete()
+        .eq('course_id', courseId)
+        .eq('student_id', deleteModal.uid);
 
-      // 2. Decrement students count on course
+      // 2. Delete from enrollments table if exists
+      try {
+        await supabase
+          .from('enrollments')
+          .delete()
+          .eq('course_id', courseId)
+          .eq('student_id', deleteModal.uid);
+      } catch {
+        // ignore
+      }
+
+      // 3. Decrement students count on course
       if (courseId) {
         await updateDoc(doc(db, 'courses', courseId), {
           students: increment(-1)
         }).catch(err => console.warn('Could not decrement course students count:', err));
       }
 
+      // 4. Update local state immediately
+      setEnrollments(prev => prev.filter(e => e.uid !== deleteModal.uid && e.id !== deleteModal.enrollmentId));
       setDeleteModal(null);
     } catch (err) {
       console.error('Error removing student from course:', err);
@@ -368,6 +456,7 @@ export default function AdminCourseStudents() {
             </span>
             <input
               type="text"
+              aria-label={isRtl ? 'ابحث باسم الطالب، البريد، أو المعرف' : 'Search student by name, email, or ID'}
               placeholder={isRtl ? 'ابحث باسم الطالب، البريد، أو المعرّف...' : 'Search student by name, email, or ID...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

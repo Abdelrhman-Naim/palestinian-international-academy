@@ -61,6 +61,15 @@ export default function AdminLibrary() {
     if (editForm.pages && Number(editForm.pages) <= 0) {
       errs.pages = isRtl ? 'عدد الصفحات يجب أن يكون أكبر من 0' : 'Pages must be greater than 0';
     }
+    const fileLink = (editForm.link || editForm.pdf_url || '').trim();
+    if (fileLink) {
+      const urlPattern = /^(https?:\/\/)([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/[^\s]*)?$/i;
+      if (!urlPattern.test(fileLink)) {
+        errs.link = isRtl 
+          ? 'يرجى إدخال رابط صالح يبدأ بـ https:// أو http://' 
+          : 'Please enter a valid URL starting with https:// or http://';
+      }
+    }
 
     if (Object.keys(errs).length > 0) {
       setEditErrors(errs);
@@ -69,6 +78,8 @@ export default function AdminLibrary() {
 
     updateBook(editModal, {
       ...editForm,
+      link: fileLink,
+      pdf_url: fileLink,
       category: cat,
       category_name: cat
     });
@@ -172,6 +183,7 @@ export default function AdminLibrary() {
             </span>
             <input
               type="text"
+              aria-label={isRtl ? 'ابحث باسم الكتاب أو المؤلف' : 'Search by title or author'}
               placeholder={isRtl ? 'ابحث باسم الكتاب أو المؤلف...' : 'Search by title or author...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -337,17 +349,20 @@ export default function AdminLibrary() {
 
             <div className="space-y-4">
               {[
-                { key: 'title', label: t('adminAddBook.bookTitle'), type: 'text', required: true },
-                { key: 'author', label: t('adminAddBook.author'), type: 'text', required: true },
-                { key: 'year', label: t('adminLibrary.publicationYear'), type: 'text', required: false },
-                { key: 'pages', label: t('adminAddBook.pageCount'), type: 'number', required: false },
-              ].map(({ key, label, type, required }) => (
+                { key: 'title', label: t('adminAddBook.bookTitle'), type: 'text', required: true, placeholder: '' },
+                { key: 'author', label: t('adminAddBook.author'), type: 'text', required: true, placeholder: '' },
+                { key: 'year', label: t('adminLibrary.publicationYear'), type: 'text', required: false, placeholder: '2024' },
+                { key: 'pages', label: t('adminAddBook.pageCount'), type: 'number', required: false, placeholder: '120' },
+                { key: 'link', label: t('adminAddBook.fileLink'), type: 'url', required: false, placeholder: 'https://...' },
+              ].map(({ key, label, type, required, placeholder }) => (
                 <div key={key}>
-                  <label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                  <label htmlFor={`edit-book-${key}`} className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">
                     {label} {required && <span className="text-rose-500">*</span>}
                   </label>
                   <input
+                    id={`edit-book-${key}`}
                     type={type}
+                    placeholder={placeholder}
                     value={editForm[key] || ''}
                     onChange={(e) => {
                       setEditForm(prev => ({ ...prev, [key]: e.target.value }));

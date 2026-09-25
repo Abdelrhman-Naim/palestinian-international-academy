@@ -222,6 +222,7 @@ export default function AdminCourses() {
             </span>
             <input
               type="text"
+              aria-label={isRtl ? 'ابحث باسم الدورة أو المدرب' : 'Search by course or instructor'}
               placeholder={isRtl ? 'ابحث باسم الدورة أو المدرب...' : 'Search by course or instructor...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

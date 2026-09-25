@@ -26,9 +26,18 @@ const AdminLogin = () => {
     e.preventDefault();
     setError('');
     
+    if (!username?.trim()) {
+      setError(dir === 'rtl' ? 'يرجى إدخال اسم المستخدم أو البريد الإلكتروني.' : 'Please enter username or email.');
+      return;
+    }
+    if (!password) {
+      setError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter password.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(username, password, 'admin');
+      await login(username.trim(), password, 'admin');
       navigate('/admin-dashboard');
     } catch (err) {
       if (err.message === 'role_mismatch') {
@@ -93,7 +102,7 @@ const AdminLogin = () => {
             <p className="text-gray-500 dark:text-gray-400 text-xs">{t('adminLogin.subtitle')}</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
+          <form onSubmit={handleLogin} noValidate className="space-y-4 sm:space-y-5">
             {error && (
               <div className="bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 p-3.5 rounded-xl text-xs sm:text-sm font-bold border border-rose-200 dark:border-rose-900/50 flex items-center gap-2">
                 <span className="material-symbols-outlined text-base shrink-0">error</span>

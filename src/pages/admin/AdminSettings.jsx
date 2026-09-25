@@ -32,15 +32,23 @@ export default function AdminSettings() {
   }, [maintenanceData?.message]);
 
   useEffect(() => {
-    if (featuredCourseConfig) {
-      setSelectedCourseId(featuredCourseConfig.courseId || '');
-      const total = Math.max(1, Number(featuredCourseConfig.totalLessons) || 10);
-      const completed = Math.max(0, Math.min(total, Number(featuredCourseConfig.completedLessons ?? 8)));
+    if (courses && courses.length > 0) {
+      const activeId = (featuredCourseConfig?.courseId && courses.some(c => c.id === featuredCourseConfig.courseId))
+        ? featuredCourseConfig.courseId
+        : courses[0].id;
+
+      setSelectedCourseId(activeId);
+      const matchedCourse = courses.find(c => c.id === activeId);
+      const defaultTotal = Number(matchedCourse?.lectures?.length || matchedCourse?.lecturesCount || 10);
+      const total = Math.max(1, Number(featuredCourseConfig?.totalLessons) || defaultTotal);
+      const completed = Math.max(0, Math.min(total, Number(featuredCourseConfig?.completedLessons ?? 8)));
       setTotalLessons(total);
       setCompletedLessons(completed);
-      setCustomLabel(featuredCourseConfig.customLabel || '');
+      if (featuredCourseConfig?.customLabel !== undefined) {
+        setCustomLabel(featuredCourseConfig.customLabel || '');
+      }
     }
-  }, [featuredCourseConfig]);
+  }, [featuredCourseConfig, courses]);
 
   const handleCourseChange = (courseId) => {
     setSelectedCourseId(courseId);
@@ -54,29 +62,31 @@ export default function AdminSettings() {
   };
 
   const handleTotalLessonsChange = (valStr) => {
-    const val = Number(valStr);
     setTotalLessons(valStr);
-    if (val > 0) {
-      setCompletedLessons(prev => Math.min(val, Number(prev) || 0));
-      setHeroError('');
-    } else {
+    const val = Number(valStr);
+    const completed = Number(completedLessons);
+    if (valStr === '' || isNaN(val) || val <= 0) {
       setHeroError(isRtl ? 'يجب أن يكون إجمالي الدروس رقماً موجباً أكبر من صفر' : 'Total lessons must be a positive number greater than 0');
+    } else if (completed > val) {
+      setHeroError(isRtl 
+        ? `لا يمكن أن يتجاوز عدد الدروس المكتملة (${completed}) إجمالي الدروس (${val})!` 
+        : `Completed lessons (${completed}) cannot exceed total lessons (${val})!`);
+    } else {
+      setHeroError('');
     }
   };
 
   const handleCompletedLessonsChange = (valStr) => {
-    const rawVal = Number(valStr);
-    const maxVal = Math.max(1, Number(totalLessons) || 1);
-    if (rawVal > maxVal) {
-      setCompletedLessons(maxVal);
-      setHeroError(isRtl 
-        ? `لا يمكن أن يتجاوز عدد الدروس المكتملة (${rawVal}) إجمالي الدروس (${maxVal})!` 
-        : `Completed lessons (${rawVal}) cannot exceed total lessons (${maxVal})!`);
-    } else if (rawVal < 0) {
-      setCompletedLessons(0);
+    setCompletedLessons(valStr);
+    const val = Number(valStr);
+    const total = Number(totalLessons) || 1;
+    if (valStr === '' || isNaN(val) || val < 0) {
       setHeroError(isRtl ? 'لا يمكن أن يكون عدد الدروس سالباً' : 'Completed lessons cannot be negative');
+    } else if (val > total) {
+      setHeroError(isRtl 
+        ? `لا يمكن أن يتجاوز عدد الدروس المكتملة (${val}) إجمالي الدروس (${total})!` 
+        : `Completed lessons (${val}) cannot exceed total lessons (${total})!`);
     } else {
-      setCompletedLessons(rawVal);
       setHeroError('');
     }
   };
@@ -194,10 +204,11 @@ export default function AdminSettings() {
               <div className="space-y-4">
                 {/* Course Select */}
                 <div>
-                  <label className="block text-xs font-bold text-dark dark:text-white mb-2">
+                  <label htmlFor="hero-course-select" className="block text-xs font-bold text-dark dark:text-white mb-2">
                     {isRtl ? 'اختر الكورس المميز' : 'Select Course'} <span className="text-rose-500">*</span>
                   </label>
                   <CustomSelect
+                    id="hero-course-select"
                     options={courseOptions}
                     value={selectedCourseId}
                     onChange={(val) => handleCourseChange(val)}
@@ -207,10 +218,11 @@ export default function AdminSettings() {
 
                 {/* Custom Promotional Label */}
                 <div>
-                  <label className="block text-xs font-bold text-dark dark:text-white mb-2">
+                  <label htmlFor="hero-badge-input" className="block text-xs font-bold text-dark dark:text-white mb-2">
                     {isRtl ? 'العنوان الترويجي العلوي (Label Badge)' : 'Top Badge Text'}
                   </label>
                   <input
+                    id="hero-badge-input"
                     type="text"
                     value={customLabel}
                     onChange={(e) => setCustomLabel(e.target.value)}
@@ -222,10 +234,11 @@ export default function AdminSettings() {
                 {/* Progress & Lessons Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-dark dark:text-white mb-2">
+                    <label htmlFor="hero-total-lessons" className="block text-xs font-bold text-dark dark:text-white mb-2">
                       {isRtl ? 'إجمالي دروس الكورس' : 'Total Lessons'}
                     </label>
                     <input
+                      id="hero-total-lessons"
                       type="number"
                       min="1"
                       value={totalLessons}
@@ -234,10 +247,11 @@ export default function AdminSettings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-dark dark:text-white mb-2">
+                    <label htmlFor="hero-completed-lessons" className="block text-xs font-bold text-dark dark:text-white mb-2">
                       {isRtl ? 'عدد الدروس المكتملة' : 'Completed Lessons'}
                     </label>
                     <input
+                      id="hero-completed-lessons"
                       type="number"
                       min="0"
                       max={totalLessons}
@@ -247,13 +261,14 @@ export default function AdminSettings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-dark dark:text-white mb-2 flex items-center justify-between">
+                    <label htmlFor="hero-progress-display" className="block text-xs font-bold text-dark dark:text-white mb-2 flex items-center justify-between">
                       <span>{isRtl ? 'نسبة الإنجاز (%)' : 'Progress (%)'}</span>
                       <span className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold">
                         {isRtl ? 'تلقائي' : 'Auto'}
                       </span>
                     </label>
                     <input
+                      id="hero-progress-display"
                       type="text"
                       readOnly
                       value={`${calculatedProgress}%`}
@@ -410,11 +425,12 @@ export default function AdminSettings() {
 
           {/* Message Editor */}
           <div className="mt-6">
-            <label className="block text-xs font-bold text-dark dark:text-white mb-2">
+            <label htmlFor="admin-settings-maintenance-msg" className="block text-xs font-bold text-dark dark:text-white mb-2">
               {t('maintenance.messageLabel') || (isRtl ? 'رسالة التوضيح للزوار' : 'Visitor Notice Message')}
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
+                id="admin-settings-maintenance-msg"
                 type="text"
                 value={customMsg}
                 onChange={(e) => setCustomMsg(e.target.value)}

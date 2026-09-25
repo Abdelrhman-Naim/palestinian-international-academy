@@ -36,6 +36,16 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!email?.trim()) {
+      setError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email.');
+      return;
+    }
+    if (!password) {
+      setError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter your password.');
+      return;
+    }
+
     try {
       await login(email.trim(), password, role);
       if (role === 'student') {
@@ -139,7 +149,7 @@ const Login = () => {
               </Link>
             </div>
             
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} noValidate className="space-y-6">
               {error && (
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-bold border border-red-200">
                   {error}
