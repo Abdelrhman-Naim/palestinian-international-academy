@@ -196,9 +196,10 @@ const StudentAssignments = () => {
       const subPayload = {
         assignment_id: submitModal.id,
         student_id: userId,
-        student_name: currentUser.name || currentUser.email || 'طالب',
+        student_name: currentUser.name || currentUser.fullName || currentUser.email || 'طالب',
         notes: submitText,
-        file_url: submitFileData || submitFileName,
+        file_url: submitFileData || submitFileName || '',
+        file_name: submitFileName || '',
         submitted_at: new Date().toISOString()
       };
       const cId = submitModal.courseId || submitModal.course_id;
