@@ -328,13 +328,22 @@ const StudentMyCourses = () => {
                             onClick={async () => {
                               const { data: certData } = await supabase
                                 .from('certificates')
-                                .select('*')
+                                .select('*, courses(id, title, instructor, instructor_name)')
                                 .eq('student_id', userId)
                                 .eq('course_id', enroll.courseId)
                                 .maybeSingle();
 
                               if (certData) {
-                                setActiveCertificate(certData);
+                                setActiveCertificate({
+                                  ...certData,
+                                  certificateId: certData.certificate_number || certData.id,
+                                  courseTitle: certData.courses?.title || certData.course_title || enroll.courseTitle || 'الدورة الهندسية',
+                                  course_title: certData.courses?.title || certData.course_title || enroll.courseTitle || 'الدورة الهندسية',
+                                  instructorName: certData.courses?.instructor || certData.courses?.instructor_name || enroll.instructor || 'هيئة التدريس',
+                                  instructor: certData.courses?.instructor || certData.courses?.instructor_name || enroll.instructor || 'هيئة التدريس',
+                                  studentName: certData.student_name,
+                                  course_id: certData.course_id || enroll.courseId
+                                });
                               } else {
                                 navigate('/dashboard/certificates');
                               }

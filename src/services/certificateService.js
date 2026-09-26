@@ -120,16 +120,35 @@ export async function toggleLessonCompletion({
 export async function getCertificateByCode(code) {
   if (!code) return null;
   try {
+    const cleanCode = code.trim().toUpperCase();
     const { data, error } = await supabase
       .from('certificates')
-      .select('*')
-      .eq('certificate_number', code.trim().toUpperCase())
+      .select('*, courses(id, title, instructor, instructor_name)')
+      .eq('certificate_number', cleanCode)
       .maybeSingle();
 
-    if (error) return null;
-    return data;
+    if (error || !data) return null;
+
+    const resolvedCourseTitle = data.courses?.title || data.course_title || 'الدورة التدريبية';
+    const resolvedInstructor = data.courses?.instructor || data.courses?.instructor_name || 'هيئة التدريس';
+
+    return {
+      ...data,
+      id: data.id,
+      certificateId: data.certificate_number || data.id,
+      certificate_number: data.certificate_number,
+      studentName: data.student_name || 'طالب المنصة',
+      student_name: data.student_name || 'طالب المنصة',
+      courseTitle: resolvedCourseTitle,
+      course_title: resolvedCourseTitle,
+      instructorName: resolvedInstructor,
+      instructor: resolvedInstructor,
+      formattedDate: data.issue_date ? new Date(data.issue_date).toLocaleDateString('ar-EG') : new Date().toLocaleDateString('ar-EG'),
+      formattedDateEn: data.issue_date ? new Date(data.issue_date).toLocaleDateString('en-US') : new Date().toLocaleDateString('en-US')
+    };
   } catch (err) {
     console.error('Error fetching certificate by code:', err);
     return null;
   }
 }
+

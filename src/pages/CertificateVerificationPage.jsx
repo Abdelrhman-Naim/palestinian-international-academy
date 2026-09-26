@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import PageLoader from '../components/PageLoader';
 import { getCertificateByCode } from '../services/certificateService';
 import { useLanguage } from '../context/LanguageContext';
+import { supabase } from '../supabase/client';
 import { doc, getDoc, updateDoc, db } from '../supabase/db';
 import CertificateModal from '../components/CertificateModal';
 
@@ -33,16 +34,19 @@ export default function CertificateVerificationPage() {
     setSearched(true);
     try {
       const data = await getCertificateByCode(clean);
-      if (data && (!data.studentName || data.studentName === 'طالب' || data.studentName === 'طالب المنصة') && data.studentId) {
+      if (data && (!data.studentName || data.studentName === 'طالب' || data.studentName === 'طالب المنصة') && (data.student_id || data.studentId)) {
         try {
-          const userSnap = await getDoc(doc(db, 'users', data.studentId));
-          if (userSnap.exists()) {
-            const uData = userSnap.data();
-            const realName = uData.fullName || uData.name;
-            if (realName) {
-              data.studentName = realName;
-              updateDoc(doc(db, 'certificates', data.id), { studentName: realName }).catch(() => {});
-            }
+          const sId = data.student_id || data.studentId;
+          const { data: pData } = await supabase
+            .from('profiles')
+            .select('full_name, name')
+            .eq('id', sId)
+            .maybeSingle();
+          if (pData?.full_name || pData?.name) {
+            const realName = pData.full_name || pData.name;
+            data.studentName = realName;
+            data.student_name = realName;
+            await supabase.from('certificates').update({ student_name: realName }).eq('id', data.id);
           }
         } catch (e) {
           console.warn('Error fetching user name for verification page:', e);

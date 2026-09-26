@@ -21,7 +21,7 @@ export default function StudentCertificates() {
       try {
         const { data, error } = await supabase
           .from('certificates')
-          .select('*')
+          .select('*, courses(id, title, instructor, instructor_name)')
           .eq('student_id', currentUser.id || currentUser.uid);
 
         if (error) {
@@ -32,9 +32,13 @@ export default function StudentCertificates() {
             ...cert,
             id: cert.id,
             certificateId: cert.certificate_number || cert.certificateId || cert.id,
-            courseTitle: cert.course_title || cert.courseTitle,
+            courseTitle: cert.courses?.title || cert.course_title || cert.courseTitle || 'الدورة الهندسية',
+            course_title: cert.courses?.title || cert.course_title || cert.courseTitle || 'الدورة الهندسية',
             studentName: cert.student_name || cert.studentName,
-            instructorName: cert.instructor_name || cert.instructorName || '—',
+            student_name: cert.student_name || cert.studentName,
+            instructorName: cert.courses?.instructor || cert.courses?.instructor_name || cert.instructor_name || cert.instructorName || 'هيئة التدريس',
+            instructor: cert.courses?.instructor || cert.courses?.instructor_name || cert.instructor_name || cert.instructorName || 'هيئة التدريس',
+            course_id: cert.course_id || cert.courses?.id,
             formattedDate: cert.issue_date ? new Date(cert.issue_date).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US') : ''
           }));
           setCertificates(mapped);

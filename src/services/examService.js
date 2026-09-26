@@ -172,6 +172,9 @@ export async function submitExamAttempt({
         course_id: courseId,
         course_title: courseTitle,
         courseTitle: courseTitle,
+        instructorName: instructorName || '',
+        instructor_name: instructorName || '',
+        instructor: instructorName || '',
         gradeScore: score,
         issue_date: certData?.issue_date || new Date().toISOString()
       };

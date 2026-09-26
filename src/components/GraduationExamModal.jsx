@@ -324,8 +324,11 @@ export default function GraduationExamModal({
                           certificate_number: `PIA-${new Date().getFullYear()}-PASSED`,
                           studentName: userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة',
                           student_name: userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة',
+                          course_id: course?.id,
                           courseTitle: course?.title || 'الدورة الهندسية',
                           course_title: course?.title || 'الدورة الهندسية',
+                          instructorName: course?.instructor || course?.instructor_name || '',
+                          instructor: course?.instructor || course?.instructor_name || '',
                           gradeScore: examResult.score || 80,
                           issue_date: new Date().toISOString()
                         };

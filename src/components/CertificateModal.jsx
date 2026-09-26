@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabase/client';
 import { doc, getDoc, updateDoc, db } from '../supabase/db';
 
 export default function CertificateModal({ certificate, onClose }) {
@@ -46,60 +47,113 @@ export default function CertificateModal({ certificate, onClose }) {
   // Compute best available student name immediately
   const initialName = (certificate?.studentName && certificate.studentName !== 'طالب' && certificate.studentName !== 'طالب المنصة' && certificate.studentName !== 'Student')
     ? certificate.studentName
-    : (userData?.fullName || userData?.name || currentUser?.displayName || certificate?.studentName || 'طالب المنصة');
+    : (certificate?.student_name && certificate.student_name !== 'طالب' && certificate.student_name !== 'طالب المنصة')
+      ? certificate.student_name
+      : (userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة');
+
+  // Compute best available course title immediately
+  const initialCourse = certificate?.courseTitle 
+    || certificate?.course_title 
+    || certificate?.course?.title 
+    || certificate?.courses?.title 
+    || '';
+
+  // Compute best available instructor name immediately
+  const rawInst = certificate?.instructorName 
+    || certificate?.instructor_name 
+    || certificate?.instructor 
+    || certificate?.course?.instructor 
+    || certificate?.course?.instructor_name 
+    || certificate?.courses?.instructor 
+    || certificate?.courses?.instructor_name 
+    || '';
+  const initialInstructor = (rawInst && rawInst !== '—' && rawInst !== 'هيئة التدريس') ? rawInst : '';
 
   const [studentDisplayName, setStudentDisplayName] = useState(initialName);
+  const [courseDisplayName, setCourseDisplayName] = useState(initialCourse);
+  const [instructorDisplayName, setInstructorDisplayName] = useState(initialInstructor);
 
-  // Auto-resolve and heal student name in database if it was previously saved as generic 'طالب'
+  // Auto-resolve and heal student name, course title, and instructor name
   useEffect(() => {
     let isMounted = true;
-    async function resolveAndHealName() {
+    async function resolveAndHealData() {
+      // 1. Resolve student name
       const isGeneric = !studentDisplayName || studentDisplayName === 'طالب' || studentDisplayName === 'طالب المنصة' || studentDisplayName === 'Student';
-      
-      let realName = null;
-      if (userData?.fullName || userData?.name) {
-        realName = userData.fullName || userData.name;
-      } else if (currentUser?.displayName) {
-        realName = currentUser.displayName;
-      } else if (certificate?.studentId) {
-        try {
-          const userSnap = await getDoc(doc(db, 'users', certificate.studentId));
-          if (userSnap.exists()) {
-            const udata = userSnap.data();
-            realName = udata.fullName || udata.name;
+      let realName = studentDisplayName;
+      if (isGeneric) {
+        if (userData?.fullName || userData?.name) {
+          realName = userData.fullName || userData.name;
+        } else if (currentUser?.displayName) {
+          realName = currentUser.displayName;
+        } else if (certificate?.student_id || certificate?.studentId) {
+          try {
+            const sId = certificate.student_id || certificate.studentId;
+            const { data: pData } = await supabase
+              .from('profiles')
+              .select('full_name, name')
+              .eq('id', sId)
+              .maybeSingle();
+            if (pData?.full_name || pData?.name) {
+              realName = pData.full_name || pData.name;
+            }
+          } catch (err) {
+            console.warn('Could not fetch user name for cert modal:', err);
           }
-        } catch (err) {
-          console.warn('Could not fetch user name for cert modal:', err);
+        }
+
+        if (realName && realName !== studentDisplayName && isMounted) {
+          setStudentDisplayName(realName);
         }
       }
 
-      if (realName && isMounted) {
-        setStudentDisplayName(realName);
+      // 2. Resolve course title and instructor from courses table if missing
+      const courseId = certificate?.course_id || certificate?.courseId || certificate?.course?.id;
+      const needsCourseTitle = !courseDisplayName;
+      const needsInstructor = !instructorDisplayName || instructorDisplayName === '—' || instructorDisplayName === 'هيئة التدريس';
 
-        // Permanently heal the certificate document in Firestore if it was stored with generic 'طالب'
-        if (isGeneric && certificate) {
-          try {
-            const certDocId = certificate.id || `${certificate.studentId}_${certificate.courseId}`;
-            if (certDocId) {
-              await updateDoc(doc(db, 'certificates', certDocId), {
-                studentName: realName
-              });
+      if (courseId && (needsCourseTitle || needsInstructor)) {
+        try {
+          const { data: cData } = await supabase
+            .from('courses')
+            .select('title, instructor, instructor_name')
+            .eq('id', courseId)
+            .maybeSingle();
+
+          if (cData && isMounted) {
+            if (needsCourseTitle && cData.title) {
+              setCourseDisplayName(cData.title);
             }
-          } catch (e) {
-            console.warn('Error auto-healing cert in Firestore:', e);
+            const foundInst = cData.instructor || cData.instructor_name;
+            if (foundInst && needsInstructor) {
+              setInstructorDisplayName(foundInst);
+            }
           }
+        } catch (err) {
+          console.warn('Could not fetch course info for cert modal:', err);
         }
       }
     }
 
-    resolveAndHealName();
+    resolveAndHealData();
     return () => { isMounted = false; };
-  }, [certificate, userData, currentUser]);
+  }, [certificate, userData, currentUser, studentDisplayName, courseDisplayName, instructorDisplayName]);
 
   if (!certificate) return null;
 
   const isRtl = dir === 'rtl';
-  const verificationUrl = `${window.location.origin}/verify-certificate/${certificate.certificateId}`;
+  const certCode = certificate.certificate_number 
+    || certificate.certificateNumber 
+    || certificate.certificateId 
+    || certificate.id 
+    || 'PIA-VERIFIED';
+
+  const verificationUrl = `${window.location.origin}/verify-certificate/${certCode}`;
+
+  const formattedDate = certificate.formattedDate
+    || (certificate.issue_date ? new Date(certificate.issue_date).toLocaleDateString('ar-EG') : null)
+    || (certificate.issueDate?.toDate ? certificate.issueDate.toDate().toLocaleDateString('ar-EG') : null)
+    || (certificate.created_at ? new Date(certificate.created_at).toLocaleDateString('ar-EG') : null)
+    || new Date().toLocaleDateString('ar-EG');
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(verificationUrl);
@@ -137,7 +191,7 @@ export default function CertificateModal({ certificate, onClose }) {
       // A4 Landscape is 297mm x 210mm
       pdf.addImage(dataUrl, 'PNG', 0, 0, 297, 210, undefined, 'FAST');
       const safeStudent = (studentDisplayName || 'طالب').replace(/[\\/:*?"<>|]/g, '_');
-      const safeCourse = (certificate.courseTitle || 'دورة').replace(/[\\/:*?"<>|]/g, '_');
+      const safeCourse = (courseDisplayName || 'دورة').replace(/[\\/:*?"<>|]/g, '_');
       const filename = `شهادة_${safeStudent}_${safeCourse}.pdf`;
       pdf.save(filename);
     } catch (err) {
@@ -156,7 +210,7 @@ export default function CertificateModal({ certificate, onClose }) {
   const handlePrint = () => {
     setIsPrinting(true);
     const prevTitle = document.title;
-    document.title = `شهادة_${studentDisplayName || 'إتمام'}_${certificate.courseTitle || 'دورة'}`;
+    document.title = `شهادة_${studentDisplayName || 'إتمام'}_${courseDisplayName || 'دورة'}`;
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
@@ -265,7 +319,7 @@ export default function CertificateModal({ certificate, onClose }) {
                 {isRtl ? 'شهادة إتمام معتمدة' : 'Verified Certificate of Completion'}
               </h3>
               <p className="text-xs text-stone-500 dark:text-stone-400 font-mono">
-                ID: {certificate.certificateId}
+                ID: {certCode}
               </p>
             </div>
           </div>
@@ -364,8 +418,8 @@ export default function CertificateModal({ certificate, onClose }) {
             </div>
 
             <div className="text-left font-mono text-[10px] text-stone-500 dark:text-stone-400 cert-print-text-muted">
-              <div>كود الاعتماد: <span className="font-bold text-amber-600 dark:text-amber-400 cert-print-gold">{certificate.certificateId}</span></div>
-              <div>تاريخ الإصدار: {certificate.formattedDate || certificate.issueDate?.toDate?.()?.toLocaleDateString('ar-EG') || new Date().toLocaleDateString('ar-EG')}</div>
+              <div>كود الاعتماد: <span className="font-bold text-amber-600 dark:text-amber-400 cert-print-gold">{certCode}</span></div>
+              <div>تاريخ الإصدار: {formattedDate}</div>
             </div>
           </div>
 
@@ -394,11 +448,11 @@ export default function CertificateModal({ certificate, onClose }) {
             </p>
 
             <h2 className="text-base sm:text-2xl font-bold text-stone-900 dark:text-amber-400 cert-print-gold mb-2">
-              « {certificate.courseTitle} »
+              « {courseDisplayName || 'الدورة التدريبية'} »
             </h2>
 
             <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 cert-print-text-muted">
-              تحت إشراف المدرب المعتمد: <span className="font-bold text-stone-800 dark:text-stone-200 cert-print-text-dark">{certificate.instructorName || 'هيئة التدريس'}</span>
+              تحت إشراف المدرب المعتمد: <span className="font-bold text-stone-800 dark:text-stone-200 cert-print-text-dark">{instructorDisplayName || 'هيئة التدريس'}</span>
             </p>
           </div>
 
@@ -406,8 +460,8 @@ export default function CertificateModal({ certificate, onClose }) {
           <div className="relative z-10 pt-4 border-t border-amber-500/20 flex items-end justify-between">
             {/* Instructor Signature */}
             <div className="text-center w-36 sm:w-44">
-              <div className="font-serif italic text-sm sm:text-base text-stone-800 dark:text-stone-200 cert-print-text-dark mb-1 border-b border-stone-400 dark:border-stone-600 pb-1">
-                {certificate.instructorName}
+              <div className="font-serif italic text-sm sm:text-base text-stone-800 dark:text-stone-200 cert-print-text-dark mb-1 border-b border-stone-400 dark:border-stone-600 pb-1 min-h-[1.5rem]">
+                {instructorDisplayName || 'مدرّب الدورة'}
               </div>
               <span className="text-[10px] text-stone-400 cert-print-text-muted block">توقيع مدرّب الدورة</span>
             </div>
@@ -421,7 +475,7 @@ export default function CertificateModal({ certificate, onClose }) {
                 </div>
               </div>
               <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 cert-print-gold mt-1 font-mono">
-                {certificate.certificateId}
+                {certCode}
               </span>
             </div>
 

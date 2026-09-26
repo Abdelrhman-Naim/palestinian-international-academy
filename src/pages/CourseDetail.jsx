@@ -126,7 +126,7 @@ export default function CourseDetail() {
           // Check if certificate exists in certificates table
           const { data: cData } = await supabase
             .from('certificates')
-            .select('*')
+            .select('*, courses(title, instructor, instructor_name)')
             .eq('student_id', uid)
             .eq('course_id', id)
             .maybeSingle();
@@ -165,8 +165,10 @@ export default function CourseDetail() {
                 ...activeCert,
                 id: activeCert.id,
                 certificateId: activeCert.certificate_number || activeCert.certificateId || activeCert.id,
-                studentName: activeCert.student_name || activeCert.studentName,
-                courseTitle: activeCert.course_title || activeCert.courseTitle || course?.title,
+                studentName: activeCert.student_name || activeCert.studentName || userData?.fullName || currentUser?.displayName,
+                courseTitle: activeCert.courses?.title || activeCert.course_title || activeCert.courseTitle || course?.title,
+                instructorName: activeCert.courses?.instructor || activeCert.courses?.instructor_name || course?.instructor || course?.instructor_name || '',
+                course_id: activeCert.course_id || id,
                 gradeScore: exResults?.score || 80
               });
             }
@@ -857,6 +859,9 @@ export default function CourseDetail() {
                 certificateId: cert.certificate_number || cert.certificateId || cert.id,
                 studentName: cert.student_name || cert.studentName || userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة',
                 courseTitle: cert.course_title || cert.courseTitle || course?.title,
+                instructorName: cert.instructorName || cert.instructor || course?.instructor || course?.instructor_name || '',
+                course_id: cert.course_id || id,
+                course: course,
                 gradeScore: cert.gradeScore || 80
               };
               setEarnedCertificate(normalizedCert);
@@ -869,7 +874,13 @@ export default function CourseDetail() {
       {/* Full Certificate Modal */}
       {showCertModal && earnedCertificate && (
         <CertificateModal
-          certificate={earnedCertificate}
+          certificate={{
+            ...earnedCertificate,
+            courseTitle: earnedCertificate.courseTitle || earnedCertificate.course_title || course?.title,
+            instructorName: earnedCertificate.instructorName || course?.instructor || course?.instructor_name || '',
+            course_id: earnedCertificate.course_id || id,
+            course: course
+          }}
           onClose={() => setShowCertModal(false)}
         />
       )}
