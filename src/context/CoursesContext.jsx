@@ -69,10 +69,27 @@ export function CoursesProvider({ children }) {
 
   const fetchCourses = async () => {
     try {
-      const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: reviewRows }] = await Promise.all([
+        supabase
+          .from('courses')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('reviews')
+          .select('target_id, rating')
+          .eq('target_type', 'course')
+      ]);
+
+      const reviewStatsMap = new Map();
+      (reviewRows || []).forEach(r => {
+        if (!r.target_id) return;
+        if (!reviewStatsMap.has(r.target_id)) {
+          reviewStatsMap.set(r.target_id, { count: 0, sum: 0 });
+        }
+        const s = reviewStatsMap.get(r.target_id);
+        s.count += 1;
+        s.sum += Number(r.rating || 5);
+      });
 
       const localCourses = getStoredLocalCourses();
       let remoteCourses = [];
@@ -80,7 +97,18 @@ export function CoursesProvider({ children }) {
       if (error) {
         console.warn('Error fetching courses from Supabase:', error.message);
       } else if (data) {
-        remoteCourses = data.map(item => sanitizeObject(item));
+        remoteCourses = data.map(item => {
+          const stats = reviewStatsMap.get(item.id);
+          const rCount = stats ? stats.count : 0;
+          const rAvg = rCount > 0 ? Number((stats.sum / rCount).toFixed(1)) : (Number(item.rating) || 5.0);
+          return sanitizeObject({
+            ...item,
+            ratingCount: rCount,
+            rating_count: rCount,
+            ratingAverage: rAvg,
+            rating: rAvg
+          });
+        });
       }
 
       // Merge remote + local custom courses avoiding duplicates by id or title
@@ -96,7 +124,16 @@ export function CoursesProvider({ children }) {
       localCourses.forEach(lc => {
         const titleKey = (lc.title || '').trim().toLowerCase();
         if (lc.id && !mergedMap.has(lc.id) && !existingTitles.has(titleKey)) {
-          mergedMap.set(lc.id, sanitizeObject(lc));
+          const stats = reviewStatsMap.get(lc.id);
+          const rCount = stats ? stats.count : (lc.ratingCount || 0);
+          const rAvg = stats && stats.count > 0 ? Number((stats.sum / stats.count).toFixed(1)) : (Number(lc.ratingAverage ?? lc.rating) || 5.0);
+          mergedMap.set(lc.id, sanitizeObject({
+            ...lc,
+            ratingCount: rCount,
+            rating_count: rCount,
+            ratingAverage: rAvg,
+            rating: rAvg
+          }));
           existingTitles.add(titleKey);
           unsyncedCourses.push(lc);
         }
@@ -142,10 +179,13 @@ export function CoursesProvider({ children }) {
   useEffect(() => {
     fetchCourses();
 
-    // Set up real-time subscription for courses table
+    // Set up real-time subscription for courses and reviews table
     const channel = supabase
-      .channel('courses_channel')
+      .channel('courses_and_reviews_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => {
+        fetchCourses();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
         fetchCourses();
       })
       .subscribe();
@@ -241,6 +281,10 @@ export function CoursesProvider({ children }) {
         ...lec,
         title: lang === 'en' ? (lec.title_en || lec.title) : (lec.title_ar || lec.title)
       })),
+      rating: course.rating || 5.0,
+      ratingCount: course.ratingCount || 0,
+      rating_count: course.rating_count || 0,
+      ratingAverage: course.ratingAverage || course.rating || 5.0,
       originalData: course
     };
     return mapped;

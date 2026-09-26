@@ -82,10 +82,27 @@ export function LibraryProvider({ children }) {
     }, 4000);
 
     try {
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: reviewRows }] = await Promise.all([
+        supabase
+          .from('books')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('reviews')
+          .select('target_id, rating')
+          .eq('target_type', 'book')
+      ]);
+
+      const reviewStatsMap = new Map();
+      (reviewRows || []).forEach(r => {
+        if (!r.target_id) return;
+        if (!reviewStatsMap.has(r.target_id)) {
+          reviewStatsMap.set(r.target_id, { count: 0, sum: 0 });
+        }
+        const s = reviewStatsMap.get(r.target_id);
+        s.count += 1;
+        s.sum += Number(r.rating || 5);
+      });
 
       const localBooks = getStoredLocalBooks();
       let remoteBooks = [];
@@ -93,7 +110,18 @@ export function LibraryProvider({ children }) {
       if (error) {
         console.warn('Error fetching books from Supabase:', error.message);
       } else if (data) {
-        remoteBooks = data.map(item => sanitizeObject(item));
+        remoteBooks = data.map(item => {
+          const stats = reviewStatsMap.get(item.id);
+          const rCount = stats ? stats.count : 0;
+          const rAvg = rCount > 0 ? Number((stats.sum / rCount).toFixed(1)) : (Number(item.rating) || 5.0);
+          return sanitizeObject({
+            ...item,
+            ratingCount: rCount,
+            rating_count: rCount,
+            ratingAverage: rAvg,
+            rating: rAvg
+          });
+        });
       }
 
       // Merge remote + local custom books strictly avoiding duplicates by canonical title
@@ -122,7 +150,16 @@ export function LibraryProvider({ children }) {
 
         if (!existingCanonicals.has(canonical) && lb.id && !mergedMap.has(lb.id)) {
           existingCanonicals.add(canonical);
-          mergedMap.set(lb.id, sanitizeObject(lb));
+          const stats = reviewStatsMap.get(lb.id);
+          const rCount = stats ? stats.count : (lb.ratingCount || 0);
+          const rAvg = stats && stats.count > 0 ? Number((stats.sum / stats.count).toFixed(1)) : (Number(lb.ratingAverage ?? lb.rating) || 5.0);
+          mergedMap.set(lb.id, sanitizeObject({
+            ...lb,
+            ratingCount: rCount,
+            rating_count: rCount,
+            ratingAverage: rAvg,
+            rating: rAvg
+          }));
           cleanedLocalBooks.push(lb);
         }
       });
@@ -155,8 +192,11 @@ export function LibraryProvider({ children }) {
     fetchBooks();
 
     const channel = supabase
-      .channel('books_channel')
+      .channel('books_and_reviews_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, () => {
+        fetchBooks();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
         fetchBooks();
       })
       .subscribe();
@@ -189,6 +229,9 @@ export function LibraryProvider({ children }) {
       downloads_count: book.downloads_count !== undefined ? book.downloads_count : (book.downloads || 0),
       year: book.year || (book.created_at ? new Date(book.created_at).getFullYear().toString() : new Date().getFullYear().toString()),
       rating: book.rating || 5.0,
+      ratingCount: book.ratingCount || 0,
+      rating_count: book.rating_count || 0,
+      ratingAverage: book.ratingAverage || book.rating || 5.0,
       originalData: book
     };
   });

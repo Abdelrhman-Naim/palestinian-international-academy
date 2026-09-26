@@ -16,14 +16,51 @@ import { getCourseExam } from '../services/examService';
 import CertificateModal from '../components/CertificateModal';
 import GraduationExamModal from '../components/GraduationExamModal';
 import ReviewSection from '../components/ReviewSection';
+import { listenToTargetReviews } from '../services/reviewService';
 
 export default function CourseDetail() {
   const { t, dir } = useLanguage();
+  const isRtl = dir === 'rtl';
   const { id } = useParams();
   const navigate = useNavigate();
   const { courses, loading } = useCourses();
   const { currentUser, userData, userRole } = useAuth();
   const course = courses.find(c => c.id === id);
+
+  const [reviewStats, setReviewStats] = useState({
+    average: Number(course?.ratingAverage ?? course?.rating ?? 5.0),
+    count: Number(course?.ratingCount ?? 0)
+  });
+
+  // Real-time listener for this specific course's reviews
+  useEffect(() => {
+    if (!id) return;
+    const unsub = listenToTargetReviews('course', id, (reviewsList) => {
+      const count = reviewsList.length;
+      const sum = reviewsList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+      const avg = count > 0 ? Number((sum / count).toFixed(1)) : (Number(course?.ratingAverage ?? course?.rating) || 5.0);
+      setReviewStats({
+        average: avg,
+        count
+      });
+    });
+
+    return () => unsub();
+  }, [id, course?.ratingAverage, course?.rating]);
+
+  useEffect(() => {
+    if (course?.ratingCount !== undefined) {
+      setReviewStats(prev => {
+        if (prev.count === 0 && course.ratingCount > 0) {
+          return {
+            average: Number(course.ratingAverage ?? course.rating ?? prev.average),
+            count: Number(course.ratingCount)
+          };
+        }
+        return prev;
+      });
+    }
+  }, [course?.ratingCount, course?.ratingAverage, course?.rating]);
 
   const [enrolled, setEnrolled] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
@@ -533,10 +570,17 @@ export default function CourseDetail() {
                   <span className="material-symbols-outlined text-sm text-primary">chat</span>
                 </span>
               </span>
-              <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-[16px] text-orange-400">star</span>
-                <span className="text-dark dark:text-white font-bold">{course.rating?.toFixed?.(1) ?? '0.0'}</span>
-              </span>
+              <a 
+                href="#course-reviews" 
+                className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer group/rating"
+                title={isRtl ? 'عرض مراجعات وتقييمات الدورة' : 'View course reviews and ratings'}
+              >
+                <span className="material-symbols-outlined text-[16px] text-amber-500 fill-current">star</span>
+                <span className="text-dark dark:text-white font-bold">{reviewStats.count > 0 ? reviewStats.average.toFixed(1) : (course.rating?.toFixed?.(1) ?? '5.0')}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 group-hover/rating:underline">
+                  ({reviewStats.count > 0 ? `${reviewStats.count} ${isRtl ? (reviewStats.count === 1 ? 'تقييم' : 'تقييمات') : (reviewStats.count === 1 ? 'review' : 'reviews')}` : (isRtl ? 'لا توجد تقييمات بعد' : 'No ratings yet')})
+                </span>
+              </a>
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[16px]">group</span>
                 {course.students || 0} {t('common.students')}
@@ -815,7 +859,28 @@ export default function CourseDetail() {
                     { icon: 'signal_cellular_alt', label: t('addCourse.level'), value: levelMap[course.level] || course.level },
                     { icon: 'payments', label: t('courseDetail.price'), value: course.price === 'Free' ? t('courseDetail.free') : course.price },
                     { icon: 'group', label: t('common.students'), value: `${course.students || 0}` },
-                    { icon: 'star', label: t('courseDetail.rating'), value: `${(course.ratingAverage ?? course.rating ?? 0).toFixed(1)} (${course.ratingCount || 0})` },
+                    { 
+                      icon: 'star', 
+                      label: t('courseDetail.rating'), 
+                      value: reviewStats.count > 0 ? (
+                        <a 
+                          href="#course-reviews" 
+                          className="flex items-center gap-1.5 text-primary hover:underline font-bold transition-colors"
+                          title={isRtl ? 'الانتقال إلى تقييمات ومراجعات الدورة' : 'Go to course reviews'}
+                        >
+                          <span className="text-amber-500 font-extrabold flex items-center">
+                            ★ {reviewStats.average.toFixed(1)}
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400 font-normal text-xs">
+                            ({reviewStats.count} {isRtl ? (reviewStats.count === 1 ? 'تقييم' : 'تقييمات') : (reviewStats.count === 1 ? 'review' : 'reviews')})
+                          </span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400 text-xs font-normal">
+                          {isRtl ? 'لا يوجد تقييمات بعد' : 'No ratings yet'}
+                        </span>
+                      )
+                    },
                   ].map(item => (
                     <li key={item.label} className="flex items-center gap-2 text-text-main dark:text-gray-400">
                       <span className="material-symbols-outlined text-base text-primary">{item.icon}</span>
@@ -830,7 +895,7 @@ export default function CourseDetail() {
           </div>
 
           {/* Course Reviews Section */}
-          <div className="mt-12 pt-8 border-t border-[#E8E2D5] dark:border-gray-800">
+          <div id="course-reviews" className="mt-12 pt-8 border-t border-[#E8E2D5] dark:border-gray-800 scroll-mt-20">
             <ReviewSection 
               targetType="course" 
               targetId={id} 

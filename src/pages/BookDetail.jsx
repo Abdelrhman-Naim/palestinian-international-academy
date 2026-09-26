@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLibrary } from '../context/LibraryContext';
 import { doc, updateDoc, increment, db } from '../supabase/db';
@@ -10,9 +10,11 @@ import ReviewSection from '../components/ReviewSection';
 import { useAuth } from '../context/AuthContext';
 import { useSavedBooks } from '../hooks/useSavedBooks';
 import { getLocalizedCategory } from '../utils/categoryUtils';
+import { listenToTargetReviews } from '../services/reviewService';
 
 export default function BookDetail() {
   const { t, dir, lang } = useLanguage();
+  const isRtl = dir === 'rtl';
   const { id } = useParams();
   const navigate = useNavigate();
   const { books, loading } = useLibrary();
@@ -21,6 +23,40 @@ export default function BookDetail() {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const book = books.find(b => b.id === id);
+
+  const [reviewStats, setReviewStats] = useState({
+    average: Number(book?.ratingAverage ?? book?.rating ?? 5.0),
+    count: Number(book?.ratingCount ?? 0)
+  });
+
+  useEffect(() => {
+    if (!id) return;
+    const unsub = listenToTargetReviews('book', id, (reviewsList) => {
+      const count = reviewsList.length;
+      const sum = reviewsList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+      const avg = count > 0 ? Number((sum / count).toFixed(1)) : (Number(book?.ratingAverage ?? book?.rating) || 5.0);
+      setReviewStats({
+        average: avg,
+        count
+      });
+    });
+
+    return () => unsub();
+  }, [id, book?.ratingAverage, book?.rating]);
+
+  useEffect(() => {
+    if (book?.ratingCount !== undefined) {
+      setReviewStats(prev => {
+        if (prev.count === 0 && book.ratingCount > 0) {
+          return {
+            average: Number(book.ratingAverage ?? book.rating ?? prev.average),
+            count: Number(book.ratingCount)
+          };
+        }
+        return prev;
+      });
+    }
+  }, [book?.ratingCount, book?.ratingAverage, book?.rating]);
 
   if (loading) {
     return (
@@ -309,7 +345,28 @@ export default function BookDetail() {
                     { icon: 'category', label: t('bookDetail.category'), value: getLocalizedCategory(book.category, lang) },
                     { icon: 'calendar_today', label: t('bookDetail.publicationYear'), value: book.year },
                     { icon: 'menu_book', label: t('bookDetail.pages'), value: book.pages && Number(book.pages) > 0 ? `${book.pages} ${t('bookDetail.pages')}` : (dir === 'rtl' ? 'نسخة رقمية' : 'Digital Edition') },
-                    { icon: 'star', label: dir === 'rtl' ? 'التقييم' : 'Rating', value: (book.ratingCount && book.ratingCount > 0) ? `${(book.ratingAverage || 0).toFixed(1)} (${book.ratingCount})` : (dir === 'rtl' ? 'لا يوجد تقييمات بعد' : 'No ratings yet') },
+                    { 
+                      icon: 'star', 
+                      label: dir === 'rtl' ? 'التقييم' : 'Rating', 
+                      value: reviewStats.count > 0 ? (
+                        <a 
+                          href="#book-reviews" 
+                          className="flex items-center gap-1.5 text-primary hover:underline font-bold transition-colors"
+                          title={isRtl ? 'الانتقال إلى تقييمات ومراجعات الكتاب' : 'Go to book reviews'}
+                        >
+                          <span className="text-amber-500 font-extrabold flex items-center">
+                            ★ {reviewStats.average.toFixed(1)}
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400 font-normal text-xs">
+                            ({reviewStats.count} {isRtl ? (reviewStats.count === 1 ? 'تقييم' : 'تقييمات') : (reviewStats.count === 1 ? 'review' : 'reviews')})
+                          </span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400 text-xs font-normal">
+                          {isRtl ? 'لا يوجد تقييمات بعد' : 'No ratings yet'}
+                        </span>
+                      )
+                    },
                   ].map(item => (
                     <li key={item.label} className="flex items-center gap-3 text-text-main dark:text-gray-400">
                       <span className="material-symbols-outlined text-base text-primary">{item.icon}</span>
@@ -324,7 +381,7 @@ export default function BookDetail() {
           </div>
 
           {/* Book Reviews Section */}
-          <div className="mt-12 pt-8 border-t border-[#E8E2D5] dark:border-gray-800">
+          <div id="book-reviews" className="mt-12 pt-8 border-t border-[#E8E2D5] dark:border-gray-800 scroll-mt-20">
             <ReviewSection 
               targetType="book" 
               targetId={id} 
