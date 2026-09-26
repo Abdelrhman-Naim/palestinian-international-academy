@@ -38,34 +38,81 @@ export async function addOrUpdateReview({ targetType, targetId, userId, userName
   }
 
   const trimmedComment = (comment || '').trim();
-  if (!trimmedComment || trimmedComment.length < 3) {
-    throw new Error('Review comment must be at least 3 characters');
-  }
-
   const cleanRating = Math.min(5, Math.max(1, numRating));
 
-  const { data, error } = await supabase
+  // Auto-resolve user name if missing or generic
+  let resolvedName = (userName && userName !== 'طالب' && userName !== 'طالب المنصة') ? userName : '';
+  let resolvedAvatar = userAvatar || '';
+
+  if (!resolvedName) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, name, avatar_url')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile) {
+        resolvedName = profile.full_name || profile.name || 'طالب المنصة';
+        if (!resolvedAvatar) resolvedAvatar = profile.avatar_url || '';
+      }
+    } catch (e) {
+      console.warn('Could not fetch profile for review:', e);
+    }
+  }
+
+  if (!resolvedName) {
+    resolvedName = 'طالب المنصة';
+  }
+
+  // Check if an existing review exists to prevent duplicates
+  const { data: existing } = await supabase
     .from('reviews')
-    .upsert({
-      target_type: targetType,
-      target_id: targetId,
-      user_id: userId,
-      user_name: userName || 'مستخدم المنصة',
-      user_avatar: userAvatar || '',
-      rating: cleanRating,
-      comment: trimmedComment,
-      updated_at: new Date()
-    })
-    .select()
+    .select('id')
+    .eq('target_type', targetType)
+    .eq('target_id', targetId)
+    .eq('user_id', userId)
     .maybeSingle();
 
-  if (error) {
-    console.error('Error adding/updating review:', error);
-    return { ok: false, error };
+  const payload = {
+    target_type: targetType,
+    target_id: targetId,
+    user_id: userId,
+    user_name: resolvedName,
+    user_avatar: resolvedAvatar,
+    rating: cleanRating,
+    comment: trimmedComment || null,
+    updated_at: new Date().toISOString()
+  };
+
+  let reviewId = null;
+  if (existing?.id) {
+    const { data: updated, error } = await supabase
+      .from('reviews')
+      .update(payload)
+      .eq('id', existing.id)
+      .select()
+      .maybeSingle();
+    if (error) {
+      console.error('Error updating review:', error);
+      return { ok: false, error };
+    }
+    reviewId = updated?.id || existing.id;
+  } else {
+    const { data: inserted, error } = await supabase
+      .from('reviews')
+      .insert([payload])
+      .select()
+      .maybeSingle();
+    if (error) {
+      console.error('Error inserting review:', error);
+      return { ok: false, error };
+    }
+    reviewId = inserted?.id;
   }
 
   await recalculateTargetRating(targetType, targetId);
-  return { ok: true, reviewId: data?.id };
+  return { ok: true, reviewId };
 }
 
 export async function deleteReview({ targetType, targetId, userId }) {
@@ -94,14 +141,27 @@ export async function getUserReview(targetType, targetId, userId) {
   try {
     const { data, error } = await supabase
       .from('reviews')
-      .select('*')
+      .select('*, profiles(id, full_name, avatar_url, email)')
       .eq('target_type', targetType)
       .eq('target_id', targetId)
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (error) return null;
-    return data || null;
+    if (error || !data) return null;
+    const resolvedName = data.user_name || data.profiles?.full_name || 'طالب المنصة';
+    const resolvedAvatar = data.user_avatar || data.profiles?.avatar_url || '';
+    return {
+      ...data,
+      id: data.id,
+      userId: data.user_id,
+      userName: resolvedName,
+      user_name: resolvedName,
+      userAvatar: resolvedAvatar,
+      user_avatar: resolvedAvatar,
+      rating: Number(data.rating) || 5,
+      comment: data.comment || '',
+      updatedAt: data.updated_at
+    };
   } catch {
     return null;
   }
@@ -117,17 +177,39 @@ export function listenToTargetReviews(targetType, targetId, callback) {
     try {
       const { data, error } = await supabase
         .from('reviews')
-        .select('*')
+        .select('*, profiles(id, full_name, avatar_url, email)')
         .eq('target_type', targetType)
         .eq('target_id', targetId)
         .order('updated_at', { ascending: false });
 
       if (error) {
+        console.warn('Error fetching reviews:', error);
         callback([]);
         return;
       }
-      callback(data || []);
-    } catch {
+
+      const normalized = (data || []).map(r => {
+        const resolvedName = r.user_name || r.profiles?.full_name || 'طالب المنصة';
+        const resolvedAvatar = r.user_avatar || r.profiles?.avatar_url || '';
+        return {
+          ...r,
+          id: r.id,
+          userId: r.user_id,
+          user_id: r.user_id,
+          userName: resolvedName,
+          user_name: resolvedName,
+          userAvatar: resolvedAvatar,
+          user_avatar: resolvedAvatar,
+          rating: Number(r.rating) || 5,
+          comment: r.comment || '',
+          updatedAt: r.updated_at,
+          createdAt: r.created_at
+        };
+      });
+
+      callback(normalized);
+    } catch (err) {
+      console.warn('Error in listenToTargetReviews:', err);
       callback([]);
     }
   };
@@ -149,3 +231,4 @@ export function listenToTargetReviews(targetType, targetId, callback) {
     return () => {};
   }
 }
+

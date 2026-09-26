@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useCourses } from '../context/CoursesContext';
 import { getOrCreateDirectChat } from '../services/chatService';
+import { recalculateTargetRating } from '../services/reviewService';
 import CertificateModal from '../components/CertificateModal';
 import { getCourseIcon } from '../components/CourseCard';
 
 const StudentMyCourses = () => {
   const { t, dir } = useLanguage();
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
   const { courses } = useCourses();
   const navigate = useNavigate();
   const [enrollments, setEnrollments] = useState([]);
@@ -176,15 +177,39 @@ const StudentMyCourses = () => {
     if (!ratingModal || selectedRating === 0) return;
     setIsSubmitting(true);
     try {
-      await supabase
+      const resolvedName = userData?.fullName || userData?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || (dir === 'rtl' ? 'طالب المنصة' : 'Platform Student');
+      const resolvedAvatar = userData?.photoURL || currentUser?.photoURL || '';
+
+      const { data: existing } = await supabase
         .from('reviews')
-        .upsert({
-          target_type: 'course',
-          target_id: ratingModal.courseId,
-          user_id: userId,
-          rating: selectedRating,
-          updated_at: new Date()
-        });
+        .select('id')
+        .eq('target_type', 'course')
+        .eq('target_id', ratingModal.courseId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const payload = {
+        target_type: 'course',
+        target_id: ratingModal.courseId,
+        user_id: userId,
+        user_name: resolvedName,
+        user_avatar: resolvedAvatar,
+        rating: selectedRating,
+        updated_at: new Date().toISOString()
+      };
+
+      if (existing?.id) {
+        await supabase
+          .from('reviews')
+          .update(payload)
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('reviews')
+          .insert([payload]);
+      }
+
+      await recalculateTargetRating('course', ratingModal.courseId);
 
       setRatingModal(null);
       setSelectedRating(0);

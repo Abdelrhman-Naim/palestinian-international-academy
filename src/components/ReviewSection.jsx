@@ -455,15 +455,30 @@ export default function ReviewSection({
         ) : (
           <div className="space-y-4">
             {filteredReviews.map((rev) => {
-              const formattedDate = rev.updatedAt?.toDate
-                ? rev.updatedAt.toDate().toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  })
+              const dateVal = rev.updatedAt || rev.updated_at || rev.createdAt || rev.created_at;
+              const formattedDate = dateVal
+                ? (typeof dateVal === 'string'
+                    ? new Date(dateVal).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })
+                    : dateVal?.toDate?.()
+                      ? dateVal.toDate().toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      : (isRtl ? 'مؤخراً' : 'Recently'))
                 : (isRtl ? 'مؤخراً' : 'Recently');
 
-              const isOwner = currentUser?.uid === rev.userId;
+              const reviewerName = rev.userName || rev.user_name || rev.profiles?.full_name || (isRtl ? 'طالب المنصة' : 'Platform Student');
+              const reviewerAvatar = rev.userAvatar || rev.user_avatar || rev.profiles?.avatar_url || '';
+              const reviewerId = rev.userId || rev.user_id;
+
+              const isOwner = Boolean(
+                currentUser && (currentUser.uid === reviewerId || currentUser.id === reviewerId)
+              );
               const isAdmin = userRole === 'admin';
 
               return (
@@ -477,22 +492,22 @@ export default function ReviewSection({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      {rev.userAvatar ? (
+                      {reviewerAvatar ? (
                         <img 
-                          src={rev.userAvatar} 
-                          alt={rev.userName} 
+                          src={reviewerAvatar} 
+                          alt={reviewerName} 
                           className="w-10 h-10 rounded-full object-cover border border-amber-500/30"
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-linear-to-tr from-amber-500 to-yellow-400 text-white font-bold flex items-center justify-center text-sm shadow-xs">
-                          {(rev.userName || 'ط')[0].toUpperCase()}
+                          {((reviewerName || 'ط').trim()[0] || 'ط').toUpperCase()}
                         </div>
                       )}
 
                       <div>
                         <div className="flex items-center gap-2">
                           <h5 className="text-xs sm:text-sm font-bold text-dark dark:text-white">
-                            {rev.userName}
+                            {reviewerName}
                           </h5>
                           {isOwner && (
                             <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
