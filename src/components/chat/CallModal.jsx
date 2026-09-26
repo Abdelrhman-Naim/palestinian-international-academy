@@ -4,7 +4,7 @@ import { supabase } from '../../supabase/client';
 import { broadcastToChannel } from '../../services/chatService';
 
 // Helper: Generates a high quality synthetic canvas video track for when camera is off/locked
-function createSyntheticVideoTrack(userName = 'مستخدم', subtitle = 'الكاميرا مغلقة') {
+function createSyntheticVideoTrack(userName = 'مستخدم', initialSubtitle = 'جاري تشغيل الكاميرا...') {
   const canvas = document.createElement('canvas');
   canvas.width = 640;
   canvas.height = 480;
@@ -12,6 +12,7 @@ function createSyntheticVideoTrack(userName = 'مستخدم', subtitle = 'الك
   
   const initials = (userName || 'م').trim().slice(0, 2);
   let pulseAngle = 0;
+  let subtitle = initialSubtitle;
 
   const render = () => {
     ctx.fillStyle = '#0f172a'; // Slate 900
@@ -44,7 +45,7 @@ function createSyntheticVideoTrack(userName = 'مستخدم', subtitle = 'الك
 
     // Initials text
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 42px Alexandria, sans-serif';
+    ctx.font = 'bold 40px Alexandria, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(initials, 320, 202);
@@ -57,17 +58,19 @@ function createSyntheticVideoTrack(userName = 'مستخدم', subtitle = 'الك
     // Status subtitle
     ctx.fillStyle = '#94a3b8';
     ctx.font = '13px Alexandria, sans-serif';
-    ctx.fillText(subtitle, 320, 324);
+    ctx.fillText(subtitle, 320, 326);
   };
 
   render();
-  const interval = setInterval(render, 150); // ~7 fps: low CPU, perfectly stable video stream
+  const interval = setInterval(render, 150); // ~7 fps: ultra low CPU, perfectly stable video stream
 
   const stream = canvas.captureStream(10);
   const track = stream.getVideoTracks()[0];
   if (track) {
     track._isSynthetic = true;
-    track._interval = interval;
+    track._setSubtitle = (newSub) => {
+      subtitle = newSub;
+    };
     const origStop = track.stop.bind(track);
     track.stop = () => {
       clearInterval(interval);
@@ -75,6 +78,48 @@ function createSyntheticVideoTrack(userName = 'مستخدم', subtitle = 'الك
     };
   }
   return track;
+}
+
+// Helper: Check if video camera hardware exists on the machine
+async function checkHasCameraDevice() {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
+    return false;
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.some(d => d.kind === 'videoinput');
+  } catch (e) {
+    return true; // Assume true if permission constraints prevent enumerating
+  }
+}
+
+// Helper: Fast getUserMedia with client-side timeout to avoid Windows driver hangs
+function getMediaStreamWithTimeout(constraints, timeoutMs = 2500) {
+  return new Promise((resolve, reject) => {
+    let finished = false;
+    const timer = setTimeout(() => {
+      finished = true;
+      const err = new Error('Timeout starting video source');
+      err.name = 'AbortError';
+      reject(err);
+    }, timeoutMs);
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then(stream => {
+        clearTimeout(timer);
+        if (finished) {
+          stream.getTracks().forEach(t => {
+            try { t.stop(); } catch {}
+          });
+          return;
+        }
+        resolve(stream);
+      })
+      .catch(err => {
+        clearTimeout(timer);
+        if (!finished) reject(err);
+      });
+  });
 }
 
 export default function CallModal({
@@ -95,6 +140,7 @@ export default function CallModal({
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [permissionError, setPermissionError] = useState('');
+  const [audioAutoplayBlocked, setAudioAutoplayBlocked] = useState(false);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -105,6 +151,7 @@ export default function CallModal({
   const signalingChanRef = useRef(null);
   const mediaPromiseRef = useRef(null);
   const remoteStreamRef = useRef(null);
+  const isOfferingRef = useRef(false);
 
   const isVideo = activeCall?.type === 'video';
   const myUid = String(currentUser?.uid || currentUser?.id || '');
@@ -179,20 +226,17 @@ export default function CallModal({
   }, [isOpen, status, isIncoming]);
 
   // -------------------------------------------------------------
-  // 2. UNIFIED MEDIA STREAM ACQUISITION
+  // 2. ULTRA-FAST NON-BLOCKING MEDIA INITIALIZATION
   // -------------------------------------------------------------
-  const acquireMedia = async () => {
-    // Return existing live stream if already available
+  // Step A: Immediately acquire microphone (< 100ms) + synthetic video track
+  // This allows WebRTC connection to start INSTANTLY without waiting 15s for camera
+  const getImmediateStream = async () => {
     if (streamRef.current) {
       const live = streamRef.current.getTracks().some(t => t.readyState === 'live');
       if (live) return streamRef.current;
     }
 
     let audioStream = null;
-    let videoTrack = null;
-    let cameraNotice = '';
-
-    // A. Microphone acquisition (Always priority)
     try {
       audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -205,47 +249,18 @@ export default function CallModal({
       try {
         audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (micErr2) {
-        console.warn('Microphone unavailable:', micErr2);
+        console.warn('Microphone completely unavailable:', micErr2);
       }
     }
 
-    // B. Video acquisition if video call
+    let videoTrack = null;
     if (isVideo) {
-      try {
-        const vidStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
-            facingMode: 'user'
-          }
-        });
-        videoTrack = vidStream.getVideoTracks()[0];
-      } catch (vidErr1) {
-        try {
-          const vidStream2 = await navigator.mediaDevices.getUserMedia({ video: true });
-          videoTrack = vidStream2.getVideoTracks()[0];
-        } catch (vidErr2) {
-          console.warn('Physical camera unavailable or busy in another tab/app:', vidErr2);
-          if (vidErr2.name === 'NotReadableError') {
-            cameraNotice = 'الكاميرا قيد الاستخدام في علامة تبويب أو تطبيق آخر - تم تفعيل الصوت وعرض الصورة الرمزية';
-          } else if (vidErr2.name === 'NotAllowedError') {
-            cameraNotice = 'تم حظر إذن الكاميرا - تم تفعيل الصوت فقط';
-          } else {
-            cameraNotice = 'لم يتم العثور على كاميرا متصلة - تم تفعيل الصوت وعرض الصورة الرمزية';
-          }
-        }
-      }
-
-      // If physical camera failed, generate synthetic track so WebRTC video negotiation succeeds
-      if (!videoTrack) {
-        videoTrack = createSyntheticVideoTrack(
-          currentUser?.name || 'مستخدم',
-          cameraNotice ? 'الكاميرا قيد الاستخدام / مغلقة' : 'الكاميرا مغلقة'
-        );
-        setIsCameraOff(true);
-      } else {
-        setIsCameraOff(false);
-      }
+      // Start immediately with synthetic avatar track so video negotiation succeeds in < 200ms
+      videoTrack = createSyntheticVideoTrack(
+        currentUser?.name || 'مستخدم',
+        'جاري تشغيل الكاميرا...'
+      );
+      setIsCameraOff(true);
     }
 
     const combined = new MediaStream();
@@ -258,7 +273,6 @@ export default function CallModal({
 
     streamRef.current = combined;
     setLocalStream(combined);
-    setPermissionError(cameraNotice);
 
     if (localVideoRef.current && isVideo) {
       localVideoRef.current.srcObject = combined;
@@ -267,13 +281,94 @@ export default function CallModal({
     return combined;
   };
 
+  // Step B: Asynchronously in the background, attempt to acquire the real hardware camera
+  const activateRealCamera = async () => {
+    if (!isVideo) return;
+
+    const hasCamera = await checkHasCameraDevice();
+    if (!hasCamera) {
+      setPermissionError('لم يتم العثور على كاميرا متصلة - تم تفعيل الصوت وعرض الصورة الرمزية');
+      setIsCameraOff(true);
+      const currentTrack = streamRef.current?.getVideoTracks()[0];
+      if (currentTrack && currentTrack._setSubtitle) {
+        currentTrack._setSubtitle('لم يتم العثور على كاميرا');
+      }
+      return;
+    }
+
+    try {
+      // Try 640x480 standard resolution with a fast 2.5s timeout (prevents driver hanging)
+      const vidStream = await getMediaStreamWithTimeout({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30, max: 30 }
+        }
+      }, 2500);
+
+      const realTrack = vidStream.getVideoTracks()[0];
+      if (!realTrack) throw new Error('No video track found');
+
+      // Seamlessly swap the track in WebRTC without renegotiation
+      if (pcRef.current) {
+        const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          try { await sender.replaceTrack(realTrack); } catch (e) {}
+        }
+      }
+
+      // Replace in local stream
+      if (streamRef.current) {
+        const oldTrack = streamRef.current.getVideoTracks()[0];
+        if (oldTrack) {
+          try { oldTrack.stop(); } catch {}
+          streamRef.current.removeTrack(oldTrack);
+        }
+        streamRef.current.addTrack(realTrack);
+      }
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = streamRef.current;
+      }
+
+      setIsCameraOff(false);
+      setPermissionError('');
+    } catch (err) {
+      console.warn('Physical camera unavailable (in use or timeout):', err.name || err.message);
+      setIsCameraOff(true);
+      const currentTrack = streamRef.current?.getVideoTracks()[0];
+
+      if (err.name === 'AbortError' || err.name === 'NotReadableError') {
+        setPermissionError('الكاميرا قيد الاستخدام في علامة تبويب أو تطبيق آخر - تم تفعيل الصوت بنجاح');
+        if (currentTrack && currentTrack._setSubtitle) {
+          currentTrack._setSubtitle('الكاميرا قيد الاستخدام حالياً');
+        }
+      } else if (err.name === 'NotAllowedError') {
+        setPermissionError(t('chat.cameraBlocked') || 'تم حظر إذن الكاميرا في المتصفح - تم تفعيل الصوت');
+        if (currentTrack && currentTrack._setSubtitle) {
+          currentTrack._setSubtitle('تم حظر إذن الكاميرا');
+        }
+      } else {
+        setPermissionError('تعذر فتح الكاميرا - تم تفعيل الصوت وعرض الصورة الرمزية');
+        if (currentTrack && currentTrack._setSubtitle) {
+          currentTrack._setSubtitle('الكاميرا غير متوفرة');
+        }
+      }
+    }
+  };
+
   const getOrInitStream = async () => {
     if (!mediaPromiseRef.current) {
-      mediaPromiseRef.current = acquireMedia().finally(() => {
+      mediaPromiseRef.current = getImmediateStream().finally(() => {
         mediaPromiseRef.current = null;
       });
     }
-    return await mediaPromiseRef.current;
+    const stream = await mediaPromiseRef.current;
+    // Launch background camera probe without blocking call setup
+    if (isVideo) {
+      activateRealCamera();
+    }
+    return stream;
   };
 
   // Manage Stream Lifecycle
@@ -293,9 +388,12 @@ export default function CallModal({
       setLocalStream(null);
       setRemoteStream(null);
       remoteStreamRef.current = null;
+      mediaPromiseRef.current = null;
+      isOfferingRef.current = false;
       setPermissionError('');
       setIsCameraOff(false);
       setIsMuted(false);
+      setAudioAutoplayBlocked(false);
       return;
     }
 
@@ -313,19 +411,27 @@ export default function CallModal({
   }, [localStream, isVideo, isCameraOff]);
 
   // Connect remote stream elements
+  const attemptPlayAudio = () => {
+    if (remoteAudioRef.current && remoteStreamRef.current) {
+      remoteAudioRef.current.srcObject = remoteStreamRef.current;
+      remoteAudioRef.current.volume = 1.0;
+      remoteAudioRef.current.play().then(() => {
+        setAudioAutoplayBlocked(false);
+      }).catch(err => {
+        if (err.name === 'NotAllowedError') {
+          setAudioAutoplayBlocked(true);
+        }
+      });
+    }
+  };
+
   useEffect(() => {
     if (remoteStream) {
       if (remoteVideoRef.current && isVideo) {
         remoteVideoRef.current.srcObject = remoteStream;
         remoteVideoRef.current.play().catch(() => {});
       }
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.volume = 1.0;
-        remoteAudioRef.current.play().catch(e => {
-          console.warn('Audio play request notice:', e);
-        });
-      }
+      attemptPlayAudio();
     }
   }, [remoteStream, isVideo]);
 
@@ -362,7 +468,7 @@ export default function CallModal({
 
     async function initWebRTC() {
       try {
-        // Guaranteed stream acquisition before PC negotiation
+        // Fast instant stream acquisition before PC negotiation
         const stream = await getOrInitStream();
         if (!isMounted) return;
 
@@ -432,7 +538,10 @@ export default function CallModal({
         };
 
         const createAndSendOffer = async () => {
-          if (!pc || !isCaller) return;
+          if (!pc || !isCaller || isOfferingRef.current) return;
+          if (pc.signalingState !== 'stable') return;
+          isOfferingRef.current = true;
+
           try {
             const offer = await pc.createOffer({
               offerToReceiveAudio: true,
@@ -445,6 +554,8 @@ export default function CallModal({
             });
           } catch (offErr) {
             console.warn('Could not create offer:', offErr);
+          } finally {
+            setTimeout(() => { isOfferingRef.current = false; }, 1200);
           }
         };
 
@@ -528,7 +639,7 @@ export default function CallModal({
               if (isMounted && isCaller) {
                 createAndSendOffer();
               }
-            }, 500);
+            }, 300);
           }
         };
 
@@ -595,7 +706,7 @@ export default function CallModal({
 
     // If camera is currently ON with real hardware: switch to OFF (synthetic)
     if (!isCameraOff && currentVidTrack && !currentVidTrack._isSynthetic) {
-      currentVidTrack.stop();
+      currentVidTrack.stop(); // Release the hardware camera lock immediately
       streamRef.current.removeTrack(currentVidTrack);
 
       const syntheticTrack = createSyntheticVideoTrack(currentUser?.name || 'مستخدم', 'الكاميرا مغلقة');
@@ -617,45 +728,7 @@ export default function CallModal({
     }
 
     // If camera is currently OFF or synthetic: attempt to turn ON real camera
-    try {
-      const vidStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        }
-      });
-      const newRealTrack = vidStream.getVideoTracks()[0];
-
-      if (currentVidTrack) {
-        currentVidTrack.stop();
-        streamRef.current.removeTrack(currentVidTrack);
-      }
-      streamRef.current.addTrack(newRealTrack);
-
-      if (pcRef.current) {
-        const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
-        if (sender) {
-          try { await sender.replaceTrack(newRealTrack); } catch (e) {}
-        }
-      }
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = streamRef.current;
-      }
-
-      setIsCameraOff(false);
-      setPermissionError('');
-    } catch (err) {
-      console.warn('Could not acquire real camera track:', err);
-      if (err.name === 'NotReadableError') {
-        setPermissionError('الكاميرا قيد الاستخدام حالياً في علامة تبويب أو تطبيق آخر');
-      } else if (err.name === 'NotAllowedError') {
-        setPermissionError(t('chat.cameraBlocked') || 'تم حظر إذن الكاميرا');
-      } else {
-        setPermissionError('تعذر تشغيل الكاميرا');
-      }
-    }
+    await activateRealCamera();
   };
 
   const handleHangup = () => {
@@ -678,12 +751,16 @@ export default function CallModal({
   if (!isOpen || !activeCall) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in font-alexandria">
+    <div 
+      onClick={attemptPlayAudio}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in font-alexandria"
+    >
       {/* Dedicated audio element for remote stream in both voice & video calls */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div 
         dir={dir}
+        onClick={(e) => e.stopPropagation()}
         className={`w-full max-w-2xl bg-[#FAF7F2] dark:bg-gray-800 rounded-3xl border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
           isVideo ? 'h-[85vh] max-h-[640px]' : 'h-auto py-8'
         }`}
@@ -695,6 +772,18 @@ export default function CallModal({
             <span className="material-symbols-outlined text-base shrink-0">info</span>
             <span>{permissionError}</span>
           </div>
+        )}
+
+        {/* Audio Autoplay Unblock Banner if needed */}
+        {audioAutoplayBlocked && (
+          <button 
+            type="button"
+            onClick={attemptPlayAudio}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 transition-colors cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">volume_up</span>
+            <span>انقر هنا لتفعيل سماع الصوت (إلغاء كتم المتصفح)</span>
+          </button>
         )}
 
         {/* Video Mode Screen */}
