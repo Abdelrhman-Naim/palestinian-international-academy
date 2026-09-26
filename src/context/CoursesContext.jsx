@@ -68,6 +68,15 @@ export function CoursesProvider({ children }) {
   });
 
   const fetchCourses = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false);
+      const local = getStoredLocalCourses();
+      if (local && local.length > 0) {
+        setCourses(local);
+      }
+      return;
+    }
+
     try {
       const [{ data, error }, { data: reviewRows }] = await Promise.all([
         supabase
@@ -95,7 +104,9 @@ export function CoursesProvider({ children }) {
       let remoteCourses = [];
 
       if (error) {
-        console.warn('Error fetching courses from Supabase:', error.message);
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          console.warn('Error fetching courses from Supabase:', error.message);
+        }
       } else if (data) {
         remoteCourses = data.map(item => {
           const stats = reviewStatsMap.get(item.id);
@@ -179,6 +190,11 @@ export function CoursesProvider({ children }) {
   useEffect(() => {
     fetchCourses();
 
+    const handleOnline = () => {
+      fetchCourses();
+    };
+    window.addEventListener('online', handleOnline);
+
     // Set up real-time subscription for courses and reviews table
     const channel = supabase
       .channel('courses_and_reviews_channel')
@@ -191,6 +207,7 @@ export function CoursesProvider({ children }) {
       .subscribe();
 
     return () => {
+      window.removeEventListener('online', handleOnline);
       supabase.removeChannel(channel);
     };
   }, []);

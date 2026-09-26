@@ -1,20 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-// Silence benign DirectX/HLSL ANGLE double-precision shader compiler warning (X4122)
-if (typeof window !== 'undefined') {
-  const origWarn = console.warn;
-  console.warn = function (...args) {
-    if (
-      typeof args[0] === 'string' &&
-      (args[0].includes('warning X4122') ||
-       args[0].includes('THREE.WebGLProgram: Program Info Log'))
-    ) {
-      return;
-    }
-    origWarn.apply(console, args);
-  };
-}
+
 
 export function createMedicalRobot(container, options = {}) {
   const CFG = Object.assign(

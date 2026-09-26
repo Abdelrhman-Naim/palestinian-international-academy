@@ -726,6 +726,12 @@ export function subscribeToUserChats(userId, callback) {
   let isCancelled = false;
 
   const loadAllChats = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (!isCancelled) {
+        callback(getLocalChats(userId));
+      }
+      return;
+    }
     try {
       let remoteChats = [];
       try {
@@ -802,7 +808,9 @@ export function subscribeToUserChats(userId, callback) {
         callback(finalList);
       }
     } catch (finalErr) {
-      console.warn('loadAllChats notice:', finalErr);
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        console.warn('loadAllChats notice:', finalErr);
+      }
       if (!isCancelled) {
         callback(getLocalChats(userId));
       }
@@ -811,6 +819,13 @@ export function subscribeToUserChats(userId, callback) {
 
   // Initial immediate load
   loadAllChats();
+
+  const handleOnlineChats = () => {
+    loadAllChats();
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnlineChats);
+  }
 
   // Realtime Supabase subscription if available
   let channel = null;
@@ -825,6 +840,9 @@ export function subscribeToUserChats(userId, callback) {
 
   return () => {
     isCancelled = true;
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', handleOnlineChats);
+    }
     if (userChatListeners.has(userId)) {
       userChatListeners.get(userId).delete(callback);
     }
@@ -852,6 +870,12 @@ export function subscribeToMessages(chatId, callback) {
   let isCancelled = false;
 
   const loadMessages = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (!isCancelled) {
+        callback(getLocalMessages(chatId));
+      }
+      return;
+    }
     try {
       let remoteMsgs = [];
       try {
@@ -894,6 +918,13 @@ export function subscribeToMessages(chatId, callback) {
   // Immediate fetch
   loadMessages();
 
+  const handleOnlineMsgs = () => {
+    loadMessages();
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnlineMsgs);
+  }
+
   // Realtime Supabase subscription if available
   let channel = null;
   try {
@@ -907,6 +938,9 @@ export function subscribeToMessages(chatId, callback) {
 
   return () => {
     isCancelled = true;
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', handleOnlineMsgs);
+    }
     if (chatListeners.has(chatId)) {
       chatListeners.get(chatId).delete(callback);
     }

@@ -81,6 +81,15 @@ export function LibraryProvider({ children }) {
       }
     }, 4000);
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false);
+      const local = getStoredLocalBooks();
+      if (local && local.length > 0) {
+        setRawBooks(local);
+      }
+      return;
+    }
+
     try {
       const [{ data, error }, { data: reviewRows }] = await Promise.all([
         supabase
@@ -108,7 +117,9 @@ export function LibraryProvider({ children }) {
       let remoteBooks = [];
 
       if (error) {
-        console.warn('Error fetching books from Supabase:', error.message);
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          console.warn('Error fetching books from Supabase:', error.message);
+        }
       } else if (data) {
         remoteBooks = data.map(item => {
           const stats = reviewStatsMap.get(item.id);
@@ -201,8 +212,12 @@ export function LibraryProvider({ children }) {
       })
       .subscribe();
 
+    const onOnline = () => fetchBooks();
+    window.addEventListener('online', onOnline);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('online', onOnline);
     };
   }, []);
 

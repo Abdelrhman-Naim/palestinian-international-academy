@@ -51,8 +51,9 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     async function fetchPendingCount() {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       try {
-        const { data, error } = await supabase.from('profiles').select('*');
+        const { data, error } = await supabase.from('profiles').select('id, role, status, is_approved');
         if (!error && data) {
           const pending = data.filter(u => 
             u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
@@ -60,7 +61,7 @@ const AdminDashboard = () => {
           setPendingCount(pending.length);
         }
       } catch (err) {
-        console.warn('Pending count fetch error:', err);
+        // Silently handle offline notice
       }
     }
 
@@ -77,13 +78,12 @@ const AdminDashboard = () => {
       )
       .subscribe();
 
-    const interval = setInterval(() => {
-      fetchPendingCount();
-    }, 4000);
+    const onOnline = () => fetchPendingCount();
+    window.addEventListener('online', onOnline);
 
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
+      window.removeEventListener('online', onOnline);
     };
   }, [location.pathname]);
 

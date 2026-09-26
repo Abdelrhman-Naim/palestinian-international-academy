@@ -16,6 +16,7 @@ import RouteTransitionLoader from './components/RouteTransitionLoader';
 import PageLoader from './components/PageLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 import MobileBottomNav from './components/MobileBottomNav';
+import OfflineBanner from './components/OfflineBanner';
 import { useLanguage } from './context/LanguageContext';
 
 const UnauthorizedPage = ({ redirectTo, redirectLabel }) => {
@@ -120,6 +121,7 @@ function App() {
     <CallProvider>
     <Router>
       <div className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors flex-1 w-full">
+        <OfflineBanner />
         <ScrollToTop />
         <RouteTransitionLoader />
         <ErrorBoundary>
