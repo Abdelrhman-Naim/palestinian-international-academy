@@ -37,6 +37,7 @@ export default function CourseDetail() {
   const [showExamModal, setShowExamModal] = useState(false);
   const [showEnrollConfirmModal, setShowEnrollConfirmModal] = useState(false);
   const [activeLectureModal, setActiveLectureModal] = useState(null);
+  const [examPassed, setExamPassed] = useState(false);
 
   const getEmbedUrl = (rawUrl) => {
     if (!rawUrl || typeof rawUrl !== 'string') return null;
@@ -94,20 +95,31 @@ export default function CourseDetail() {
 
         if (snap.exists() || reqData) {
           setEnrolled(true);
-          const data = snap.exists() ? snap.data() : reqData;
-          const doneList = Array.isArray(data.completedLessons) || Array.isArray(data.details?.completedLessons)
-            ? (data.completedLessons || data.details?.completedLessons)
-            : [];
-          setCompletedLessons(doneList);
+          const enrollData = snap.exists() ? snap.data() : null;
+          
+          const doneListEnroll = Array.isArray(enrollData?.completedLessons)
+            ? enrollData.completedLessons
+            : (Array.isArray(enrollData?.completed_lessons) ? enrollData.completed_lessons : []);
+          const doneListReq = Array.isArray(reqData?.details?.completedLessons)
+            ? reqData.details.completedLessons
+            : (Array.isArray(reqData?.completed_lessons) ? reqData.completed_lessons : []);
+          
+          const mergedDone = Array.from(new Set([...doneListEnroll, ...doneListReq]));
+          setCompletedLessons(mergedDone);
 
           const totalLecs = course?.lectures?.length || 0;
           const computedProgress = totalLecs > 0 
-            ? Math.min(100, Math.round((doneList.length / totalLecs) * 100))
-            : (data.progress || data.details?.progress || 0);
+            ? Math.min(100, Math.round((mergedDone.length / totalLecs) * 100))
+            : Math.max(enrollData?.progress || 0, reqData?.progress || reqData?.details?.progress || 0);
 
           setProgressPercent(computedProgress);
-          const hasPassedExam = !!(data.passedExam || data.details?.passedExam);
+          const hasPassedExam = !!(enrollData?.passedExam || reqData?.passedExam || reqData?.details?.passedExam);
           setExamPassed(hasPassedExam);
+
+          // Sync enrollments doc if missing or out of sync
+          if (snap.exists() && (doneListEnroll.length !== mergedDone.length || enrollData?.progress !== computedProgress)) {
+            updateDoc(enrollRef, { completed_lessons: mergedDone, completedLessons: mergedDone, progress: computedProgress }).catch(e => console.warn('Sync enroll doc:', e));
+          }
 
           if (hasPassedExam) {
             const cRef = doc(db, 'certificates', `${uid}_${id}`);
@@ -136,19 +148,22 @@ export default function CourseDetail() {
       if (isExist) {
         const data = snap.data ? snap.data() : {};
         setEnrolled(true);
-        const doneList = Array.isArray(data.completedLessons) ? data.completedLessons : [];
-        setCompletedLessons(doneList);
-        setExamPassed(!!data.passedExam);
+        const doneList = Array.isArray(data.completedLessons)
+          ? data.completedLessons
+          : (Array.isArray(data.completed_lessons) ? data.completed_lessons : []);
+        
+        if (doneList.length > 0) {
+          setCompletedLessons(doneList);
+        }
 
         const totalLecs = course?.lectures?.length || 0;
+        const currentDoneCount = Math.max(doneList.length, 0);
         const computedProgress = totalLecs > 0 
-          ? Math.min(100, Math.round((doneList.length / totalLecs) * 100))
+          ? Math.min(100, Math.round((currentDoneCount / totalLecs) * 100))
           : (data.progress || 0);
 
-        setProgressPercent(computedProgress);
-
-        if (totalLecs > 0 && computedProgress !== data.progress) {
-          updateDoc(enrollRef, { progress: computedProgress }).catch(e => console.warn('Sync progress error:', e));
+        if (computedProgress > 0) {
+          setProgressPercent(computedProgress);
         }
 
         const hasPassedExam = !!data.passedExam;
@@ -196,6 +211,8 @@ export default function CourseDetail() {
       if (res.success) {
         setCompletedLessons(res.completedLessons);
         setProgressPercent(res.progress);
+        const enrollRef = doc(db, 'enrollments', `${currentUser.uid}_${id}`);
+        updateDoc(enrollRef, { completed_lessons: res.completedLessons, completedLessons: res.completedLessons, progress: res.progress }).catch(() => {});
       }
     } catch (err) {
       console.error('Failed to toggle lesson:', err);

@@ -29,33 +29,43 @@ export async function toggleLessonCompletion({
   if (!studentId || !courseId || totalLessons <= 0) return { success: false };
 
   try {
-    const { data: existing } = await supabase
+    const { data: existingReq } = await supabase
       .from('course_requests')
       .select('*')
       .eq('student_id', studentId)
       .eq('course_id', courseId)
       .maybeSingle();
 
-    let completedLessons = [];
-    let prevProgress = 0;
+    const { data: existingEnroll } = await supabase
+      .from('enrollments')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('course_id', courseId)
+      .maybeSingle();
 
-    if (existing && existing.details?.completedLessons) {
-      completedLessons = [...existing.details.completedLessons];
-      prevProgress = existing.details.progress || 0;
-    }
+    const reqDone = Array.isArray(existingReq?.details?.completedLessons)
+      ? existingReq.details.completedLessons
+      : (Array.isArray(existingReq?.completed_lessons) ? existingReq.completed_lessons : []);
+    const enrollDone = Array.isArray(existingEnroll?.completed_lessons)
+      ? existingEnroll.completed_lessons
+      : (Array.isArray(existingEnroll?.completedLessons) ? existingEnroll.completedLessons : []);
+
+    const doneSet = new Set([...reqDone, ...enrollDone]);
 
     if (isCompleted) {
-      if (!completedLessons.includes(lessonId)) {
-        completedLessons.push(lessonId);
-      }
+      doneSet.add(lessonId);
     } else {
-      completedLessons = completedLessons.filter(id => id !== lessonId);
+      doneSet.delete(lessonId);
     }
+
+    const completedLessons = Array.from(doneSet);
+    const prevProgress = Math.max(existingReq?.details?.progress || 0, existingEnroll?.progress || 0);
 
     const progress = Math.min(100, Math.round((completedLessons.length / totalLessons) * 100));
     const isNowCompleted = progress === 100;
 
     const details = {
+      ...(existingReq?.details || {}),
       completedLessons,
       progress,
       lastLearnedAt: new Date().toISOString()
@@ -89,16 +99,36 @@ export async function toggleLessonCompletion({
       student_name: studentName,
       status: 'approved',
       progress,
+      completed_lessons: completedLessons,
       details,
       updated_at: new Date().toISOString()
     };
-    if (existing?.id) {
-      updatePayload.id = existing.id;
+    if (existingReq?.id) {
+      updatePayload.id = existingReq.id;
     }
 
     await supabase
       .from('course_requests')
       .upsert(updatePayload);
+
+    const enrollPayload = {
+      student_id: studentId,
+      course_id: courseId,
+      course_title: courseTitle,
+      progress,
+      completed_lessons: completedLessons,
+      updated_at: new Date().toISOString()
+    };
+    if (existingEnroll?.id) {
+      await supabase
+        .from('enrollments')
+        .update(enrollPayload)
+        .eq('id', existingEnroll.id);
+    } else {
+      await supabase
+        .from('enrollments')
+        .insert([enrollPayload]);
+    }
 
     return { success: true, progress, completedLessons, isNowCompleted };
   } catch (error) {
