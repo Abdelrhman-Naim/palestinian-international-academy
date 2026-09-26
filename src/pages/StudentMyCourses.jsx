@@ -38,17 +38,54 @@ const StudentMyCourses = () => {
 
         if (reqErr) console.warn('course_requests fetch error:', reqErr);
 
-        const list = (reqs || []).map(d => ({
-          id: d.id,
-          courseId: d.course_id || d.courseId,
-          courseTitle: d.course_title || d.courseTitle,
-          studentName: d.student_name || d.studentName,
-          status: d.status || 'approved',
-          progress: d.details?.progress || d.progress || 0,
-          completedLessons: d.details?.completedLessons || d.completedLessons || [],
-          instructor: d.instructor_name || d.instructor,
-          ...d
-        }));
+        const { data: enrolls, error: enrollErr } = await supabase
+          .from('enrollments')
+          .select('*')
+          .eq('student_id', userId);
+
+        if (enrollErr) console.warn('enrollments fetch error:', enrollErr);
+
+        const enrollMap = new Map();
+        (enrolls || []).forEach(e => {
+          if (e.course_id) enrollMap.set(String(e.course_id), e);
+        });
+
+        const list = (reqs || []).map(d => {
+          const courseId = String(d.course_id || d.courseId || '');
+          const enrollInfo = enrollMap.get(courseId);
+          const completedLessons = Array.isArray(enrollInfo?.completed_lessons)
+            ? enrollInfo.completed_lessons
+            : (Array.isArray(d.completed_lessons) ? d.completed_lessons : []);
+          const progress = enrollInfo?.progress !== undefined ? enrollInfo.progress : (d.progress || 0);
+
+          return {
+            id: d.id,
+            courseId: d.course_id || d.courseId,
+            courseTitle: d.course_title || d.courseTitle,
+            studentName: d.student_name || d.studentName,
+            status: d.status || 'approved',
+            progress,
+            completedLessons,
+            instructor: d.instructor_name || d.instructor,
+            ...d
+          };
+        });
+
+        (enrolls || []).forEach(e => {
+          const cId = String(e.course_id);
+          if (!list.some(item => String(item.courseId) === cId)) {
+            list.push({
+              id: e.id,
+              courseId: e.course_id,
+              courseTitle: e.course_title || '',
+              studentName: '',
+              status: 'approved',
+              progress: e.progress || 0,
+              completedLessons: e.completed_lessons || [],
+              instructor: e.instructor || ''
+            });
+          }
+        });
 
         setEnrollments(list);
       } catch (err) {
@@ -60,15 +97,23 @@ const StudentMyCourses = () => {
 
     fetchEnrollments();
 
-    const channel = supabase
-      .channel(`my_courses_${userId}`)
+    const channel1 = supabase
+      .channel(`my_courses_req_${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'course_requests', filter: `student_id=eq.${userId}` }, () => {
         fetchEnrollments();
       })
       .subscribe();
 
+    const channel2 = supabase
+      .channel(`my_courses_enr_${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments', filter: `student_id=eq.${userId}` }, () => {
+        fetchEnrollments();
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   }, [userId]);
 

@@ -476,6 +476,33 @@ export const updateDoc = async (docRef, data) => {
       delete record.imageName;
     }
 
+    if (id && typeof id === 'string' && id.includes('_')) {
+      const parts = id.split('_');
+      if (parts.length === 2) {
+        const [studentId, courseId] = parts;
+        if (record.completedLessons && !record.completed_lessons) {
+          record.completed_lessons = record.completedLessons;
+        }
+        delete record.completedLessons;
+
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { error } = await supabase
+            .from(table)
+            .update(record)
+            .eq('student_id', studentId)
+            .eq('course_id', courseId);
+          if (!error) return { ok: true };
+          const match = error.message?.match(/Could not find the '([^']+)' column/i);
+          if (match && match[1]) {
+            delete record[match[1]];
+            continue;
+          }
+          break;
+        }
+        return { ok: true };
+      }
+    }
+
     for (let attempt = 0; attempt < 8; attempt++) {
       const { error } = await supabase.from(table).update(record).eq('id', id);
       if (!error) return { ok: true };

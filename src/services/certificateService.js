@@ -29,52 +29,44 @@ export async function toggleLessonCompletion({
   if (!studentId || !courseId || totalLessons <= 0) return { success: false };
 
   try {
-    const { data: existingReq } = await supabase
-      .from('course_requests')
-      .select('*')
-      .eq('student_id', studentId)
-      .eq('course_id', courseId)
-      .maybeSingle();
-
-    const { data: existingEnroll } = await supabase
+    // 1. Fetch current enrollment record
+    let { data: existingEnroll } = await supabase
       .from('enrollments')
       .select('*')
       .eq('student_id', studentId)
       .eq('course_id', courseId)
       .maybeSingle();
 
-    const reqDone = Array.isArray(existingReq?.details?.completedLessons)
-      ? existingReq.details.completedLessons
-      : (Array.isArray(existingReq?.completed_lessons) ? existingReq.completed_lessons : []);
-    const enrollDone = Array.isArray(existingEnroll?.completed_lessons)
-      ? existingEnroll.completed_lessons
-      : (Array.isArray(existingEnroll?.completedLessons) ? existingEnroll.completedLessons : []);
-
-    const doneSet = new Set([...reqDone, ...enrollDone]);
-
-    if (isCompleted) {
-      doneSet.add(lessonId);
-    } else {
-      doneSet.delete(lessonId);
+    if (!existingEnroll) {
+      const { data: byUid } = await supabase
+        .from('enrollments')
+        .select('*')
+        .eq('uid', studentId)
+        .eq('course_id', courseId)
+        .maybeSingle();
+      existingEnroll = byUid;
     }
 
-    const completedLessons = Array.from(doneSet);
-    const prevProgress = Math.max(existingReq?.details?.progress || 0, existingEnroll?.progress || 0);
+    let completedLessons = [];
+    if (existingEnroll && Array.isArray(existingEnroll.completed_lessons)) {
+      completedLessons = [...existingEnroll.completed_lessons];
+    } else if (existingEnroll && Array.isArray(existingEnroll.completedLessons)) {
+      completedLessons = [...existingEnroll.completedLessons];
+    }
 
+    if (isCompleted) {
+      if (!completedLessons.includes(lessonId)) {
+        completedLessons.push(lessonId);
+      }
+    } else {
+      completedLessons = completedLessons.filter(id => id !== lessonId);
+    }
+
+    const prevProgress = existingEnroll?.progress || 0;
     const progress = Math.min(100, Math.round((completedLessons.length / totalLessons) * 100));
     const isNowCompleted = progress === 100;
 
-    const details = {
-      ...(existingReq?.details || {}),
-      completedLessons,
-      progress,
-      lastLearnedAt: new Date().toISOString()
-    };
-
     if (isNowCompleted && prevProgress < 100) {
-      details.completedAt = new Date().toISOString();
-      details.isEligibleForExam = true;
-
       try {
         await createNotification({
           recipientId: studentId,
@@ -92,53 +84,27 @@ export async function toggleLessonCompletion({
       }
     }
 
-    const updatePayload = {
+    const enrollPayload = {
       student_id: studentId,
+      uid: studentId,
       course_id: courseId,
       course_title: courseTitle,
-      student_name: studentName,
-      status: 'approved',
+      instructor: instructorName,
       progress,
-      details,
-      updated_at: new Date().toISOString()
+      completed_lessons: completedLessons
     };
-    if (existingReq?.id) {
-      updatePayload.id = existingReq.id;
-    }
 
-    const { error: upsertErr } = await supabase
-      .from('course_requests')
-      .upsert(updatePayload);
-
-    if (upsertErr) {
-      console.warn('course_requests upsert warning, retrying with update:', upsertErr.message);
-      await supabase
-        .from('course_requests')
-        .update({ progress, details, updated_at: new Date().toISOString() })
-        .eq('student_id', studentId)
-        .eq('course_id', courseId);
-    }
-
-    try {
-      const enrollPayload = {
-        student_id: studentId,
-        course_id: courseId,
-        course_title: courseTitle,
-        progress,
-        updated_at: new Date().toISOString()
-      };
-      if (existingEnroll?.id) {
-        await supabase
-          .from('enrollments')
-          .update(enrollPayload)
-          .eq('id', existingEnroll.id);
-      } else {
-        await supabase
-          .from('enrollments')
-          .insert([enrollPayload]);
-      }
-    } catch (e) {
-      console.warn('enrollments table update warning:', e);
+    if (existingEnroll?.id) {
+      const { error: updateErr } = await supabase
+        .from('enrollments')
+        .update(enrollPayload)
+        .eq('id', existingEnroll.id);
+      if (updateErr) console.warn('Error updating enrollments:', updateErr);
+    } else {
+      const { error: insertErr } = await supabase
+        .from('enrollments')
+        .insert([enrollPayload]);
+      if (insertErr) console.warn('Error inserting enrollments:', insertErr);
     }
 
     return { success: true, progress, completedLessons, isNowCompleted };

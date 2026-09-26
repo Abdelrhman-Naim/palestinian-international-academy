@@ -83,8 +83,22 @@ export default function CourseDetail() {
 
     const checkEnrollmentStatus = async () => {
       try {
-        const enrollRef = doc(db, 'enrollments', `${uid}_${id}`);
-        const snap = await getDoc(enrollRef);
+        let { data: enrollData } = await supabase
+          .from('enrollments')
+          .select('*')
+          .eq('student_id', uid)
+          .eq('course_id', id)
+          .maybeSingle();
+
+        if (!enrollData) {
+          const { data: byUid } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('uid', uid)
+            .eq('course_id', id)
+            .maybeSingle();
+          enrollData = byUid;
+        }
 
         const { data: reqData } = await supabase
           .from('course_requests')
@@ -93,39 +107,39 @@ export default function CourseDetail() {
           .eq('course_id', id)
           .maybeSingle();
 
-        if (snap.exists() || reqData) {
+        if (enrollData || reqData) {
           setEnrolled(true);
-          const enrollData = snap.exists() ? snap.data() : null;
+
+          const doneList = Array.isArray(enrollData?.completed_lessons)
+            ? enrollData.completed_lessons
+            : (Array.isArray(enrollData?.completedLessons) ? enrollData.completedLessons : []);
           
-          const doneListEnroll = Array.isArray(enrollData?.completedLessons)
-            ? enrollData.completedLessons
-            : (Array.isArray(enrollData?.completed_lessons) ? enrollData.completed_lessons : []);
-          const doneListReq = Array.isArray(reqData?.details?.completedLessons)
-            ? reqData.details.completedLessons
-            : (Array.isArray(reqData?.completed_lessons) ? reqData.completed_lessons : []);
-          
-          const mergedDone = Array.from(new Set([...doneListEnroll, ...doneListReq]));
-          setCompletedLessons(mergedDone);
+          setCompletedLessons(doneList);
 
           const totalLecs = course?.lectures?.length || 0;
           const computedProgress = totalLecs > 0 
-            ? Math.min(100, Math.round((mergedDone.length / totalLecs) * 100))
-            : Math.max(enrollData?.progress || 0, reqData?.progress || reqData?.details?.progress || 0);
+            ? Math.min(100, Math.round((doneList.length / totalLecs) * 100))
+            : (enrollData?.progress || 0);
 
           setProgressPercent(computedProgress);
-          const hasPassedExam = !!(enrollData?.passedExam || reqData?.passedExam || reqData?.details?.passedExam);
+
+          const hasPassedExam = !!(enrollData?.passed_exam || enrollData?.passedExam);
           setExamPassed(hasPassedExam);
 
-          // Sync enrollments doc if missing or out of sync
-          if (snap.exists() && (doneListEnroll.length !== mergedDone.length || enrollData?.progress !== computedProgress)) {
-            updateDoc(enrollRef, { completed_lessons: mergedDone, completedLessons: mergedDone, progress: computedProgress }).catch(e => console.warn('Sync enroll doc:', e));
-          }
-
           if (hasPassedExam) {
-            const cRef = doc(db, 'certificates', `${uid}_${id}`);
-            const cSnap = await getDoc(cRef);
-            if (cSnap.exists()) {
-              setEarnedCertificate({ id: cSnap.id, ...cSnap.data() });
+            const { data: cData } = await supabase
+              .from('certificates')
+              .select('*')
+              .eq('student_id', uid)
+              .eq('course_id', id)
+              .maybeSingle();
+
+            if (cData) {
+              setEarnedCertificate({
+                id: cData.id,
+                certificateId: cData.certificate_number || cData.certificateId || cData.id,
+                ...cData
+              });
             }
           }
         } else {
@@ -142,52 +156,39 @@ export default function CourseDetail() {
 
     checkEnrollmentStatus();
 
-    const enrollRef = doc(db, 'enrollments', `${uid}_${id}`);
-    const unsub = onSnapshot(enrollRef, async (snap) => {
-      const isExist = Boolean(snap && typeof snap.exists === 'function' ? snap.exists() : false);
-      if (isExist) {
-        const data = snap.data ? snap.data() : {};
-        setEnrolled(true);
-        const doneList = Array.isArray(data.completedLessons)
-          ? data.completedLessons
-          : (Array.isArray(data.completed_lessons) ? data.completed_lessons : []);
-        
-        if (doneList.length > 0) {
+    // Listen to real-time changes on enrollments table
+    const channel = supabase
+      .channel(`course_enroll_${uid}_${id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'enrollments',
+        filter: `student_id=eq.${uid}`
+      }, (payload) => {
+        if (payload.new && String(payload.new.course_id) === String(id)) {
+          const newData = payload.new;
+          const doneList = Array.isArray(newData.completed_lessons) ? newData.completed_lessons : [];
           setCompletedLessons(doneList);
-        }
 
-        const totalLecs = course?.lectures?.length || 0;
-        const currentDoneCount = Math.max(doneList.length, 0);
-        const computedProgress = totalLecs > 0 
-          ? Math.min(100, Math.round((currentDoneCount / totalLecs) * 100))
-          : (data.progress || 0);
+          const totalLecs = course?.lectures?.length || 0;
+          const computedProgress = totalLecs > 0 
+            ? Math.min(100, Math.round((doneList.length / totalLecs) * 100))
+            : (newData.progress || 0);
 
-        if (computedProgress > 0) {
           setProgressPercent(computedProgress);
+          setExamPassed(!!newData.passed_exam);
         }
+      })
+      .subscribe();
 
-        const hasPassedExam = !!data.passedExam;
-        setExamPassed(hasPassedExam);
-
-        if (hasPassedExam) {
-          const cRef = doc(db, 'certificates', `${uid}_${id}`);
-          const cSnap = await getDoc(cRef);
-          if (cSnap.exists()) {
-            setEarnedCertificate({ id: cSnap.id, ...cSnap.data() });
-          } else {
-            setEarnedCertificate(null);
-          }
-        } else {
-          setEarnedCertificate(null);
-        }
-      }
-    });
-
-    return () => unsub();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUser, id, course?.lectures?.length]);
 
   const handleToggleLesson = async (lecIndex, lecTitle) => {
     if (!currentUser || !enrolled || updatingLesson !== null) return;
+    const uid = currentUser.uid || currentUser.id;
     const lessonId = `lesson_${lecIndex}`;
     const isCompleted = completedLessons.includes(lessonId);
     const newCompleted = !isCompleted;
@@ -198,7 +199,7 @@ export default function CourseDetail() {
       const resolvedStudentName = userData?.fullName || userData?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'طالب المنصة';
 
       const res = await toggleLessonCompletion({
-        studentId: currentUser.uid,
+        studentId: uid,
         studentName: resolvedStudentName,
         courseId: id,
         courseTitle: course.title,
@@ -211,8 +212,6 @@ export default function CourseDetail() {
       if (res.success) {
         setCompletedLessons(res.completedLessons);
         setProgressPercent(res.progress);
-        const enrollRef = doc(db, 'enrollments', `${currentUser.uid}_${id}`);
-        updateDoc(enrollRef, { completed_lessons: res.completedLessons, completedLessons: res.completedLessons, progress: res.progress }).catch(() => {});
       }
     } catch (err) {
       console.error('Failed to toggle lesson:', err);
