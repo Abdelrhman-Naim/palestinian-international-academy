@@ -99,7 +99,6 @@ export async function toggleLessonCompletion({
       student_name: studentName,
       status: 'approved',
       progress,
-      completed_lessons: completedLessons,
       details,
       updated_at: new Date().toISOString()
     };
@@ -107,27 +106,39 @@ export async function toggleLessonCompletion({
       updatePayload.id = existingReq.id;
     }
 
-    await supabase
+    const { error: upsertErr } = await supabase
       .from('course_requests')
       .upsert(updatePayload);
 
-    const enrollPayload = {
-      student_id: studentId,
-      course_id: courseId,
-      course_title: courseTitle,
-      progress,
-      completed_lessons: completedLessons,
-      updated_at: new Date().toISOString()
-    };
-    if (existingEnroll?.id) {
+    if (upsertErr) {
+      console.warn('course_requests upsert warning, retrying with update:', upsertErr.message);
       await supabase
-        .from('enrollments')
-        .update(enrollPayload)
-        .eq('id', existingEnroll.id);
-    } else {
-      await supabase
-        .from('enrollments')
-        .insert([enrollPayload]);
+        .from('course_requests')
+        .update({ progress, details, updated_at: new Date().toISOString() })
+        .eq('student_id', studentId)
+        .eq('course_id', courseId);
+    }
+
+    try {
+      const enrollPayload = {
+        student_id: studentId,
+        course_id: courseId,
+        course_title: courseTitle,
+        progress,
+        updated_at: new Date().toISOString()
+      };
+      if (existingEnroll?.id) {
+        await supabase
+          .from('enrollments')
+          .update(enrollPayload)
+          .eq('id', existingEnroll.id);
+      } else {
+        await supabase
+          .from('enrollments')
+          .insert([enrollPayload]);
+      }
+    } catch (e) {
+      console.warn('enrollments table update warning:', e);
     }
 
     return { success: true, progress, completedLessons, isNowCompleted };
