@@ -3,6 +3,80 @@ import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../supabase/client';
 import { broadcastToChannel } from '../../services/chatService';
 
+// Helper: Generates a high quality synthetic canvas video track for when camera is off/locked
+function createSyntheticVideoTrack(userName = 'مستخدم', subtitle = 'الكاميرا مغلقة') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 480;
+  const ctx = canvas.getContext('2d');
+  
+  const initials = (userName || 'م').trim().slice(0, 2);
+  let pulseAngle = 0;
+
+  const render = () => {
+    ctx.fillStyle = '#0f172a'; // Slate 900
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Subtle radial glow
+    const grad = ctx.createRadialGradient(320, 200, 20, 320, 200, 180);
+    grad.addColorStop(0, 'rgba(217, 119, 6, 0.2)');
+    grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Outer pulsating circle
+    pulseAngle += 0.06;
+    const pulseRadius = 72 + Math.sin(pulseAngle) * 5;
+    ctx.beginPath();
+    ctx.arc(320, 200, pulseRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(217, 119, 6, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner avatar background
+    ctx.beginPath();
+    ctx.arc(320, 200, 62, 0, Math.PI * 2);
+    ctx.fillStyle = '#1e293b';
+    ctx.fill();
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Initials text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 42px Alexandria, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials, 320, 202);
+
+    // Name text
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '600 18px Alexandria, sans-serif';
+    ctx.fillText(userName, 320, 296);
+
+    // Status subtitle
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px Alexandria, sans-serif';
+    ctx.fillText(subtitle, 320, 324);
+  };
+
+  render();
+  const interval = setInterval(render, 150); // ~7 fps: low CPU, perfectly stable video stream
+
+  const stream = canvas.captureStream(10);
+  const track = stream.getVideoTracks()[0];
+  if (track) {
+    track._isSynthetic = true;
+    track._interval = interval;
+    const origStop = track.stop.bind(track);
+    track.stop = () => {
+      clearInterval(interval);
+      origStop();
+    };
+  }
+  return track;
+}
+
 export default function CallModal({
   isOpen,
   onClose,
@@ -14,7 +88,6 @@ export default function CallModal({
   onReject
 }) {
   const { t, dir } = useLanguage();
-  const isRtl = dir === 'rtl';
 
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -30,6 +103,8 @@ export default function CallModal({
   const streamRef = useRef(null);
   const pcRef = useRef(null);
   const signalingChanRef = useRef(null);
+  const mediaPromiseRef = useRef(null);
+  const remoteStreamRef = useRef(null);
 
   const isVideo = activeCall?.type === 'video';
   const myUid = String(currentUser?.uid || currentUser?.id || '');
@@ -104,112 +179,152 @@ export default function CallModal({
   }, [isOpen, status, isIncoming]);
 
   // -------------------------------------------------------------
-  // 2. MEDIA STREAM ACQUISITION & MANAGEMENT
+  // 2. UNIFIED MEDIA STREAM ACQUISITION
   // -------------------------------------------------------------
+  const acquireMedia = async () => {
+    // Return existing live stream if already available
+    if (streamRef.current) {
+      const live = streamRef.current.getTracks().some(t => t.readyState === 'live');
+      if (live) return streamRef.current;
+    }
+
+    let audioStream = null;
+    let videoTrack = null;
+    let cameraNotice = '';
+
+    // A. Microphone acquisition (Always priority)
+    try {
+      audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+    } catch (micErr1) {
+      try {
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (micErr2) {
+        console.warn('Microphone unavailable:', micErr2);
+      }
+    }
+
+    // B. Video acquisition if video call
+    if (isVideo) {
+      try {
+        const vidStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            facingMode: 'user'
+          }
+        });
+        videoTrack = vidStream.getVideoTracks()[0];
+      } catch (vidErr1) {
+        try {
+          const vidStream2 = await navigator.mediaDevices.getUserMedia({ video: true });
+          videoTrack = vidStream2.getVideoTracks()[0];
+        } catch (vidErr2) {
+          console.warn('Physical camera unavailable or busy in another tab/app:', vidErr2);
+          if (vidErr2.name === 'NotReadableError') {
+            cameraNotice = 'الكاميرا قيد الاستخدام في علامة تبويب أو تطبيق آخر - تم تفعيل الصوت وعرض الصورة الرمزية';
+          } else if (vidErr2.name === 'NotAllowedError') {
+            cameraNotice = 'تم حظر إذن الكاميرا - تم تفعيل الصوت فقط';
+          } else {
+            cameraNotice = 'لم يتم العثور على كاميرا متصلة - تم تفعيل الصوت وعرض الصورة الرمزية';
+          }
+        }
+      }
+
+      // If physical camera failed, generate synthetic track so WebRTC video negotiation succeeds
+      if (!videoTrack) {
+        videoTrack = createSyntheticVideoTrack(
+          currentUser?.name || 'مستخدم',
+          cameraNotice ? 'الكاميرا قيد الاستخدام / مغلقة' : 'الكاميرا مغلقة'
+        );
+        setIsCameraOff(true);
+      } else {
+        setIsCameraOff(false);
+      }
+    }
+
+    const combined = new MediaStream();
+    if (audioStream) {
+      audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
+    }
+    if (videoTrack) {
+      combined.addTrack(videoTrack);
+    }
+
+    streamRef.current = combined;
+    setLocalStream(combined);
+    setPermissionError(cameraNotice);
+
+    if (localVideoRef.current && isVideo) {
+      localVideoRef.current.srcObject = combined;
+    }
+
+    return combined;
+  };
+
+  const getOrInitStream = async () => {
+    if (!mediaPromiseRef.current) {
+      mediaPromiseRef.current = acquireMedia().finally(() => {
+        mediaPromiseRef.current = null;
+      });
+    }
+    return await mediaPromiseRef.current;
+  };
+
+  // Manage Stream Lifecycle
   useEffect(() => {
     if (!isOpen || !activeCall) {
+      // Cleanup all media tracks on modal close
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach(t => {
+          try { t.stop(); } catch {}
+        });
         streamRef.current = null;
-        setLocalStream(null);
       }
       if (pcRef.current) {
         try { pcRef.current.close(); } catch {}
         pcRef.current = null;
       }
+      setLocalStream(null);
       setRemoteStream(null);
+      remoteStreamRef.current = null;
+      setPermissionError('');
+      setIsCameraOff(false);
+      setIsMuted(false);
       return;
     }
 
-    // Don't auto-grab cam/mic if it's incoming and not yet answered
+    // Do not acquire media yet for incoming ringing call until answered
     if (isIncoming && status === 'ringing') return;
 
-    let mounted = true;
-
-    async function setupStream() {
-      if (streamRef.current) {
-        const live = streamRef.current.getTracks().some(t => t.readyState === 'live');
-        if (live) {
-          setLocalStream(streamRef.current);
-          if (localVideoRef.current && isVideo) {
-            localVideoRef.current.srcObject = streamRef.current;
-          }
-          return;
-        }
-      }
-
-      try {
-        setPermissionError('');
-        let stream = null;
-
-        if (isVideo) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
-              video: true
-            });
-          } catch (vidErr) {
-            console.warn('Video + Audio failed, trying audio fallback:', vidErr);
-            if (vidErr.name === 'NotAllowedError' || vidErr.name === 'PermissionDeniedError') {
-              throw vidErr;
-            }
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            setIsCameraOff(true);
-          }
-        } else {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        }
-
-        if (!mounted) {
-          if (stream) stream.getTracks().forEach(t => t.stop());
-          return;
-        }
-
-        streamRef.current = stream;
-        setLocalStream(stream);
-
-        if (localVideoRef.current && isVideo && !isCameraOff) {
-          localVideoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.warn('Could not acquire media stream:', err);
-        if (mounted) {
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            setPermissionError(isVideo ? t('chat.cameraBlocked') : t('chat.micBlocked'));
-          } else if (err.name === 'NotReadableError') {
-            setPermissionError('الكاميرا أو الميكروفون قيد الاستخدام من قبل تطبيق آخر');
-          } else if (err.name === 'NotFoundError') {
-            setPermissionError('لم يتم العثور على ميكروفون أو كاميرا متصلة');
-          } else {
-            setPermissionError(isVideo ? t('chat.cameraBlocked') : t('chat.micBlocked'));
-          }
-        }
-      }
-    }
-
-    setupStream();
-
-    return () => {
-      mounted = false;
-    };
-  }, [isOpen, isIncoming, status, isVideo, activeCall?.id]);
+    getOrInitStream();
+  }, [isOpen, activeCall?.id, isIncoming, status, isVideo]);
 
   // Connect local video element
   useEffect(() => {
     if (localVideoRef.current && localStream && isVideo) {
       localVideoRef.current.srcObject = localStream;
     }
-  }, [localStream, isVideo]);
+  }, [localStream, isVideo, isCameraOff]);
 
   // Connect remote stream elements
   useEffect(() => {
     if (remoteStream) {
       if (remoteVideoRef.current && isVideo) {
         remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(() => {});
       }
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.play().catch(() => {});
+        remoteAudioRef.current.volume = 1.0;
+        remoteAudioRef.current.play().catch(e => {
+          console.warn('Audio play request notice:', e);
+        });
       }
     }
   }, [remoteStream, isVideo]);
@@ -218,7 +333,9 @@ export default function CallModal({
   useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach(t => {
+          try { t.stop(); } catch {}
+        });
       }
       if (pcRef.current) {
         try { pcRef.current.close(); } catch {}
@@ -245,38 +362,23 @@ export default function CallModal({
 
     async function initWebRTC() {
       try {
-        let stream = streamRef.current || localStream;
-        if (!stream) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
-              video: isVideo ? true : false
-            });
-            if (!isMounted) {
-              stream.getTracks().forEach(t => t.stop());
-              return;
-            }
-            streamRef.current = stream;
-            setLocalStream(stream);
-            if (localVideoRef.current && isVideo) {
-              localVideoRef.current.srcObject = stream;
-            }
-          } catch (e) {
-            console.warn('Fallback getUserMedia failed during WebRTC init:', e);
-          }
-        }
+        // Guaranteed stream acquisition before PC negotiation
+        const stream = await getOrInitStream();
+        if (!isMounted) return;
 
-        // Initialize RTCPeerConnection with STUN servers
+        // Initialize RTCPeerConnection with Google STUN servers
         pc = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
           ]
         });
         pcRef.current = pc;
 
-        // Add local tracks to peer connection
+        // Add all local tracks (Audio + Video / Synthetic Video) to peer connection
         if (stream) {
           stream.getTracks().forEach(track => {
             pc.addTrack(track, stream);
@@ -285,19 +387,31 @@ export default function CallModal({
 
         // Listen for remote tracks
         pc.ontrack = (event) => {
-          if (event.streams && event.streams[0]) {
-            setRemoteStream(event.streams[0]);
-            if (remoteVideoRef.current && isVideo) {
-              remoteVideoRef.current.srcObject = event.streams[0];
+          let rStream = event.streams && event.streams[0];
+          if (!rStream) {
+            if (!remoteStreamRef.current) {
+              remoteStreamRef.current = new MediaStream();
             }
-            if (remoteAudioRef.current) {
-              remoteAudioRef.current.srcObject = event.streams[0];
-              remoteAudioRef.current.play().catch(() => {});
-            }
+            remoteStreamRef.current.addTrack(event.track);
+            rStream = remoteStreamRef.current;
+          } else {
+            remoteStreamRef.current = rStream;
+          }
+
+          setRemoteStream(rStream);
+
+          if (remoteVideoRef.current && isVideo) {
+            remoteVideoRef.current.srcObject = rStream;
+            remoteVideoRef.current.play().catch(() => {});
+          }
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = rStream;
+            remoteAudioRef.current.volume = 1.0;
+            remoteAudioRef.current.play().catch(() => {});
           }
         };
 
-        // Connect to Realtime Broadcast channel for this call session
+        // Realtime Broadcast channel for this call session
         const sessionTopic = `call_session_${activeCall.id}`;
         const existing = supabase.getChannels().find(
           ch => ch.topic === `realtime:${sessionTopic}` || ch.topic === sessionTopic
@@ -320,7 +434,10 @@ export default function CallModal({
         const createAndSendOffer = async () => {
           if (!pc || !isCaller) return;
           try {
-            const offer = await pc.createOffer();
+            const offer = await pc.createOffer({
+              offerToReceiveAudio: true,
+              offerToReceiveVideo: isVideo
+            });
             await pc.setLocalDescription(offer);
             await broadcastToChannel(sessionTopic, 'webrtc_offer', {
               offer: { type: offer.type, sdp: offer.sdp },
@@ -463,20 +580,81 @@ export default function CallModal({
   // 5. CALL CONTROLS
   // -------------------------------------------------------------
   const toggleMute = () => {
-    if (!localStream) return;
-    const audioTrack = localStream.getAudioTracks()[0];
+    if (!streamRef.current) return;
+    const audioTrack = streamRef.current.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
       setIsMuted(!audioTrack.enabled);
     }
   };
 
-  const toggleCamera = () => {
-    if (!localStream) return;
-    const videoTrack = localStream.getVideoTracks()[0];
-    if (videoTrack) {
-      videoTrack.enabled = !videoTrack.enabled;
-      setIsCameraOff(!videoTrack.enabled);
+  const toggleCamera = async () => {
+    if (!isVideo || !streamRef.current) return;
+
+    const currentVidTrack = streamRef.current.getVideoTracks()[0];
+
+    // If camera is currently ON with real hardware: switch to OFF (synthetic)
+    if (!isCameraOff && currentVidTrack && !currentVidTrack._isSynthetic) {
+      currentVidTrack.stop();
+      streamRef.current.removeTrack(currentVidTrack);
+
+      const syntheticTrack = createSyntheticVideoTrack(currentUser?.name || 'مستخدم', 'الكاميرا مغلقة');
+      streamRef.current.addTrack(syntheticTrack);
+
+      if (pcRef.current) {
+        const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          try { await sender.replaceTrack(syntheticTrack); } catch (e) {}
+        }
+      }
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = streamRef.current;
+      }
+
+      setIsCameraOff(true);
+      return;
+    }
+
+    // If camera is currently OFF or synthetic: attempt to turn ON real camera
+    try {
+      const vidStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        }
+      });
+      const newRealTrack = vidStream.getVideoTracks()[0];
+
+      if (currentVidTrack) {
+        currentVidTrack.stop();
+        streamRef.current.removeTrack(currentVidTrack);
+      }
+      streamRef.current.addTrack(newRealTrack);
+
+      if (pcRef.current) {
+        const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          try { await sender.replaceTrack(newRealTrack); } catch (e) {}
+        }
+      }
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = streamRef.current;
+      }
+
+      setIsCameraOff(false);
+      setPermissionError('');
+    } catch (err) {
+      console.warn('Could not acquire real camera track:', err);
+      if (err.name === 'NotReadableError') {
+        setPermissionError('الكاميرا قيد الاستخدام حالياً في علامة تبويب أو تطبيق آخر');
+      } else if (err.name === 'NotAllowedError') {
+        setPermissionError(t('chat.cameraBlocked') || 'تم حظر إذن الكاميرا');
+      } else {
+        setPermissionError('تعذر تشغيل الكاميرا');
+      }
     }
   };
 
@@ -501,7 +679,7 @@ export default function CallModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in font-alexandria">
-      {/* Hidden audio element for voice calls remote stream */}
+      {/* Dedicated audio element for remote stream in both voice & video calls */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div 
@@ -511,10 +689,10 @@ export default function CallModal({
         }`}
       >
         
-        {/* Permission warning banner */}
+        {/* Permission / In-Use Notice Banner */}
         {permissionError && (
-          <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-800 dark:text-amber-200 px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-base">warning</span>
+          <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-800 dark:text-amber-200 px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-base shrink-0">info</span>
             <span>{permissionError}</span>
           </div>
         )}
@@ -528,6 +706,7 @@ export default function CallModal({
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
+                muted={true}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -570,9 +749,9 @@ export default function CallModal({
                     className="w-full h-full object-cover -scale-x-100"
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 text-xs gap-1 bg-gray-800">
-                    <span className="material-symbols-outlined text-lg">videocam_off</span>
-                    <span>الكاميرا مغلقة</span>
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 text-xs gap-1 bg-gray-900/90 p-2 text-center">
+                    <span className="material-symbols-outlined text-lg text-amber-400">videocam_off</span>
+                    <span className="text-[10px] leading-tight font-medium">الكاميرا مغلقة</span>
                   </div>
                 )}
                 <div className="absolute top-1 inset-e-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] text-white font-bold">
