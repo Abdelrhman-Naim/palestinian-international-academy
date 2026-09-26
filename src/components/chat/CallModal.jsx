@@ -4,7 +4,7 @@ import { supabase } from '../../supabase/client';
 import { broadcastToChannel } from '../../services/chatService';
 
 // Helper: Generates a high quality synthetic canvas video track for when camera is off/locked
-function createSyntheticVideoTrack(userName = 'مستخدم', initialSubtitle = 'جاري تشغيل الكاميرا...') {
+function createSyntheticVideoTrack(userName = 'مستخدم', initialSubtitle = 'الكاميرا مغلقة') {
   const canvas = document.createElement('canvas');
   canvas.width = 640;
   canvas.height = 480;
@@ -78,48 +78,6 @@ function createSyntheticVideoTrack(userName = 'مستخدم', initialSubtitle = 
     };
   }
   return track;
-}
-
-// Helper: Check if video camera hardware exists on the machine
-async function checkHasCameraDevice() {
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
-    return false;
-  }
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.some(d => d.kind === 'videoinput');
-  } catch (e) {
-    return true; // Assume true if permission constraints prevent enumerating
-  }
-}
-
-// Helper: Fast getUserMedia with client-side timeout to avoid Windows driver hangs
-function getMediaStreamWithTimeout(constraints, timeoutMs = 2500) {
-  return new Promise((resolve, reject) => {
-    let finished = false;
-    const timer = setTimeout(() => {
-      finished = true;
-      const err = new Error('Timeout starting video source');
-      err.name = 'AbortError';
-      reject(err);
-    }, timeoutMs);
-
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(stream => {
-        clearTimeout(timer);
-        if (finished) {
-          stream.getTracks().forEach(t => {
-            try { t.stop(); } catch {}
-          });
-          return;
-        }
-        resolve(stream);
-      })
-      .catch(err => {
-        clearTimeout(timer);
-        if (!finished) reject(err);
-      });
-  });
 }
 
 export default function CallModal({
@@ -226,149 +184,134 @@ export default function CallModal({
   }, [isOpen, status, isIncoming]);
 
   // -------------------------------------------------------------
-  // 2. ULTRA-FAST NON-BLOCKING MEDIA INITIALIZATION
+  // 2. UNIFIED MEDIA STREAM ACQUISITION
   // -------------------------------------------------------------
-  // Step A: Immediately acquire microphone (< 100ms) + synthetic video track
-  // This allows WebRTC connection to start INSTANTLY without waiting 15s for camera
-  const getImmediateStream = async () => {
+  const acquireMedia = async () => {
+    // Return existing live stream if already available
     if (streamRef.current) {
       const live = streamRef.current.getTracks().some(t => t.readyState === 'live');
       if (live) return streamRef.current;
     }
 
-    let audioStream = null;
-    try {
-      audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-    } catch (micErr1) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setPermissionError('المتصفح لا يدعم الوصول للكاميرا والميكروفون في هذا النطاق');
+      return null;
+    }
+
+    let stream = null;
+    let cameraNotice = '';
+
+    if (isVideo) {
+      // 1. Try to acquire BOTH audio and video together directly (allows browser permission prompt)
       try {
-        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (micErr2) {
-        console.warn('Microphone completely unavailable:', micErr2);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 30 }
+          }
+        });
+      } catch (err1) {
+        console.warn('Initial video+audio acquisition attempt notice:', err1.name, err1.message);
+
+        // Try simpler video constraints: video: true
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+          });
+        } catch (err2) {
+          console.warn('Fallback video+audio attempt notice:', err2.name, err2.message);
+
+          if (err2.name === 'NotAllowedError' || err2.name === 'PermissionDeniedError') {
+            cameraNotice = 'تم حظر إذن الكاميرا أو الميكروفون - يرجى السماح بهما من شريط المتصفح';
+          } else if (err2.name === 'NotReadableError' || err2.name === 'AbortError') {
+            cameraNotice = 'الكاميرا قيد الاستخدام في علامة تبويب أو تطبيق آخر - تم تفعيل الصوت وعرض الصورة الرمزية';
+          } else if (err2.name === 'NotFoundError' || err2.name === 'DevicesNotFoundError') {
+            cameraNotice = 'لم يتم العثور على كاميرا متصلة بالجهاز - تم تفعيل الصوت وعرض الصورة الرمزية';
+          } else {
+            cameraNotice = 'تعذر تشغيل الكاميرا - تم تفعيل الصوت وعرض الصورة الرمزية';
+          }
+
+          // Camera failed (in use or absent), but let's acquire AUDIO ONLY so the call is not interrupted!
+          try {
+            const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const syntheticTrack = createSyntheticVideoTrack(
+              currentUser?.name || 'مستخدم',
+              err2.name === 'NotReadableError' ? 'الكاميرا قيد الاستخدام حالياً' : 'الكاميرا غير متوفرة'
+            );
+            const combined = new MediaStream();
+            audioOnly.getAudioTracks().forEach(t => combined.addTrack(t));
+            combined.addTrack(syntheticTrack);
+            stream = combined;
+            setIsCameraOff(true);
+          } catch (micErr) {
+            console.error('Audio fallback also failed:', micErr);
+            const syntheticTrack = createSyntheticVideoTrack(currentUser?.name || 'مستخدم', 'لا يوجد كاميرا أو ميكروفون');
+            const combined = new MediaStream([syntheticTrack]);
+            stream = combined;
+            setIsCameraOff(true);
+            cameraNotice = 'تعذر الوصول إلى الكاميرا والميكروفون - يرجى التحقق من أذونات المتصفح';
+          }
+        }
+      }
+    } else {
+      // Voice call: audio only
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (err) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e2) {
+          console.warn('Voice call microphone acquisition failed:', e2);
+          cameraNotice = 'تعذر الوصول إلى الميكروفون - يرجى السماح بالإذن في المتصفح';
+          stream = new MediaStream();
+        }
       }
     }
 
-    let videoTrack = null;
-    if (isVideo) {
-      // Start immediately with synthetic avatar track so video negotiation succeeds in < 200ms
-      videoTrack = createSyntheticVideoTrack(
-        currentUser?.name || 'مستخدم',
-        'جاري تشغيل الكاميرا...'
-      );
+    if (!stream) {
+      stream = new MediaStream();
+    }
+
+    // Check if we got a real camera video track
+    const vidTracks = stream.getVideoTracks();
+    if (vidTracks.length > 0 && !vidTracks[0]._isSynthetic) {
+      setIsCameraOff(false);
+      cameraNotice = '';
+    } else if (isVideo) {
       setIsCameraOff(true);
     }
 
-    const combined = new MediaStream();
-    if (audioStream) {
-      audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
-    }
-    if (videoTrack) {
-      combined.addTrack(videoTrack);
-    }
-
-    streamRef.current = combined;
-    setLocalStream(combined);
+    streamRef.current = stream;
+    setLocalStream(stream);
+    setPermissionError(cameraNotice);
 
     if (localVideoRef.current && isVideo) {
-      localVideoRef.current.srcObject = combined;
+      localVideoRef.current.srcObject = stream;
     }
 
-    return combined;
-  };
-
-  // Step B: Asynchronously in the background, attempt to acquire the real hardware camera
-  const activateRealCamera = async () => {
-    if (!isVideo) return;
-
-    const hasCamera = await checkHasCameraDevice();
-    if (!hasCamera) {
-      setPermissionError('لم يتم العثور على كاميرا متصلة - تم تفعيل الصوت وعرض الصورة الرمزية');
-      setIsCameraOff(true);
-      const currentTrack = streamRef.current?.getVideoTracks()[0];
-      if (currentTrack && currentTrack._setSubtitle) {
-        currentTrack._setSubtitle('لم يتم العثور على كاميرا');
-      }
-      return;
-    }
-
-    try {
-      // Try 640x480 standard resolution with a fast 2.5s timeout (prevents driver hanging)
-      const vidStream = await getMediaStreamWithTimeout({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          frameRate: { ideal: 30, max: 30 }
-        }
-      }, 2500);
-
-      const realTrack = vidStream.getVideoTracks()[0];
-      if (!realTrack) throw new Error('No video track found');
-
-      // Seamlessly swap the track in WebRTC without renegotiation
-      if (pcRef.current) {
-        const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
-        if (sender) {
-          try { await sender.replaceTrack(realTrack); } catch (e) {}
-        }
-      }
-
-      // Replace in local stream
-      if (streamRef.current) {
-        const oldTrack = streamRef.current.getVideoTracks()[0];
-        if (oldTrack) {
-          try { oldTrack.stop(); } catch {}
-          streamRef.current.removeTrack(oldTrack);
-        }
-        streamRef.current.addTrack(realTrack);
-      }
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = streamRef.current;
-      }
-
-      setIsCameraOff(false);
-      setPermissionError('');
-    } catch (err) {
-      console.warn('Physical camera unavailable (in use or timeout):', err.name || err.message);
-      setIsCameraOff(true);
-      const currentTrack = streamRef.current?.getVideoTracks()[0];
-
-      if (err.name === 'AbortError' || err.name === 'NotReadableError') {
-        setPermissionError('الكاميرا قيد الاستخدام في علامة تبويب أو تطبيق آخر - تم تفعيل الصوت بنجاح');
-        if (currentTrack && currentTrack._setSubtitle) {
-          currentTrack._setSubtitle('الكاميرا قيد الاستخدام حالياً');
-        }
-      } else if (err.name === 'NotAllowedError') {
-        setPermissionError(t('chat.cameraBlocked') || 'تم حظر إذن الكاميرا في المتصفح - تم تفعيل الصوت');
-        if (currentTrack && currentTrack._setSubtitle) {
-          currentTrack._setSubtitle('تم حظر إذن الكاميرا');
-        }
-      } else {
-        setPermissionError('تعذر فتح الكاميرا - تم تفعيل الصوت وعرض الصورة الرمزية');
-        if (currentTrack && currentTrack._setSubtitle) {
-          currentTrack._setSubtitle('الكاميرا غير متوفرة');
-        }
-      }
-    }
+    return stream;
   };
 
   const getOrInitStream = async () => {
     if (!mediaPromiseRef.current) {
-      mediaPromiseRef.current = getImmediateStream().finally(() => {
+      mediaPromiseRef.current = acquireMedia().finally(() => {
         mediaPromiseRef.current = null;
       });
     }
-    const stream = await mediaPromiseRef.current;
-    // Launch background camera probe without blocking call setup
-    if (isVideo) {
-      activateRealCamera();
-    }
-    return stream;
+    return await mediaPromiseRef.current;
   };
 
   // Manage Stream Lifecycle
@@ -468,9 +411,8 @@ export default function CallModal({
 
     async function initWebRTC() {
       try {
-        // Fast instant stream acquisition before PC negotiation
         const stream = await getOrInitStream();
-        if (!isMounted) return;
+        if (!isMounted || !stream) return;
 
         // Initialize RTCPeerConnection with Google STUN servers
         pc = new RTCPeerConnection({
@@ -485,11 +427,9 @@ export default function CallModal({
         pcRef.current = pc;
 
         // Add all local tracks (Audio + Video / Synthetic Video) to peer connection
-        if (stream) {
-          stream.getTracks().forEach(track => {
-            pc.addTrack(track, stream);
-          });
-        }
+        stream.getTracks().forEach(track => {
+          pc.addTrack(track, stream);
+        });
 
         // Listen for remote tracks
         pc.ontrack = (event) => {
@@ -639,7 +579,7 @@ export default function CallModal({
               if (isMounted && isCaller) {
                 createAndSendOffer();
               }
-            }, 300);
+            }, 400);
           }
         };
 
@@ -706,7 +646,7 @@ export default function CallModal({
 
     // If camera is currently ON with real hardware: switch to OFF (synthetic)
     if (!isCameraOff && currentVidTrack && !currentVidTrack._isSynthetic) {
-      currentVidTrack.stop(); // Release the hardware camera lock immediately
+      currentVidTrack.stop(); // Stop camera hardware, release device lock immediately
       streamRef.current.removeTrack(currentVidTrack);
 
       const syntheticTrack = createSyntheticVideoTrack(currentUser?.name || 'مستخدم', 'الكاميرا مغلقة');
@@ -727,8 +667,49 @@ export default function CallModal({
       return;
     }
 
-    // If camera is currently OFF or synthetic: attempt to turn ON real camera
-    await activateRealCamera();
+    // If camera is currently OFF or synthetic: attempt to turn ON real camera directly
+    try {
+      const vidStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 }
+        }
+      });
+      const newRealTrack = vidStream.getVideoTracks()[0];
+      if (!newRealTrack) throw new Error('No video track found');
+
+      if (currentVidTrack) {
+        try { currentVidTrack.stop(); } catch {}
+        streamRef.current.removeTrack(currentVidTrack);
+      }
+      streamRef.current.addTrack(newRealTrack);
+
+      if (pcRef.current) {
+        const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          try { await sender.replaceTrack(newRealTrack); } catch (e) {}
+        }
+      }
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = streamRef.current;
+      }
+
+      setIsCameraOff(false);
+      setPermissionError('');
+    } catch (err) {
+      console.warn('Could not turn on real camera:', err);
+      if (err.name === 'NotReadableError' || err.name === 'AbortError') {
+        setPermissionError('الكاميرا قيد الاستخدام حالياً في علامة تبويب أو تطبيق آخر');
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionError('تم حظر إذن الكاميرا - يرجى تفعيل إذن الكاميرا من شريط المتصفح');
+      } else if (err.name === 'NotFoundError') {
+        setPermissionError('لم يتم العثور على كاميرا متصلة بالجهاز');
+      } else {
+        setPermissionError('تعذر تشغيل الكاميرا');
+      }
+    }
   };
 
   const handleHangup = () => {
@@ -768,7 +749,7 @@ export default function CallModal({
         
         {/* Permission / In-Use Notice Banner */}
         {permissionError && (
-          <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-800 dark:text-amber-200 px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-2">
+          <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-800 dark:text-amber-200 px-4 py-2.5 text-xs font-semibold text-center flex items-center justify-center gap-2">
             <span className="material-symbols-outlined text-base shrink-0">info</span>
             <span>{permissionError}</span>
           </div>
