@@ -12,10 +12,6 @@ import {
   getOrCreateDirectChat,
   fetchChatMembers,
   uploadChatMedia,
-  initiateCall,
-  updateCallStatus,
-  listenToIncomingCalls,
-  listenToCallSession,
   markChatAsRead,
   markMessagesAsRead,
   toggleGroupLock,
@@ -24,12 +20,13 @@ import {
   kickMemberFromGroup
 } from '../services/chatService';
 import VoicePlayer from '../components/chat/VoicePlayer';
-import CallModal from '../components/chat/CallModal';
+import { useCall } from '../context/CallContext';
 
 export default function ChatPage() {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
   const { currentUser, userData, userRole } = useAuth();
+  const { startCall } = useCall();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryChatId = searchParams.get('chatId');
 
@@ -81,16 +78,6 @@ export default function ChatPage() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [updatingSettings, setUpdatingSettings] = useState(false);
-
-  // Calls state
-  const [activeCall, setActiveCall] = useState(null);
-  const [isIncomingCall, setIsIncomingCall] = useState(false);
-  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
-  const activeCallRef = useRef(null);
-
-  useEffect(() => {
-    activeCallRef.current = activeCall;
-  }, [activeCall]);
 
   // Reply & Edit state
   const [replyingToMessage, setReplyingToMessage] = useState(null);
@@ -154,52 +141,6 @@ export default function ChatPage() {
     };
   }, [currentUser?.uid, currentUser?.id]);
 
-  // Listen to incoming calls for current user
-  useEffect(() => {
-    const uid = currentUser?.uid || currentUser?.id;
-    if (!uid) return;
-
-    const unsubCall = listenToIncomingCalls(uid, (incoming) => {
-      if (incoming) {
-        // If not already in an active connected call, show incoming call modal
-        if (!activeCallRef.current || activeCallRef.current.status !== 'connected') {
-          setActiveCall(incoming);
-          setIsIncomingCall(true);
-          setIsCallModalOpen(true);
-        }
-      } else {
-        // Incoming call ended / cancelled before callee answered
-        // Only close if we are still waiting in 'ringing' status
-        if (activeCallRef.current && activeCallRef.current.status === 'ringing' && activeCallRef.current.calleeId === uid) {
-          setIsCallModalOpen(false);
-          setActiveCall(null);
-          setIsIncomingCall(false);
-        }
-      }
-    });
-
-    return () => unsubCall();
-  }, [currentUser?.uid, currentUser?.id]);
-
-  // Listen to active call updates if caller or ongoing
-  useEffect(() => {
-    if (!activeCall?.id) return;
-
-    const unsubCallSession = listenToCallSession(activeCall.id, (callData) => {
-      if (!callData || callData.status === 'ended' || callData.status === 'rejected') {
-        setIsCallModalOpen(false);
-        setActiveCall(null);
-        setIsIncomingCall(false);
-      } else {
-        setActiveCall(prev => ({ ...(prev || {}), ...callData }));
-        if (callData.status === 'connected') {
-          setIsIncomingCall(false);
-        }
-      }
-    });
-
-    return () => unsubCallSession();
-  }, [activeCall?.id]);
 
   // Update query param when activeChat changes
   const selectChat = (chatId) => {
@@ -708,127 +649,33 @@ export default function ChatPage() {
   };
 
   // -------------------------------------------------------------
-  // CALLS INITIATION & MANAGEMENT
+  // CALLS INITIATION
   // -------------------------------------------------------------
   const handleStartCall = async (type = 'voice') => {
     if (!activeChat || activeChat.type !== 'direct') return;
 
-    const myUid = currentUser?.uid || currentUser?.id;
+    const myUid = String(currentUser?.uid || currentUser?.id || '');
     if (!myUid) return;
 
-    const partnerUid = activeChat.participants?.find(p => p !== myUid);
+    const partnerUid = activeChat.participants?.find(p => String(p) !== myUid);
     if (!partnerUid) return;
 
-    const partnerDetails = activeChat.participantDetails?.[partnerUid] || {};
+    const pDetails = activeChat.participantDetails || activeChat.participant_details || {};
+    const partnerInfo = pDetails[partnerUid] || {};
     const partner = {
-      uid: partnerUid,
-      name: partnerDetails.name || activeChat.title || 'مستخدم',
-      role: partnerDetails.role || 'user'
+      uid: String(partnerUid),
+      name: partnerInfo.name || activeChat.title || 'مستخدم',
+      role: partnerInfo.role || 'user'
     };
 
     try {
-      const callId = await initiateCall({
+      await startCall({
         chatId: activeChatId,
-        caller: { uid: myUid, name: currentUserName, role: userRole },
         callee: partner,
         type
       });
-
-      setActiveCall({
-        id: callId,
-        chatId: activeChatId,
-        callerId: myUid,
-        callerName: currentUserName,
-        calleeId: partner.uid,
-        calleeName: partner.name,
-        type,
-        status: 'ringing'
-      });
-      setIsIncomingCall(false);
-      setIsCallModalOpen(true);
     } catch (err) {
       console.error('Failed to initiate call:', err);
-    }
-  };
-
-  const handleAnswerCall = async () => {
-    if (!activeCall?.id) return;
-    const callId = activeCall.id;
-    try {
-      // 1. Mark status as connected locally immediately
-      setIsIncomingCall(false);
-      setActiveCall(prev => prev ? ({ ...prev, status: 'connected' }) : null);
-
-      // 2. Update status via Realtime Broadcast
-      await updateCallStatus(callId, 'connected');
-    } catch (err) {
-      console.error('Failed to answer call:', err);
-    }
-  };
-
-  const handleRejectCall = async () => {
-    if (!activeCall?.id) return;
-    const callToReject = activeCall;
-    const myUid = currentUser?.uid || currentUser?.id;
-    setIsCallModalOpen(false);
-    setActiveCall(null);
-    setIsIncomingCall(false);
-    try {
-      await updateCallStatus(callToReject.id, 'rejected');
-
-      if (callToReject.chatId) {
-        await sendMessage(callToReject.chatId, myUid, currentUserName, userRole, {
-          type: 'call',
-          callDetails: {
-            callerId: callToReject.callerId,
-            calleeId: callToReject.calleeId,
-            callType: callToReject.type || 'voice',
-            duration: 0,
-            status: 'rejected'
-          },
-          text: t('chat.callRejected')
-        });
-      }
-    } catch (err) {
-      console.error('Failed to reject call:', err);
-    }
-  };
-
-  const handleEndCall = async (durationSecs = 0) => {
-    if (!activeCall?.id) return;
-    const callToEnd = activeCall;
-    const myUid = currentUser?.uid || currentUser?.id;
-
-    // Immediately close modal locally
-    setIsCallModalOpen(false);
-    setActiveCall(null);
-    setIsIncomingCall(false);
-
-    try {
-      await updateCallStatus(callToEnd.id, 'ended', { duration: durationSecs });
-
-      // Send call summary message to chat if chatId available
-      if (callToEnd.chatId) {
-        const m = Math.floor(durationSecs / 60);
-        const s = Math.floor(durationSecs % 60);
-        const durFormatted = durationSecs > 0 ? `${m}:${s < 10 ? '0' : ''}${s}` : 'لم يُرد عليها';
-        const callTypeLabel = callToEnd.type === 'video' ? t('chat.videoCall') : t('chat.voiceCall');
-        const callStatus = durationSecs > 0 ? 'completed' : 'missed';
-        
-        await sendMessage(callToEnd.chatId, myUid, currentUserName, userRole, {
-          type: 'call',
-          callDetails: {
-            callerId: callToEnd.callerId,
-            calleeId: callToEnd.calleeId,
-            callType: callToEnd.type || 'voice',
-            duration: durationSecs,
-            status: callStatus
-          },
-          text: `${callTypeLabel} (${durFormatted})`
-        });
-      }
-    } catch (err) {
-      console.error('Failed to end call:', err);
     }
   };
 
@@ -2312,19 +2159,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* ========================================================
-          VOICE & VIDEO CALL MODAL
-      ======================================================== */}
-      <CallModal
-        isOpen={isCallModalOpen}
-        onClose={() => handleEndCall(0)}
-        activeCall={activeCall}
-        currentUser={{ uid: currentUser?.uid || currentUser?.id, name: currentUserName, role: userRole }}
-        isIncoming={isIncomingCall}
-        onAnswer={handleAnswerCall}
-        onEndCall={handleEndCall}
-        onReject={handleRejectCall}
-      />
 
     </div>
   );

@@ -9,6 +9,7 @@ import { AuthProvider } from './context/AuthContext';
 import { MaintenanceProvider } from './context/MaintenanceContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { ToastProvider } from './context/ToastContext';
+import { CallProvider } from './context/CallContext';
 import { useDarkMode } from './hooks/useDarkMode';
 import ScrollToTop from './components/ScrollToTop';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
@@ -116,6 +117,7 @@ function App() {
     <LibraryProvider>
     <CoursesProvider>
     <CategoriesProvider>
+    <CallProvider>
     <Router>
       <div className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors flex-1 w-full">
         <ScrollToTop />
@@ -126,6 +128,7 @@ function App() {
         <MobileBottomNav />
       </div>
     </Router>
+    </CallProvider>
     </CategoriesProvider>
     </CoursesProvider>
     </LibraryProvider>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../supabase/client';
+import { broadcastToChannel } from '../../services/chatService';
 
 export default function CallModal({
   isOpen,
@@ -31,8 +32,8 @@ export default function CallModal({
   const signalingChanRef = useRef(null);
 
   const isVideo = activeCall?.type === 'video';
-  const myUid = currentUser?.uid || currentUser?.id;
-  const isCaller = activeCall?.callerId === myUid;
+  const myUid = String(currentUser?.uid || currentUser?.id || '');
+  const isCaller = String(activeCall?.callerId || '') === myUid;
   const partnerName = isCaller ? (activeCall?.calleeName || 'مستخدم') : (activeCall?.callerName || 'مستخدم');
   const status = activeCall?.status || 'ringing';
 
@@ -296,32 +297,34 @@ export default function CallModal({
           }
         };
 
-        // Connect to Realtime Broadcast channel for this call
-        channel = supabase.channel(`call_signaling_${activeCall.id}`, {
-          config: { broadcast: { self: false } }
+        // Connect to Realtime Broadcast channel for this call session
+        const sessionTopic = `call_session_${activeCall.id}`;
+        const existing = supabase.getChannels().find(
+          ch => ch.topic === `realtime:${sessionTopic}` || ch.topic === sessionTopic
+        );
+        channel = existing || supabase.channel(sessionTopic, {
+          config: { broadcast: { ack: true, self: false } }
         });
         signalingChanRef.current = channel;
 
         // ICE candidate handler
         pc.onicecandidate = (event) => {
-          if (event.candidate && channel) {
-            channel.send({
-              type: 'broadcast',
-              event: 'webrtc_candidate',
-              payload: { candidate: event.candidate.toJSON(), from: myUid }
+          if (event.candidate) {
+            broadcastToChannel(sessionTopic, 'webrtc_candidate', {
+              candidate: event.candidate.toJSON(),
+              from: myUid
             });
           }
         };
 
         const createAndSendOffer = async () => {
-          if (!pc || !channel || !isCaller) return;
+          if (!pc || !isCaller) return;
           try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            channel.send({
-              type: 'broadcast',
-              event: 'webrtc_offer',
-              payload: { offer: { type: offer.type, sdp: offer.sdp }, from: myUid }
+            await broadcastToChannel(sessionTopic, 'webrtc_offer', {
+              offer: { type: offer.type, sdp: offer.sdp },
+              from: myUid
             });
           } catch (offErr) {
             console.warn('Could not create offer:', offErr);
@@ -332,7 +335,7 @@ export default function CallModal({
         channel.on('broadcast', { event: 'webrtc_offer' }, async ({ payload }) => {
           if (!isMounted || !pc || isCaller) return;
           try {
-            if (payload.offer && (!pc.remoteDescription || pc.signalingState === 'stable')) {
+            if (payload?.offer && (!pc.remoteDescription || pc.signalingState === 'stable')) {
               await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
               
               // Flush any buffered ICE candidates
@@ -344,10 +347,9 @@ export default function CallModal({
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
 
-              channel.send({
-                type: 'broadcast',
-                event: 'webrtc_answer',
-                payload: { answer: { type: answer.type, sdp: answer.sdp }, from: myUid }
+              await broadcastToChannel(sessionTopic, 'webrtc_answer', {
+                answer: { type: answer.type, sdp: answer.sdp },
+                from: myUid
               });
             }
           } catch (err) {
@@ -359,7 +361,7 @@ export default function CallModal({
         channel.on('broadcast', { event: 'webrtc_answer' }, async ({ payload }) => {
           if (!isMounted || !pc || !isCaller) return;
           try {
-            if (payload.answer && pc.signalingState === 'have-local-offer') {
+            if (payload?.answer && pc.signalingState === 'have-local-offer') {
               await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
               
               while (pendingCandidates.length > 0) {
@@ -374,7 +376,7 @@ export default function CallModal({
 
         // Handle ICE Candidate
         channel.on('broadcast', { event: 'webrtc_candidate' }, async ({ payload }) => {
-          if (!pc || !payload.candidate) return;
+          if (!pc || !payload?.candidate) return;
           try {
             if (pc.remoteDescription && pc.remoteDescription.type) {
               await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
@@ -400,26 +402,28 @@ export default function CallModal({
           }
         });
 
-        // Subscribe to channel
-        channel.subscribe(async (subStatus) => {
-          if (subStatus === 'SUBSCRIBED' && isMounted) {
-            if (!isCaller) {
-              // Notify Caller that Callee is ready in the room
-              channel.send({
-                type: 'broadcast',
-                event: 'peer_ready',
-                payload: { from: myUid }
-              });
-            } else {
-              // Send initial offer
-              setTimeout(() => {
-                if (isMounted && isCaller) {
-                  createAndSendOffer();
-                }
-              }, 400);
-            }
+        const onChannelReady = () => {
+          if (!isMounted) return;
+          if (!isCaller) {
+            broadcastToChannel(sessionTopic, 'peer_ready', { from: myUid });
+          } else {
+            setTimeout(() => {
+              if (isMounted && isCaller) {
+                createAndSendOffer();
+              }
+            }, 500);
           }
-        });
+        };
+
+        if (channel.state === 'joined') {
+          onChannelReady();
+        } else {
+          channel.subscribe(async (subStatus) => {
+            if (subStatus === 'SUBSCRIBED' && isMounted) {
+              onChannelReady();
+            }
+          });
+        }
 
       } catch (err) {
         console.warn('WebRTC peer initialization error:', err);
@@ -430,10 +434,6 @@ export default function CallModal({
 
     return () => {
       isMounted = false;
-      if (channel) {
-        try { supabase.removeChannel(channel); } catch {}
-        signalingChanRef.current = null;
-      }
       if (pc) {
         try { pc.close(); } catch {}
         pcRef.current = null;
@@ -482,12 +482,8 @@ export default function CallModal({
 
   const handleHangup = () => {
     try {
-      if (signalingChanRef.current) {
-        signalingChanRef.current.send({
-          type: 'broadcast',
-          event: 'webrtc_end',
-          payload: { from: myUid }
-        });
+      if (activeCall?.id) {
+        broadcastToChannel(`call_session_${activeCall.id}`, 'webrtc_end', { from: myUid });
       }
     } catch {}
     if (onEndCall) {

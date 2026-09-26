@@ -1198,15 +1198,76 @@ export async function markMessagesAsRead(chatId, messageIds, userId) {
 // -------------------------------------------------------------
 const activeCallsRegistry = new Map();
 
+/**
+ * Universal, reliable broadcast helper.
+ * Handles both already-joined channels and channels in the middle of joining.
+ */
+export async function broadcastToChannel(channelName, event, payload) {
+  if (!channelName || !event) return false;
+
+  try {
+    const existing = supabase.getChannels().find(
+      ch => ch.topic === `realtime:${channelName}` || ch.topic === channelName
+    );
+    const channel = existing || supabase.channel(channelName, {
+      config: { broadcast: { ack: true, self: false } }
+    });
+
+    if (channel.state === 'joined') {
+      try {
+        const res = await channel.send({
+          type: 'broadcast',
+          event,
+          payload
+        });
+        return res === 'ok';
+      } catch (err) {
+        console.warn(`Error broadcasting on joined channel ${channelName}:`, err);
+        return false;
+      }
+    }
+
+    return new Promise((resolve) => {
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(false);
+        }
+      }, 4000);
+
+      channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && !resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          try {
+            const res = await channel.send({
+              type: 'broadcast',
+              event,
+              payload
+            });
+            resolve(res === 'ok');
+          } catch (e) {
+            resolve(false);
+          }
+        }
+      });
+    });
+  } catch (err) {
+    console.warn(`broadcastToChannel failed on ${channelName}:`, err);
+    return false;
+  }
+}
+
 export async function initiateCall(params = {}) {
   const chatId = params.chatId;
   const type = params.type || (params.isVideo ? 'video' : 'voice');
   
-  const callerId = params.caller?.uid || params.caller?.id || params.callerId;
+  const callerId = String(params.caller?.uid || params.caller?.id || params.callerId || '');
   const callerName = params.caller?.name || params.callerName || 'مستخدم';
   const callerRole = params.caller?.role || 'student';
 
-  const calleeId = params.callee?.uid || params.callee?.id || params.recipientId;
+  const calleeId = String(params.callee?.uid || params.callee?.id || params.recipientId || '');
   const calleeName = params.callee?.name || params.recipientName || 'مستخدم';
   const calleeRole = params.callee?.role || 'user';
 
@@ -1234,18 +1295,7 @@ export async function initiateCall(params = {}) {
 
   // 1. Broadcast incoming call to callee on their personal real-time channel
   try {
-    const userChan = supabase.channel(`user_calls_${calleeId}`, {
-      config: { broadcast: { self: false } }
-    });
-    userChan.subscribe((subStatus) => {
-      if (subStatus === 'SUBSCRIBED') {
-        userChan.send({
-          type: 'broadcast',
-          event: 'incoming_call',
-          payload: callPayload
-        });
-      }
-    });
+    await broadcastToChannel(`user_calls_${calleeId}`, 'incoming_call', callPayload);
   } catch (err) {
     console.warn('Could not broadcast incoming call:', err);
   }
@@ -1282,18 +1332,7 @@ export async function updateCallStatus(callId, status, metadata = {}) {
 
   // 1. Broadcast status change on the call session channel
   try {
-    const sessionChan = supabase.channel(`call_session_${callId}`, {
-      config: { broadcast: { self: false } }
-    });
-    sessionChan.subscribe((subStatus) => {
-      if (subStatus === 'SUBSCRIBED') {
-        sessionChan.send({
-          type: 'broadcast',
-          event: 'call_status',
-          payload: { callId, status, ...metadata }
-        });
-      }
-    });
+    await broadcastToChannel(`call_session_${callId}`, 'call_status', { callId, status, ...metadata });
   } catch (e) {
     console.warn('Could not broadcast call status:', e);
   }
@@ -1303,18 +1342,7 @@ export async function updateCallStatus(callId, status, metadata = {}) {
     const targetUserId = existing.calleeId;
     if (targetUserId) {
       try {
-        const calleeChan = supabase.channel(`user_calls_${targetUserId}`, {
-          config: { broadcast: { self: false } }
-        });
-        calleeChan.subscribe((subStatus) => {
-          if (subStatus === 'SUBSCRIBED') {
-            calleeChan.send({
-              type: 'broadcast',
-              event: 'cancel_call',
-              payload: { callId, status }
-            });
-          }
-        });
+        await broadcastToChannel(`user_calls_${targetUserId}`, 'cancel_call', { callId, status });
       } catch {}
     }
   }
@@ -1328,12 +1356,16 @@ export function listenToIncomingCalls(userId, callback) {
     return () => {};
   }
 
-  const channel = supabase.channel(`user_calls_${userId}`, {
+  const sUserId = String(userId);
+  const existing = supabase.getChannels().find(
+    ch => ch.topic === `realtime:user_calls_${sUserId}` || ch.topic === `user_calls_${sUserId}`
+  );
+  const channel = existing || supabase.channel(`user_calls_${sUserId}`, {
     config: { broadcast: { self: false } }
   });
 
   channel.on('broadcast', { event: 'incoming_call' }, ({ payload }) => {
-    if (payload && payload.calleeId === userId && payload.status === 'ringing') {
+    if (payload && String(payload.calleeId) === sUserId && payload.status === 'ringing') {
       callback(payload);
     }
   });
@@ -1342,7 +1374,9 @@ export function listenToIncomingCalls(userId, callback) {
     callback(null);
   });
 
-  channel.subscribe();
+  if (channel.state !== 'joined') {
+    channel.subscribe();
+  }
 
   return () => {
     try {
@@ -1361,18 +1395,23 @@ export function listenToCallSession(callId, callback) {
     callback(activeCallsRegistry.get(callId));
   }
 
-  const channel = supabase.channel(`call_session_${callId}`, {
+  const existing = supabase.getChannels().find(
+    ch => ch.topic === `realtime:call_session_${callId}` || ch.topic === `call_session_${callId}`
+  );
+  const channel = existing || supabase.channel(`call_session_${callId}`, {
     config: { broadcast: { self: false } }
   });
 
   channel.on('broadcast', { event: 'call_status' }, ({ payload }) => {
-    const existing = activeCallsRegistry.get(callId) || {};
-    const merged = { ...existing, ...payload };
+    const prev = activeCallsRegistry.get(callId) || {};
+    const merged = { ...prev, ...payload };
     activeCallsRegistry.set(callId, merged);
     callback(merged);
   });
 
-  channel.subscribe();
+  if (channel.state !== 'joined') {
+    channel.subscribe();
+  }
 
   return () => {
     try {
