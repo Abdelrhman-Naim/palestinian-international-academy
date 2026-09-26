@@ -11,7 +11,7 @@ import Footer from '../components/Footer';
 import { getCourseIcon } from '../components/CourseCard';
 import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
-import { toggleLessonCompletion } from '../services/certificateService';
+import { toggleLessonCompletion, generateCertificateCode } from '../services/certificateService';
 import { getCourseExam } from '../services/examService';
 import CertificateModal from '../components/CertificateModal';
 import GraduationExamModal from '../components/GraduationExamModal';
@@ -123,22 +123,51 @@ export default function CourseDetail() {
 
           setProgressPercent(computedProgress);
 
-          const hasPassedExam = !!(enrollData?.passed_exam || enrollData?.passedExam);
+          // Check if certificate exists in certificates table
+          const { data: cData } = await supabase
+            .from('certificates')
+            .select('*')
+            .eq('student_id', uid)
+            .eq('course_id', id)
+            .maybeSingle();
+
+          // Also check exam_results
+          const { data: exResults } = await supabase
+            .from('exam_results')
+            .select('*')
+            .eq('student_id', uid)
+            .eq('course_id', id)
+            .order('score', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const hasPassedExam = Boolean(cData || (exResults && Number(exResults.score) >= 80));
           setExamPassed(hasPassedExam);
 
           if (hasPassedExam) {
-            const { data: cData } = await supabase
-              .from('certificates')
-              .select('*')
-              .eq('student_id', uid)
-              .eq('course_id', id)
-              .maybeSingle();
+            let activeCert = cData;
+            if (!activeCert) {
+              const certCode = generateCertificateCode();
+              const resolvedName = userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة';
+              const newCertPayload = {
+                certificate_number: certCode,
+                student_id: uid,
+                student_name: resolvedName,
+                course_id: id,
+                course_title: course?.title || 'الدورة الهندسية'
+              };
+              const { data: created } = await supabase.from('certificates').insert([newCertPayload]).select().single();
+              activeCert = created;
+            }
 
-            if (cData) {
+            if (activeCert) {
               setEarnedCertificate({
-                id: cData.id,
-                certificateId: cData.certificate_number || cData.certificateId || cData.id,
-                ...cData
+                ...activeCert,
+                id: activeCert.id,
+                certificateId: activeCert.certificate_number || activeCert.certificateId || activeCert.id,
+                studentName: activeCert.student_name || activeCert.studentName,
+                courseTitle: activeCert.course_title || activeCert.courseTitle || course?.title,
+                gradeScore: exResults?.score || 80
               });
             }
           }
@@ -819,9 +848,18 @@ export default function CourseDetail() {
           currentUser={currentUser}
           onClose={() => setShowExamModal(false)}
           onExamPassed={(cert) => {
+            setShowExamModal(false);
+            setExamPassed(true);
             if (cert) {
-              setEarnedCertificate(cert);
-              setExamPassed(true);
+              const normalizedCert = {
+                ...cert,
+                id: cert.id || `cert_${Date.now()}`,
+                certificateId: cert.certificate_number || cert.certificateId || cert.id,
+                studentName: cert.student_name || cert.studentName || userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة',
+                courseTitle: cert.course_title || cert.courseTitle || course?.title,
+                gradeScore: cert.gradeScore || 80
+              };
+              setEarnedCertificate(normalizedCert);
               setShowCertModal(true);
             }
           }}

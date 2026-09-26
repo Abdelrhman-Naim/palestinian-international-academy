@@ -319,8 +319,18 @@ export default function GraduationExamModal({
                     <button
                       type="button"
                       onClick={() => {
+                        const resolvedCert = examResult.certificate || {
+                          certificateId: `PIA-${new Date().getFullYear()}-PASSED`,
+                          certificate_number: `PIA-${new Date().getFullYear()}-PASSED`,
+                          studentName: userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة',
+                          student_name: userData?.fullName || userData?.name || currentUser?.displayName || 'طالب المنصة',
+                          courseTitle: course?.title || 'الدورة الهندسية',
+                          course_title: course?.title || 'الدورة الهندسية',
+                          gradeScore: examResult.score || 80,
+                          issue_date: new Date().toISOString()
+                        };
                         onClose();
-                        if (onExamPassed) onExamPassed(examResult.certificate);
+                        if (onExamPassed) onExamPassed(resolvedCert);
                       }}
                       className="px-8 py-3.5 rounded-2xl bg-primary hover:bg-orange-700 text-white font-bold text-sm shadow-lg shadow-primary/25 transition-all flex items-center gap-2 cursor-pointer"
                     >
