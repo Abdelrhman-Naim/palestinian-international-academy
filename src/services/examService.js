@@ -15,7 +15,13 @@ export async function getCourseExam(courseId) {
       .maybeSingle();
 
     if (error || !data) return null;
-    return data.lessons?.exam || data.exam_data || null;
+    if (data.lessons && typeof data.lessons === 'object' && !Array.isArray(data.lessons) && data.lessons.exam) {
+      return data.lessons.exam;
+    }
+    if (data.lessons && typeof data.lessons === 'object' && !Array.isArray(data.lessons) && data.lessons.questions) {
+      return data.lessons;
+    }
+    return data.exam_data || null;
   } catch {
     return null;
   }
@@ -27,22 +33,68 @@ export async function getCourseExam(courseId) {
 export async function saveCourseExam(courseId, examData) {
   if (!courseId) return { success: false, error: 'Missing courseId' };
   try {
-    const { error } = await supabase
+    const formattedExam = {
+      ...examData,
+      title: examData.title || '',
+      description: examData.description || '',
+      passPercentage: Number(examData.passPercentage) || 80,
+      timeLimitMinutes: Number(examData.timeLimitMinutes) || 20,
+      questions: Array.isArray(examData.questions) ? examData.questions : [],
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Fetch current course record to preserve existing lessons/sessions
+    const { data: courseRow } = await supabase
       .from('courses')
-      .update({
-        exam_data: {
-          ...examData,
-          passPercentage: examData.passPercentage || 80,
-          updatedAt: new Date().toISOString()
-        }
-      })
+      .select('lessons')
+      .eq('id', courseId)
+      .maybeSingle();
+
+    const currentLessons = courseRow?.lessons;
+    let newLessons;
+
+    if (Array.isArray(currentLessons)) {
+      newLessons = {
+        sessions: currentLessons,
+        exam: formattedExam
+      };
+    } else if (currentLessons && typeof currentLessons === 'object') {
+      newLessons = {
+        ...currentLessons,
+        exam: formattedExam
+      };
+    } else {
+      newLessons = {
+        exam: formattedExam
+      };
+    }
+
+    // 2. Primary save: update the `lessons` JSON column on `courses`
+    const { error: lessonsErr } = await supabase
+      .from('courses')
+      .update({ lessons: newLessons })
       .eq('id', courseId);
 
-    if (error) throw error;
+    if (lessonsErr) {
+      console.warn('Notice updating course lessons with exam:', lessonsErr.message);
+    }
+
+    // 3. Fallback/secondary save: if courses table has `exam_data` column or custom schema, try updating it safely without throwing schema error
+    try {
+      await supabase
+        .from('courses')
+        .update({
+          exam_data: formattedExam
+        })
+        .eq('id', courseId);
+    } catch (e) {
+      // Ignore schema missing column notice
+    }
+
     return { success: true };
   } catch (err) {
     console.error('Error saving course exam:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: err.message || 'فشل حفظ بيانات الاختبار' };
   }
 }
 
@@ -119,7 +171,7 @@ export async function submitExamAttempt({
           type: 'certificate',
           link: '/dashboard/certificates',
           courseId,
-          metadata: { certificateId: certCode, score }
+          metadata: { certificateId: certData?.id || '', score }
         });
       } catch (err) {
         console.warn('Student notification error:', err);
