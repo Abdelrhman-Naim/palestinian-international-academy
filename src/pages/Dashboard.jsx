@@ -9,12 +9,14 @@ import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
 import PageLoader from '../components/PageLoader';
 
-const navItemClass = ({ isActive }) =>
-  `flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium border ${
+const navItemClass = (props = {}) => {
+  const isActive = Boolean(props && typeof props === 'object' ? props.isActive : props);
+  return `flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium border ${
     isActive
       ? 'bg-primary border-primary text-white font-bold shadow-sm'
       : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-dark dark:hover:text-white hover:border-[#E8E2D5] dark:hover:border-gray-700 hover:shadow-xs'
   }`;
+};
 
 const Dashboard = () => {
   const { t, dir, toggleLang, lang } = useLanguage();
@@ -200,7 +202,7 @@ const Dashboard = () => {
                     <i className="fa-solid fa-rocket w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.myProject')}
                   </NavLink>
-                  <Link to="/#projects" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <Link to="/#projects" onClick={() => setIsSidebarOpen(false)} className={navItemClass({ isActive: false })}>
                     <i className="fa-solid fa-diagram-project w-6 text-center ml-2 text-sm group-hover:text-primary transition-colors"></i>
                     {t('studentDashboard.projectsShowcase')}
                   </Link>
