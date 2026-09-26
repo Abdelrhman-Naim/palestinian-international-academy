@@ -88,6 +88,10 @@ export default function ChatPage() {
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const activeCallRef = useRef(null);
 
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
   // Reply & Edit state
   const [replyingToMessage, setReplyingToMessage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
@@ -709,20 +713,23 @@ export default function ChatPage() {
   const handleStartCall = async (type = 'voice') => {
     if (!activeChat || activeChat.type !== 'direct') return;
 
-    const partnerUid = activeChat.participants?.find(p => p !== currentUser?.uid);
+    const myUid = currentUser?.uid || currentUser?.id;
+    if (!myUid) return;
+
+    const partnerUid = activeChat.participants?.find(p => p !== myUid);
     if (!partnerUid) return;
 
     const partnerDetails = activeChat.participantDetails?.[partnerUid] || {};
     const partner = {
       uid: partnerUid,
-      name: partnerDetails.name || 'مستخدم',
+      name: partnerDetails.name || activeChat.title || 'مستخدم',
       role: partnerDetails.role || 'user'
     };
 
     try {
       const callId = await initiateCall({
         chatId: activeChatId,
-        caller: { uid: currentUser.uid, name: currentUserName, role: userRole },
+        caller: { uid: myUid, name: currentUserName, role: userRole },
         callee: partner,
         type
       });
@@ -730,7 +737,7 @@ export default function ChatPage() {
       setActiveCall({
         id: callId,
         chatId: activeChatId,
-        callerId: currentUser.uid,
+        callerId: myUid,
         callerName: currentUserName,
         calleeId: partner.uid,
         calleeName: partner.name,
@@ -752,7 +759,7 @@ export default function ChatPage() {
       setIsIncomingCall(false);
       setActiveCall(prev => prev ? ({ ...prev, status: 'connected' }) : null);
 
-      // 2. Update status in Firestore
+      // 2. Update status via Realtime Broadcast
       await updateCallStatus(callId, 'connected');
     } catch (err) {
       console.error('Failed to answer call:', err);
@@ -762,6 +769,7 @@ export default function ChatPage() {
   const handleRejectCall = async () => {
     if (!activeCall?.id) return;
     const callToReject = activeCall;
+    const myUid = currentUser?.uid || currentUser?.id;
     setIsCallModalOpen(false);
     setActiveCall(null);
     setIsIncomingCall(false);
@@ -769,7 +777,7 @@ export default function ChatPage() {
       await updateCallStatus(callToReject.id, 'rejected');
 
       if (callToReject.chatId) {
-        await sendMessage(callToReject.chatId, currentUser.uid, currentUserName, userRole, {
+        await sendMessage(callToReject.chatId, myUid, currentUserName, userRole, {
           type: 'call',
           callDetails: {
             callerId: callToReject.callerId,
@@ -789,6 +797,7 @@ export default function ChatPage() {
   const handleEndCall = async (durationSecs = 0) => {
     if (!activeCall?.id) return;
     const callToEnd = activeCall;
+    const myUid = currentUser?.uid || currentUser?.id;
 
     // Immediately close modal locally
     setIsCallModalOpen(false);
@@ -806,7 +815,7 @@ export default function ChatPage() {
         const callTypeLabel = callToEnd.type === 'video' ? t('chat.videoCall') : t('chat.voiceCall');
         const callStatus = durationSecs > 0 ? 'completed' : 'missed';
         
-        await sendMessage(callToEnd.chatId, currentUser.uid, currentUserName, userRole, {
+        await sendMessage(callToEnd.chatId, myUid, currentUserName, userRole, {
           type: 'call',
           callDetails: {
             callerId: callToEnd.callerId,
@@ -2308,9 +2317,9 @@ export default function ChatPage() {
       ======================================================== */}
       <CallModal
         isOpen={isCallModalOpen}
-        onClose={() => setIsCallModalOpen(false)}
+        onClose={() => handleEndCall(0)}
         activeCall={activeCall}
-        currentUser={{ uid: currentUser?.uid, name: currentUserName, role: userRole }}
+        currentUser={{ uid: currentUser?.uid || currentUser?.id, name: currentUserName, role: userRole }}
         isIncoming={isIncomingCall}
         onAnswer={handleAnswerCall}
         onEndCall={handleEndCall}

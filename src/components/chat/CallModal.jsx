@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { doc, updateDoc, arrayUnion } from '../../supabase/db';
+import { supabase } from '../../supabase/client';
 
 export default function CallModal({
   isOpen,
@@ -28,25 +28,92 @@ export default function CallModal({
   const timerRef = useRef(null);
   const streamRef = useRef(null);
   const pcRef = useRef(null);
+  const signalingChanRef = useRef(null);
 
   const isVideo = activeCall?.type === 'video';
-  const isCaller = activeCall?.callerId === currentUser?.uid;
+  const myUid = currentUser?.uid || currentUser?.id;
+  const isCaller = activeCall?.callerId === myUid;
   const partnerName = isCaller ? (activeCall?.calleeName || 'مستخدم') : (activeCall?.callerName || 'مستخدم');
   const status = activeCall?.status || 'ringing';
 
   // -------------------------------------------------------------
-  // 1. MEDIA STREAM ACQUISITION & MANAGEMENT
+  // 1. SOUND EFFECTS (Web Audio API Ringing Tone)
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (!isOpen || status !== 'ringing') return;
+
+    let isPlaying = true;
+    let audioCtx = null;
+    let timer = null;
+
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+
+        const playTone = () => {
+          if (!isPlaying || !audioCtx || audioCtx.state === 'closed') return;
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+          }
+
+          const now = audioCtx.currentTime;
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          osc1.type = 'sine';
+          osc2.type = 'sine';
+
+          if (isIncoming) {
+            osc1.frequency.setValueAtTime(440, now);
+            osc2.frequency.setValueAtTime(480, now);
+          } else {
+            osc1.frequency.setValueAtTime(400, now);
+            osc2.frequency.setValueAtTime(450, now);
+          }
+
+          gainNode.gain.setValueAtTime(0.04, now);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+          osc1.connect(gainNode);
+          osc2.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 1.2);
+          osc2.stop(now + 1.2);
+        };
+
+        playTone();
+        timer = setInterval(playTone, 2400);
+      }
+    } catch (e) {
+      console.warn('Ringtone AudioContext notice:', e);
+    }
+
+    return () => {
+      isPlaying = false;
+      if (timer) clearInterval(timer);
+      if (audioCtx) {
+        try { audioCtx.close(); } catch {}
+      }
+    };
+  }, [isOpen, status, isIncoming]);
+
+  // -------------------------------------------------------------
+  // 2. MEDIA STREAM ACQUISITION & MANAGEMENT
   // -------------------------------------------------------------
   useEffect(() => {
     if (!isOpen || !activeCall) {
-      // Clean up when modal is closed
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
         setLocalStream(null);
       }
       if (pcRef.current) {
-        pcRef.current.close();
+        try { pcRef.current.close(); } catch {}
         pcRef.current = null;
       }
       setRemoteStream(null);
@@ -59,7 +126,6 @@ export default function CallModal({
     let mounted = true;
 
     async function setupStream() {
-      // If we already have live tracks, reuse them
       if (streamRef.current) {
         const live = streamRef.current.getTracks().some(t => t.readyState === 'live');
         if (live) {
@@ -77,8 +143,6 @@ export default function CallModal({
 
         if (isVideo) {
           try {
-            // Tier 1: Try camera and mic with standard relaxed constraints (video: true)
-            // Avoiding strict facingMode: 'user' or resolution which fails on desktop/laptop webcams
             stream = await navigator.mediaDevices.getUserMedia({
               audio: true,
               video: true
@@ -88,12 +152,10 @@ export default function CallModal({
             if (vidErr.name === 'NotAllowedError' || vidErr.name === 'PermissionDeniedError') {
               throw vidErr;
             }
-            // Tier 2: If webcam is in use by another tab/app or unavailable, fall back to audio
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setIsCameraOff(true);
           }
         } else {
-          // Voice only call
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
 
@@ -114,9 +176,9 @@ export default function CallModal({
           if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             setPermissionError(isVideo ? t('chat.cameraBlocked') : t('chat.micBlocked'));
           } else if (err.name === 'NotReadableError') {
-            setPermissionError('الكاميرا أو الميكروفون قيد الاستخدام من قبل نافذة أو تطبيق آخر');
+            setPermissionError('الكاميرا أو الميكروفون قيد الاستخدام من قبل تطبيق آخر');
           } else if (err.name === 'NotFoundError') {
-            setPermissionError('لم يتم العثور على كاميرا أو ميكروفون متصل');
+            setPermissionError('لم يتم العثور على ميكروفون أو كاميرا متصلة');
           } else {
             setPermissionError(isVideo ? t('chat.cameraBlocked') : t('chat.micBlocked'));
           }
@@ -146,6 +208,7 @@ export default function CallModal({
       }
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch(() => {});
       }
     }
   }, [remoteStream, isVideo]);
@@ -157,103 +220,229 @@ export default function CallModal({
         streamRef.current.getTracks().forEach(t => t.stop());
       }
       if (pcRef.current) {
-        pcRef.current.close();
+        try { pcRef.current.close(); } catch {}
       }
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (signalingChanRef.current) {
+        try { supabase.removeChannel(signalingChanRef.current); } catch {}
       }
     };
   }, []);
 
   // -------------------------------------------------------------
-  // 2. WEBRTC P2P SIGNALING & CONNECTION
+  // 3. WEBRTC P2P SIGNALING & CONNECTION (Supabase Realtime Broadcast)
   // -------------------------------------------------------------
   useEffect(() => {
-    if (!isOpen || !activeCall?.id || status !== 'connected' || !localStream) return;
+    if (!isOpen || !activeCall?.id || status !== 'connected') return;
 
     let pc = pcRef.current;
-    if (!pc) {
+    let channel = signalingChanRef.current;
+    let pendingCandidates = [];
+    let isMounted = true;
+
+    async function initWebRTC() {
       try {
+        let stream = streamRef.current || localStream;
+        if (!stream) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: isVideo ? true : false
+            });
+            if (!isMounted) {
+              stream.getTracks().forEach(t => t.stop());
+              return;
+            }
+            streamRef.current = stream;
+            setLocalStream(stream);
+            if (localVideoRef.current && isVideo) {
+              localVideoRef.current.srcObject = stream;
+            }
+          } catch (e) {
+            console.warn('Fallback getUserMedia failed during WebRTC init:', e);
+          }
+        }
+
+        // Initialize RTCPeerConnection with STUN servers
         pc = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
           ]
         });
         pcRef.current = pc;
 
-        // Add local stream tracks to peer connection
-        localStream.getTracks().forEach(track => {
-          pc.addTrack(track, localStream);
-        });
+        // Add local tracks to peer connection
+        if (stream) {
+          stream.getTracks().forEach(track => {
+            pc.addTrack(track, stream);
+          });
+        }
 
         // Listen for remote tracks
         pc.ontrack = (event) => {
           if (event.streams && event.streams[0]) {
             setRemoteStream(event.streams[0]);
-          }
-        };
-
-        // Listen for local ICE candidates
-        pc.onicecandidate = async (event) => {
-          if (event.candidate && activeCall?.id) {
-            try {
-              const candidateField = isCaller ? 'callerCandidates' : 'calleeCandidates';
-              await updateDoc(doc(db, 'calls', activeCall.id), {
-                [candidateField]: arrayUnion(event.candidate.toJSON())
-              });
-            } catch (err) {
-              console.warn('Could not save ICE candidate:', err);
+            if (remoteVideoRef.current && isVideo) {
+              remoteVideoRef.current.srcObject = event.streams[0];
+            }
+            if (remoteAudioRef.current) {
+              remoteAudioRef.current.srcObject = event.streams[0];
+              remoteAudioRef.current.play().catch(() => {});
             }
           }
         };
 
-        // Caller initiates WebRTC offer
-        if (isCaller && !activeCall.offer) {
-          pc.createOffer().then(async (offer) => {
-            await pc.setLocalDescription(offer);
-            await updateDoc(doc(db, 'calls', activeCall.id), {
-              offer: { type: offer.type, sdp: offer.sdp }
+        // Connect to Realtime Broadcast channel for this call
+        channel = supabase.channel(`call_signaling_${activeCall.id}`, {
+          config: { broadcast: { self: false } }
+        });
+        signalingChanRef.current = channel;
+
+        // ICE candidate handler
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channel) {
+            channel.send({
+              type: 'broadcast',
+              event: 'webrtc_candidate',
+              payload: { candidate: event.candidate.toJSON(), from: myUid }
             });
-          }).catch(e => console.warn('WebRTC offer error:', e));
-        }
+          }
+        };
+
+        const createAndSendOffer = async () => {
+          if (!pc || !channel || !isCaller) return;
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            channel.send({
+              type: 'broadcast',
+              event: 'webrtc_offer',
+              payload: { offer: { type: offer.type, sdp: offer.sdp }, from: myUid }
+            });
+          } catch (offErr) {
+            console.warn('Could not create offer:', offErr);
+          }
+        };
+
+        // Handle Offer (Callee)
+        channel.on('broadcast', { event: 'webrtc_offer' }, async ({ payload }) => {
+          if (!isMounted || !pc || isCaller) return;
+          try {
+            if (payload.offer && (!pc.remoteDescription || pc.signalingState === 'stable')) {
+              await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+              
+              // Flush any buffered ICE candidates
+              while (pendingCandidates.length > 0) {
+                const c = pendingCandidates.shift();
+                try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) {}
+              }
+
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+
+              channel.send({
+                type: 'broadcast',
+                event: 'webrtc_answer',
+                payload: { answer: { type: answer.type, sdp: answer.sdp }, from: myUid }
+              });
+            }
+          } catch (err) {
+            console.warn('Error handling WebRTC offer:', err);
+          }
+        });
+
+        // Handle Answer (Caller)
+        channel.on('broadcast', { event: 'webrtc_answer' }, async ({ payload }) => {
+          if (!isMounted || !pc || !isCaller) return;
+          try {
+            if (payload.answer && pc.signalingState === 'have-local-offer') {
+              await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+              
+              while (pendingCandidates.length > 0) {
+                const c = pendingCandidates.shift();
+                try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) {}
+              }
+            }
+          } catch (err) {
+            console.warn('Error handling WebRTC answer:', err);
+          }
+        });
+
+        // Handle ICE Candidate
+        channel.on('broadcast', { event: 'webrtc_candidate' }, async ({ payload }) => {
+          if (!pc || !payload.candidate) return;
+          try {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } else {
+              pendingCandidates.push(payload.candidate);
+            }
+          } catch (err) {
+            console.warn('Error adding ICE candidate:', err);
+          }
+        });
+
+        // Peer ready handshake: When Callee signals ready, Caller produces offer
+        channel.on('broadcast', { event: 'peer_ready' }, () => {
+          if (isCaller && isMounted) {
+            createAndSendOffer();
+          }
+        });
+
+        // Remote Hangup
+        channel.on('broadcast', { event: 'webrtc_end' }, () => {
+          if (isMounted && onEndCall) {
+            onEndCall(durationSeconds);
+          }
+        });
+
+        // Subscribe to channel
+        channel.subscribe(async (subStatus) => {
+          if (subStatus === 'SUBSCRIBED' && isMounted) {
+            if (!isCaller) {
+              // Notify Caller that Callee is ready in the room
+              channel.send({
+                type: 'broadcast',
+                event: 'peer_ready',
+                payload: { from: myUid }
+              });
+            } else {
+              // Send initial offer
+              setTimeout(() => {
+                if (isMounted && isCaller) {
+                  createAndSendOffer();
+                }
+              }, 400);
+            }
+          }
+        });
+
       } catch (err) {
-        console.warn('WebRTC peer connection initialization failed:', err);
+        console.warn('WebRTC peer initialization error:', err);
       }
     }
 
-    // Callee receives offer and creates answer
-    if (pc && !isCaller && activeCall.offer && !pc.currentRemoteDescription) {
-      pc.setRemoteDescription(new RTCSessionDescription(activeCall.offer))
-        .then(() => pc.createAnswer())
-        .then(async (answer) => {
-          await pc.setLocalDescription(answer);
-          await updateDoc(doc(db, 'calls', activeCall.id), {
-            answer: { type: answer.type, sdp: answer.sdp }
-          });
-        })
-        .catch(e => console.warn('WebRTC answer error:', e));
-    }
+    initWebRTC();
 
-    // Caller receives answer from callee
-    if (pc && isCaller && activeCall.answer && !pc.currentRemoteDescription) {
-      pc.setRemoteDescription(new RTCSessionDescription(activeCall.answer))
-        .catch(e => console.warn('WebRTC setRemoteDescription answer error:', e));
-    }
-
-    // Exchange ICE candidates
-    const candidatesToAdd = isCaller ? activeCall.calleeCandidates : activeCall.callerCandidates;
-    if (pc && pc.remoteDescription && Array.isArray(candidatesToAdd)) {
-      candidatesToAdd.forEach(cand => {
-        try {
-          pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
-        } catch (e) {}
-      });
-    }
-  }, [isOpen, activeCall?.id, status, localStream, activeCall?.offer, activeCall?.answer, isCaller]);
+    return () => {
+      isMounted = false;
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch {}
+        signalingChanRef.current = null;
+      }
+      if (pc) {
+        try { pc.close(); } catch {}
+        pcRef.current = null;
+      }
+    };
+  }, [isOpen, activeCall?.id, status, isCaller, isVideo, myUid]);
 
   // -------------------------------------------------------------
-  // 3. CALL TIMER LOGIC
+  // 4. CALL TIMER LOGIC
   // -------------------------------------------------------------
   useEffect(() => {
     if (status === 'connected') {
@@ -271,7 +460,7 @@ export default function CallModal({
   }, [status]);
 
   // -------------------------------------------------------------
-  // 4. CALL CONTROLS
+  // 5. CALL CONTROLS
   // -------------------------------------------------------------
   const toggleMute = () => {
     if (!localStream) return;
@@ -288,6 +477,21 @@ export default function CallModal({
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
       setIsCameraOff(!videoTrack.enabled);
+    }
+  };
+
+  const handleHangup = () => {
+    try {
+      if (signalingChanRef.current) {
+        signalingChanRef.current.send({
+          type: 'broadcast',
+          event: 'webrtc_end',
+          payload: { from: myUid }
+        });
+      }
+    } catch {}
+    if (onEndCall) {
+      onEndCall(durationSeconds);
     }
   };
 
@@ -495,7 +699,7 @@ export default function CallModal({
               {/* End Call Button */}
               <button
                 type="button"
-                onClick={() => onEndCall(durationSeconds)}
+                onClick={handleHangup}
                 className="w-14 h-14 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-lg hover:shadow-rose-500/30 transition-all active:scale-95 cursor-pointer"
                 title={t('chat.endCall')}
                 aria-label={t('chat.endCall')}

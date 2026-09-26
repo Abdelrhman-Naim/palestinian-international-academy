@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { createNotification } from './notificationService';
 
 const LOCAL_CHATS_KEY_PREFIX = 'pia_chats_';
 const LOCAL_MSGS_KEY_PREFIX = 'pia_chat_msgs_';
@@ -1193,24 +1194,191 @@ export async function markMessagesAsRead(chatId, messageIds, userId) {
 }
 
 // -------------------------------------------------------------
-// CALLS SIGNALING (Stubs)
+// CALLS SIGNALING (WebRTC & Realtime Broadcast)
 // -------------------------------------------------------------
-export async function initiateCall({ chatId, callerId, callerName, recipientId, isVideo = false }) {
-  return null;
+const activeCallsRegistry = new Map();
+
+export async function initiateCall(params = {}) {
+  const chatId = params.chatId;
+  const type = params.type || (params.isVideo ? 'video' : 'voice');
+  
+  const callerId = params.caller?.uid || params.caller?.id || params.callerId;
+  const callerName = params.caller?.name || params.callerName || 'مستخدم';
+  const callerRole = params.caller?.role || 'student';
+
+  const calleeId = params.callee?.uid || params.callee?.id || params.recipientId;
+  const calleeName = params.callee?.name || params.recipientName || 'مستخدم';
+  const calleeRole = params.callee?.role || 'user';
+
+  if (!callerId || !calleeId) {
+    throw new Error('Caller and callee IDs are required to initiate call');
+  }
+
+  const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+  const callPayload = {
+    id: callId,
+    chatId,
+    callerId,
+    callerName,
+    callerRole,
+    calleeId,
+    calleeName,
+    calleeRole,
+    type,
+    status: 'ringing',
+    createdAt: new Date().toISOString()
+  };
+
+  activeCallsRegistry.set(callId, callPayload);
+
+  // 1. Broadcast incoming call to callee on their personal real-time channel
+  try {
+    const userChan = supabase.channel(`user_calls_${calleeId}`, {
+      config: { broadcast: { self: false } }
+    });
+    userChan.subscribe((subStatus) => {
+      if (subStatus === 'SUBSCRIBED') {
+        userChan.send({
+          type: 'broadcast',
+          event: 'incoming_call',
+          payload: callPayload
+        });
+      }
+    });
+  } catch (err) {
+    console.warn('Could not broadcast incoming call:', err);
+  }
+
+  // 2. Also send system notification in notifications table so Callee gets alert anywhere
+  try {
+    createNotification({
+      recipientId: calleeId,
+      recipientRole: calleeRole,
+      title: type === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة',
+      title_en: type === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call',
+      message: `${callerName} يحاول الاتصال بك...`,
+      message_en: `${callerName} is calling you...`,
+      type: 'call',
+      link: `/chat?chatId=${chatId || ''}`,
+      metadata: { callId, chatId, type, callerId, callerName }
+    }).catch(() => {});
+  } catch {}
+
+  return callId;
 }
 
-export async function updateCallStatus(callId, status) {
-  return null;
+export async function updateCallStatus(callId, status, metadata = {}) {
+  if (!callId) return null;
+
+  const existing = activeCallsRegistry.get(callId) || {};
+  const updated = {
+    ...existing,
+    status,
+    ...metadata,
+    updatedAt: new Date().toISOString()
+  };
+  activeCallsRegistry.set(callId, updated);
+
+  // 1. Broadcast status change on the call session channel
+  try {
+    const sessionChan = supabase.channel(`call_session_${callId}`, {
+      config: { broadcast: { self: false } }
+    });
+    sessionChan.subscribe((subStatus) => {
+      if (subStatus === 'SUBSCRIBED') {
+        sessionChan.send({
+          type: 'broadcast',
+          event: 'call_status',
+          payload: { callId, status, ...metadata }
+        });
+      }
+    });
+  } catch (e) {
+    console.warn('Could not broadcast call status:', e);
+  }
+
+  // 2. If ended or rejected, dismiss ringing for callee
+  if (status === 'ended' || status === 'rejected') {
+    const targetUserId = existing.calleeId;
+    if (targetUserId) {
+      try {
+        const calleeChan = supabase.channel(`user_calls_${targetUserId}`, {
+          config: { broadcast: { self: false } }
+        });
+        calleeChan.subscribe((subStatus) => {
+          if (subStatus === 'SUBSCRIBED') {
+            calleeChan.send({
+              type: 'broadcast',
+              event: 'cancel_call',
+              payload: { callId, status }
+            });
+          }
+        });
+      } catch {}
+    }
+  }
+
+  return updated;
 }
 
 export function listenToIncomingCalls(userId, callback) {
-  callback(null);
-  return () => {};
+  if (!userId) {
+    callback(null);
+    return () => {};
+  }
+
+  const channel = supabase.channel(`user_calls_${userId}`, {
+    config: { broadcast: { self: false } }
+  });
+
+  channel.on('broadcast', { event: 'incoming_call' }, ({ payload }) => {
+    if (payload && payload.calleeId === userId && payload.status === 'ringing') {
+      callback(payload);
+    }
+  });
+
+  channel.on('broadcast', { event: 'cancel_call' }, () => {
+    callback(null);
+  });
+
+  channel.subscribe();
+
+  return () => {
+    try {
+      supabase.removeChannel(channel);
+    } catch {}
+  };
 }
 
 export function listenToCallSession(callId, callback) {
-  callback(null);
-  return () => {};
+  if (!callId) {
+    callback(null);
+    return () => {};
+  }
+
+  if (activeCallsRegistry.has(callId)) {
+    callback(activeCallsRegistry.get(callId));
+  }
+
+  const channel = supabase.channel(`call_session_${callId}`, {
+    config: { broadcast: { self: false } }
+  });
+
+  channel.on('broadcast', { event: 'call_status' }, ({ payload }) => {
+    const existing = activeCallsRegistry.get(callId) || {};
+    const merged = { ...existing, ...payload };
+    activeCallsRegistry.set(callId, merged);
+    callback(merged);
+  });
+
+  channel.subscribe();
+
+  return () => {
+    try {
+      supabase.removeChannel(channel);
+    } catch {}
+  };
 }
 
 // -------------------------------------------------------------
