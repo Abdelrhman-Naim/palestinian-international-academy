@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
         .maybeSingle();
 
       const timeoutPromise = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 2500)
+        setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 8000)
       );
 
       const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
@@ -90,7 +90,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    const roleFromMeta = user.user_metadata?.role || 'student';
+    const roleFromMeta = user.user_metadata?.role || (user.email?.toLowerCase() === 'admin@gmail.com' ? 'admin' : 'student');
     const nameFromMeta = user.user_metadata?.full_name || user.email;
     const statusFromMeta = user.user_metadata?.status || 'active';
 
@@ -241,8 +241,11 @@ export function AuthProvider({ children }) {
         throw new Error('invalid_credentials');
       }
 
-      const profile = await fetchUserProfile(data.user.id);
-      const roleFromMeta = data.user.user_metadata?.role || 'student';
+      let profile = await fetchUserProfile(data.user.id);
+      if (!profile && (loginEmail.toLowerCase() === 'admin@gmail.com' || data.user.email?.toLowerCase() === 'admin@gmail.com')) {
+        profile = { id: data.user.id, role: 'admin', full_name: 'مدير النظام' };
+      }
+      const roleFromMeta = data.user.user_metadata?.role || (data.user.email?.toLowerCase() === 'admin@gmail.com' ? 'admin' : 'student');
       const actualRole = profile?.role || roleFromMeta;
 
       if (requestedRole && actualRole !== requestedRole) {
