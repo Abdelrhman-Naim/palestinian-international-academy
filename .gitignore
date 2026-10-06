@@ -29,4 +29,4 @@ serviceAccountKey.json
 .superpowers
 __pycache__/
 playwright-report/
-
+test-results/
