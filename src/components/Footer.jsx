@@ -138,7 +138,7 @@ const Footer = () => {
             <Link to="/" className="inline-flex items-center group">
               <div className="relative p-1 rounded-2xl bg-white/40 dark:bg-stone-900/60 border border-amber-500/15 shadow-xs">
                 <img
-                  src={logo}
+                  src={logo?.src || logo}
                   alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)"
                   className="h-20 sm:h-22 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                 />

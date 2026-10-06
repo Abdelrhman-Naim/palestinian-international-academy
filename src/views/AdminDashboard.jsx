@@ -115,7 +115,7 @@ const AdminDashboard = ({ children }) => {
       <aside className={`w-72 max-w-[85vw] sm:max-w-xs md:max-w-none bg-[#F3EFE6] dark:bg-gray-900 text-dark dark:text-white border-e border-[#E8E2D5] dark:border-gray-800 flex flex-col h-full shrink-0 z-50 shadow-lg overflow-y-auto custom-scrollbar fixed md:relative transition-transform duration-300 inset-y-0 start-0 md:inset-auto ${isSidebarOpen ? 'translate-x-0' : 'max-md:-translate-x-full max-md:rtl:translate-x-full md:translate-x-0 md:rtl:translate-x-0'}`}>
         <div className="h-20 sm:h-24 flex items-center justify-center relative px-4 sm:px-6 border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
           <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center justify-center group">
-            <img src={logo} alt="Logo" className="h-12 sm:h-14 w-auto object-contain rounded-xl drop-shadow-md transition-transform duration-300 group-hover:scale-105" />
+            <img src={logo?.src || logo} alt="Logo" className="h-12 sm:h-14 w-auto object-contain rounded-xl drop-shadow-md transition-transform duration-300 group-hover:scale-105" />
           </Link>
           <button
             type="button"

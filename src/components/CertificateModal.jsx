@@ -16,7 +16,7 @@ export default function CertificateModal({ certificate, onClose }) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [logoSrc, setLogoSrc] = useState(logo);
+  const [logoSrc, setLogoSrc] = useState(logo?.src || logo);
 
   // Pre-convert logo to base64 Data URL to guarantee zero canvas tainting or CORS issues
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function CertificateModal({ certificate, onClose }) {
       }
     };
     img.onload = convert;
-    img.src = logo;
+    img.src = logo?.src || logo;
     if (img.complete) {
       convert();
     }

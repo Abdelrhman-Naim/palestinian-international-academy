@@ -108,7 +108,7 @@ const Register = () => {
         <div className="hidden lg:flex w-1/2 text-dark dark:text-white p-12 flex-col justify-center items-center text-center relative overflow-hidden bg-gradient-to-br from-[#FAF7F2] via-[#F3EFE6] to-[#E8E2D5] dark:from-black dark:via-gray-900 dark:to-[#4a3820] border-e border-[#E8E2D5] dark:border-gray-700">
           <div className="relative z-10 flex flex-col items-center w-full max-w-lg mx-auto">
             <div className="flex-1 flex items-center justify-center w-full mb-12">
-              <img src={logo} alt="Logo" className="w-full max-w-sm lg:max-w-md h-auto object-contain drop-shadow-2xl transition-transform duration-500 hover:scale-105" />
+              <img src={logo?.src || logo} alt="Logo" className="w-full max-w-sm lg:max-w-md h-auto object-contain drop-shadow-2xl transition-transform duration-500 hover:scale-105" />
             </div>
             <div className="mt-auto">
               <h2 className="text-2xl lg:text-3xl font-extrabold mb-4 font-headline-lg leading-relaxed tracking-tight text-dark dark:text-white">
@@ -140,7 +140,7 @@ const Register = () => {
             
             <div className="mb-8 text-center">
               <Link to="/" className="inline-block mb-8 hover:opacity-80 transition-opacity">
-                <img src={logo} alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)" className="h-16 w-auto object-contain rounded-xl drop-shadow-lg transition-transform duration-300 hover:scale-105" />
+                <img src={logo?.src || logo} alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)" className="h-16 w-auto object-contain rounded-xl drop-shadow-lg transition-transform duration-300 hover:scale-105" />
               </Link>
               <h1 className="text-3xl font-extrabold text-dark dark:text-white mb-2 transition-colors">{t('register.title')}</h1>
               <p className="text-text-main dark:text-gray-400 transition-colors text-sm">{t('register.subtitle')}</p>

@@ -4,12 +4,14 @@ import { useLanguage } from '../context/LanguageContext';
 
 export default function OfflineBanner() {
   const { lang, dir } = useLanguage();
-  const [isOnline, setIsOnline] = useState(() => {
-    return typeof navigator !== 'undefined' ? navigator.onLine : true;
-  });
+  const [isOnline, setIsOnline] = useState(true);
   const [showRestored, setShowRestored] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine !== false);
+    }
+
     let timer = null;
 
     const handleOnline = () => {
@@ -43,7 +45,7 @@ export default function OfflineBanner() {
   return (
     <div
       dir={dir}
-      className={`fixed top-0 inset-x-0 z-[9999] transition-all duration-300 ease-in-out px-4 py-2.5 text-center text-xs md:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg backdrop-blur-md ${
+      className={`fixed top-0 inset-x-0 z-[9999] pointer-events-none select-none transition-all duration-300 ease-in-out px-4 py-2.5 text-center text-xs md:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg backdrop-blur-md ${
         isOnline
           ? 'bg-emerald-600/95 text-white'
           : 'bg-amber-600/95 text-white'

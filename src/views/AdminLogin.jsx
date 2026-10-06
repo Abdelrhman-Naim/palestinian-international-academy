@@ -121,7 +121,7 @@ const AdminLogin = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-block group mb-5">
-            <img src={logo} alt="Logo" className="h-16 sm:h-20 w-auto object-contain rounded-2xl drop-shadow-xl group-hover:scale-105 transition-transform duration-300" />
+            <img src={logo?.src || logo} alt="Logo" className="h-16 sm:h-20 w-auto object-contain rounded-2xl drop-shadow-xl group-hover:scale-105 transition-transform duration-300" />
           </Link>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-dark dark:text-white tracking-tight mb-2 font-headline-md">{t('adminLogin.title')}</h1>
           <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-label-caps tracking-widest uppercase">{t('adminLogin.subtitle')}</p>

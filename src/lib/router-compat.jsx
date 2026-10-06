@@ -25,10 +25,12 @@ export function Link({ to, href, replace, children, className, style, onClick, .
   );
 }
 
-export function NavLink({ to, href, className, children, ...props }) {
+export function NavLink({ to, href, className, children, end, ...props }) {
   const pathname = usePathname() || '';
   const target = href || to || '#';
-  const isActive = pathname === target || (target !== '/' && pathname.startsWith(target));
+  const isActive = end
+    ? pathname === target
+    : (pathname === target || (target !== '/' && pathname.startsWith(target)));
   const resolvedClass = typeof className === 'function' ? className({ isActive }) : className;
   return (
     <NextLink href={target} className={resolvedClass} {...props}>

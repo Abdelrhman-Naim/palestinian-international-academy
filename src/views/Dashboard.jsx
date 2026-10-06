@@ -78,7 +78,7 @@ const Dashboard = ({ children }) => {
         {/* Logo */}
         <div className="h-24 flex items-center justify-center relative px-6 border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
           <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center justify-center group">
-            <img src={logo} alt="Logo" className="h-14 w-auto object-contain rounded-xl drop-shadow-md transition-transform duration-300 group-hover:scale-105" />
+            <img src={logo?.src || logo} alt="Logo" className="h-14 w-auto object-contain rounded-xl drop-shadow-md transition-transform duration-300 group-hover:scale-105" />
           </Link>
           <button
             type="button"
