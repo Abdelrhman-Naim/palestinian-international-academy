@@ -24,7 +24,7 @@ const InstructorDashboard = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMessages = location.pathname.includes('/messages');
-  const { userData, logout } = useAuth();
+  const { userData, currentUser, logout } = useAuth();
   const [isDarkMode, toggleDarkMode] = useDarkMode();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
