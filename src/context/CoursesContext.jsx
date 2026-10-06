@@ -1,3 +1,4 @@
+"use client";
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
@@ -111,7 +112,7 @@ export function CoursesProvider({ children }) {
         remoteCourses = data.map(item => {
           const stats = reviewStatsMap.get(item.id);
           const rCount = stats ? stats.count : 0;
-          const rAvg = rCount > 0 ? Number((stats.sum / rCount).toFixed(1)) : (Number(item.rating) || 5.0);
+          const rAvg = rCount > 0 ? Number((stats.sum / rCount).toFixed(1)) : 0;
           return sanitizeObject({
             ...item,
             ratingCount: rCount,
@@ -137,7 +138,7 @@ export function CoursesProvider({ children }) {
         if (lc.id && !mergedMap.has(lc.id) && !existingTitles.has(titleKey)) {
           const stats = reviewStatsMap.get(lc.id);
           const rCount = stats ? stats.count : (lc.ratingCount || 0);
-          const rAvg = stats && stats.count > 0 ? Number((stats.sum / stats.count).toFixed(1)) : (Number(lc.ratingAverage ?? lc.rating) || 5.0);
+          const rAvg = stats && stats.count > 0 ? Number((stats.sum / stats.count).toFixed(1)) : (rCount > 0 ? (Number(lc.ratingAverage ?? lc.rating) || 0) : 0);
           mergedMap.set(lc.id, sanitizeObject({
             ...lc,
             ratingCount: rCount,
@@ -286,8 +287,15 @@ export function CoursesProvider({ children }) {
   };
 
   const courses = rawCourses.map(course => {
+    const rawPrice = course.price;
+    const numPrice = Number(rawPrice);
+    const parsedPrice = (!rawPrice || rawPrice === 'Free' || rawPrice === 'free' || isNaN(numPrice) || numPrice <= 0) ? 0 : numPrice;
+    const isPaid = parsedPrice > 0;
     const mapped = {
       ...course,
+      price: parsedPrice,
+      isPaid,
+      is_paid: isPaid,
       title: lang === 'en' ? getEnField(course.title, course.title_en) : getArField(course.title, course.title_ar),
       description: lang === 'en' ? (course.description_en || course.description) : (course.description_ar || course.description),
       instructor: lang === 'en' ? getEnField(course.instructor || course.instructor_name, course.instructor_en) : getArField(course.instructor || course.instructor_name, course.instructor_ar),
@@ -298,10 +306,10 @@ export function CoursesProvider({ children }) {
         ...lec,
         title: lang === 'en' ? (lec.title_en || lec.title) : (lec.title_ar || lec.title)
       })),
-      rating: course.rating || 5.0,
+      rating: (course.ratingCount > 0 || course.rating_count > 0) ? (course.rating || course.ratingAverage || 0) : 0,
       ratingCount: course.ratingCount || 0,
       rating_count: course.rating_count || 0,
-      ratingAverage: course.ratingAverage || course.rating || 5.0,
+      ratingAverage: (course.ratingCount > 0 || course.rating_count > 0) ? (course.ratingAverage || course.rating || 0) : 0,
       originalData: course
     };
     return mapped;
@@ -326,9 +334,18 @@ export function CoursesProvider({ children }) {
         link: s.link || s.url || s.videoUrl || ''
       }));
 
+      const rawPrice = courseData.price;
+      const numPrice = Number(rawPrice);
+      const parsedPrice = (!rawPrice || rawPrice === 'Free' || rawPrice === 'free' || isNaN(numPrice) || numPrice <= 0) ? 0 : numPrice;
+      const isPaid = parsedPrice > 0;
+      const plannedLessonsCount = Math.max(Number(courseData.lecturesCount || courseData.lessons_count) || 0, normalizedSessions.length || 1);
+
       const fullCourseObj = {
         ...courseData,
         id: courseId,
+        price: parsedPrice,
+        isPaid,
+        is_paid: isPaid,
         instructor: courseData.instructor || courseData.instructor_name || '',
         instructor_name: courseData.instructor || courseData.instructor_name || '',
         category: courseData.category || courseData.category_name || '',
@@ -336,8 +353,8 @@ export function CoursesProvider({ children }) {
         lectures: normalizedSessions,
         lessons: normalizedSessions,
         sessions: normalizedSessions,
-        lessons_count: normalizedSessions.length || Number(courseData.lecturesCount) || 1,
-        lecturesCount: normalizedSessions.length || Number(courseData.lecturesCount) || 1,
+        lessons_count: plannedLessonsCount,
+        lecturesCount: plannedLessonsCount,
       };
 
       if (fullCourseObj.title) fullCourseObj.title_en = await safeTranslate(fullCourseObj.title);
@@ -357,32 +374,47 @@ export function CoursesProvider({ children }) {
       fullCourseObj.created_at = fullCourseObj.created_at || new Date().toISOString();
 
       // Dynamic Auto-Repair Insert Loop for Supabase
-      let currentPayload = { ...fullCourseObj };
-      currentPayload.lessons = fullCourseObj.lessons;
-      currentPayload.lectures = fullCourseObj.lectures;
-      currentPayload.instructor_name = fullCourseObj.instructor;
-      currentPayload.category_name = fullCourseObj.category;
-      currentPayload.lessons_count = fullCourseObj.lessons.length;
-      delete currentPayload.avatar;
-      delete currentPayload.sessions;
-      delete currentPayload.instructorId;
-      delete currentPayload.lecturesCount;
-      delete currentPayload.imageName;
+      const COURSE_VALID_COLUMNS = new Set([
+        'id', 'title', 'title_en', 'description', 'description_en',
+        'price', 'category', 'category_name', 'category_id', 'category_en',
+        'instructor', 'instructor_name', 'instructor_id', 'instructor_en',
+        'image_url', 'image_name', 'avatar', 'rating', 'students', 'students_count',
+        'lessons_count', 'duration', 'level', 'level_en',
+        'lessons', 'lectures', 'sessions', 'goals', 'goals_en',
+        'is_published', 'status', 'icon', 'created_at', 'updated_at'
+      ]);
 
-      // Ensure id in payload is a valid UUID, otherwise let Supabase auto-generate
-      if (!isValidUUID(currentPayload.id)) {
-        delete currentPayload.id;
+      const filteredPayload = {};
+      for (const [key, val] of Object.entries(fullCourseObj)) {
+        if (COURSE_VALID_COLUMNS.has(key) && key !== 'isPaid' && key !== 'is_paid') {
+          filteredPayload[key] = val;
+        }
+      }
+      filteredPayload.instructor_name = fullCourseObj.instructor;
+      filteredPayload.category_name = fullCourseObj.category;
+      filteredPayload.lessons = fullCourseObj.lessons;
+      filteredPayload.lectures = fullCourseObj.lectures;
+      filteredPayload.sessions = fullCourseObj.lectures;
+      filteredPayload.status = fullCourseObj.status || 'مستمرة';
+      filteredPayload.lessons_count = plannedLessonsCount;
+
+      if (!filteredPayload.instructor_id && (fullCourseObj.instructorId || fullCourseObj.instructor_id)) {
+        filteredPayload.instructor_id = fullCourseObj.instructorId || fullCourseObj.instructor_id;
       }
 
-      if (!currentPayload.instructor_id && fullCourseObj.instructorId) {
-        currentPayload.instructor_id = fullCourseObj.instructorId;
+      // Ensure id in payload is a valid UUID, otherwise let Supabase auto-generate
+      if (!isValidUUID(filteredPayload.id)) {
+        delete filteredPayload.id;
       }
 
       // Convert non-numeric price string (like 'Free') to 0 if column is numeric
-      if (currentPayload.price === 'Free' || isNaN(Number(currentPayload.price))) {
-        currentPayload.price = 0;
+      if (filteredPayload.price === 'Free' || isNaN(Number(filteredPayload.price))) {
+        filteredPayload.price = 0;
+      } else {
+        filteredPayload.price = Number(filteredPayload.price) || 0;
       }
 
+      let currentPayload = { ...filteredPayload };
       let createdCourse = null;
 
       for (let attempt = 0; attempt < 8; attempt++) {
@@ -484,8 +516,10 @@ export function CoursesProvider({ children }) {
         dataToUpdate.lessons = normalized;
         dataToUpdate.lectures = normalized;
         dataToUpdate.sessions = normalized;
-        dataToUpdate.lessons_count = normalized.length;
-        dataToUpdate.lecturesCount = normalized.length;
+        const currentEntered = Number(dataToUpdate.lessons_count ?? dataToUpdate.lecturesCount) || 0;
+        const safeCount = currentEntered < normalized.length ? normalized.length : currentEntered;
+        dataToUpdate.lessons_count = safeCount;
+        dataToUpdate.lecturesCount = safeCount;
       }
 
       if (dataToUpdate.instructor && !dataToUpdate.instructor_name) {
@@ -503,6 +537,14 @@ export function CoursesProvider({ children }) {
       if (dataToUpdate.instructorId && !dataToUpdate.instructor_id) {
         dataToUpdate.instructor_id = dataToUpdate.instructorId;
       }
+      if (dataToUpdate.price !== undefined) {
+        const rawP = dataToUpdate.price;
+        const numP = Number(rawP);
+        const parsedP = (!rawP || rawP === 'Free' || rawP === 'free' || isNaN(numP) || numP <= 0) ? 0 : numP;
+        dataToUpdate.price = parsedP;
+        dataToUpdate.isPaid = parsedP > 0;
+        dataToUpdate.is_paid = parsedP > 0;
+      }
 
       // Optimistic state update & local storage update
       setRawCourses(prev => prev.map(c => c.id === id ? sanitizeObject({ ...c, ...dataToUpdate }) : c));
@@ -510,38 +552,56 @@ export function CoursesProvider({ children }) {
       saveLocalCourses(existingLocals.map(c => c.id === id ? { ...c, ...dataToUpdate } : c));
 
       if (isValidUUID(id)) {
-        // Payload cleanup for Supabase
-        const payload = { ...dataToUpdate };
-        payload.instructor_name = dataToUpdate.instructor || dataToUpdate.instructor_name;
-        payload.category_name = dataToUpdate.category || dataToUpdate.category_name;
+        // Payload cleanup for Supabase: strictly include only existing columns
+        const COURSE_VALID_COLUMNS = new Set([
+          'title', 'title_en', 'description', 'description_en',
+          'price', 'category', 'category_name', 'category_id', 'category_en',
+          'instructor', 'instructor_name', 'instructor_id', 'instructor_en',
+          'image_url', 'image_name', 'avatar', 'rating', 'students', 'students_count',
+          'lessons_count', 'duration', 'level', 'level_en',
+          'lessons', 'lectures', 'sessions', 'goals', 'goals_en',
+          'is_published', 'status', 'icon', 'updated_at'
+        ]);
+
+        const payload = {};
+        for (const [key, val] of Object.entries(dataToUpdate)) {
+          if (COURSE_VALID_COLUMNS.has(key)) {
+            payload[key] = val;
+          }
+        }
+        if (dataToUpdate.instructor || dataToUpdate.instructor_name) {
+          payload.instructor = dataToUpdate.instructor || dataToUpdate.instructor_name;
+          payload.instructor_name = dataToUpdate.instructor_name || dataToUpdate.instructor;
+        }
+        if (dataToUpdate.category || dataToUpdate.category_name) {
+          payload.category = dataToUpdate.category || dataToUpdate.category_name;
+          payload.category_name = dataToUpdate.category_name || dataToUpdate.category;
+        }
+        if (dataToUpdate.instructor_id || dataToUpdate.instructorId) {
+          payload.instructor_id = dataToUpdate.instructor_id || dataToUpdate.instructorId;
+        }
         if (dataToUpdate.lessons) payload.lessons = dataToUpdate.lessons;
         if (dataToUpdate.lectures) payload.lectures = dataToUpdate.lectures;
+        if (dataToUpdate.sessions) payload.sessions = dataToUpdate.sessions;
         if (dataToUpdate.lessons_count) payload.lessons_count = dataToUpdate.lessons_count;
-        delete payload.avatar;
-        delete payload.sessions;
-        delete payload.instructorId;
-        delete payload.lecturesCount;
-        delete payload.imageName;
+        payload.updated_at = new Date().toISOString();
 
-        for (let attempt = 0; attempt < 8; attempt++) {
-          const { error } = await supabase
-            .from('courses')
-            .update(payload)
-            .eq('id', id);
+        const { error: updateError } = await supabase
+          .from('courses')
+          .update(payload)
+          .eq('id', id);
 
-          if (!error) break;
-
-          const match = error.message?.match(/Could not find the '([^']+)' column/i);
+        if (updateError) {
+          console.warn("Supabase course update notice:", updateError.message);
+          const match = updateError.message?.match(/Could not find the '([^']+)' column/i);
           if (match && match[1]) {
             delete payload[match[1]];
-            continue;
+            await supabase.from('courses').update(payload).eq('id', id);
           }
-          console.warn("Supabase course update notice:", error.message);
-          break;
         }
       }
 
-      fetchCourses().catch(() => {});
+      await fetchCourses();
       return { ok: true };
     } catch (err) {
       console.error("Error updating course in Supabase:", err);

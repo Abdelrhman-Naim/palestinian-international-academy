@@ -1,3 +1,4 @@
+"use client";
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';

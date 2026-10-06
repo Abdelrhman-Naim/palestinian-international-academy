@@ -1,3 +1,4 @@
+"use client";
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabase/client';
 
@@ -76,17 +77,24 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    const normalizedUser = {
-      ...user,
-      uid: user.id,
-      id: user.id
-    };
-
     const roleFromMeta = user.user_metadata?.role || 'student';
     const nameFromMeta = user.user_metadata?.full_name || user.email;
     const statusFromMeta = user.user_metadata?.status || 'active';
 
+    // Auto-clean any legacy bloated avatar in auth user_metadata to keep JWT tokens lightweight (<2KB)
+    if (user.user_metadata?.avatar_url && (user.user_metadata.avatar_url.startsWith('data:') || user.user_metadata.avatar_url.length > 500)) {
+      supabase.auth.updateUser({ data: { avatar_url: null } }).catch(() => {});
+    }
+
     const profile = preloadedProfile !== null ? preloadedProfile : await fetchUserProfile(user.id);
+    const resolvedAvatar = (profile ? (profile.avatar_url || profile.photo_url || '') : (user.photoURL || ''));
+
+    const normalizedUser = {
+      ...user,
+      uid: user.id,
+      id: user.id,
+      photoURL: resolvedAvatar || null
+    };
 
     const role = profile?.role || roleFromMeta;
     let status = profile?.status;
@@ -99,8 +107,24 @@ export function AuthProvider({ children }) {
     }
 
     const finalUserData = profile 
-      ? { ...profile, uid: profile.id, status, name: profile.full_name || nameFromMeta } 
-      : { uid: user.id, id: user.id, email: user.email, role, status, name: nameFromMeta };
+      ? { 
+          ...profile, 
+          uid: profile.id, 
+          status, 
+          name: profile.full_name || nameFromMeta,
+          photoURL: resolvedAvatar,
+          avatar_url: resolvedAvatar
+        } 
+      : { 
+          uid: user.id, 
+          id: user.id, 
+          email: user.email, 
+          role, 
+          status, 
+          name: nameFromMeta,
+          photoURL: resolvedAvatar,
+          avatar_url: resolvedAvatar
+        };
 
     // Set all states atomically together so userRole is never null when currentUser is set
     setCurrentUser(normalizedUser);
@@ -288,8 +312,56 @@ export function AuthProvider({ children }) {
     return supabase.auth.resetPasswordForEmail(email);
   };
 
+  const updateUserData = (updates = {}) => {
+    const newAvatar = updates.avatar_url !== undefined ? updates.avatar_url : updates.photoURL;
+    const normalizedUpdates = {
+      ...updates,
+      ...(newAvatar !== undefined ? { avatar_url: newAvatar, photoURL: newAvatar } : {})
+    };
+
+    setUserData(prev => {
+      const next = prev ? { ...prev, ...normalizedUpdates } : normalizedUpdates;
+      setCurrentUser(prevUser => {
+        const nextUser = prevUser 
+          ? { ...prevUser, ...(newAvatar !== undefined ? { photoURL: newAvatar } : {}) } 
+          : prevUser;
+        saveStoredSession({
+          currentUser: nextUser,
+          userRole: userRole,
+          userStatus: userStatus,
+          userData: next
+        });
+        return nextUser;
+      });
+      return next;
+    });
+  };
+
+  const refreshUserProfile = async () => {
+    const userId = currentUser?.id || currentUser?.uid;
+    if (!userId) return null;
+    const freshProfile = await fetchUserProfile(userId);
+    if (freshProfile && currentUser) {
+      await applyUserSession(currentUser, freshProfile);
+    }
+    return freshProfile;
+  };
+
   return (
-    <AuthContext.Provider value={{ currentUser, userRole, userStatus, userData, user: userData, login, register, logout, resetPassword, loading }}>
+    <AuthContext.Provider value={{ 
+      currentUser, 
+      userRole, 
+      userStatus, 
+      userData, 
+      user: userData, 
+      login, 
+      register, 
+      logout, 
+      resetPassword, 
+      loading,
+      updateUserData,
+      refreshUserProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );

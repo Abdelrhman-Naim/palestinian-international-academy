@@ -1,3 +1,4 @@
+"use client";
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import ar from '../i18n/ar.json';
 import en from '../i18n/en.json';
