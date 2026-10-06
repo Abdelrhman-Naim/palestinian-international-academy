@@ -25,4 +25,6 @@ dist-ssr
 *.env*
 .gemini
 serviceAccountKey.json
+.next
+.superpowers
 
