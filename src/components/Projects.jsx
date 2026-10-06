@@ -1,5 +1,5 @@
 "use client";
-import heroImg from '../assets/hero.png';
+import heroImg from '../assets/hero.webp';
 import { useLanguage } from '../context/LanguageContext';
 
 const Projects = () => {
@@ -20,7 +20,7 @@ const Projects = () => {
             <img 
               alt="MedLink Logo" 
               className="w-full h-full object-cover opacity-80" 
-              src={heroImg}
+              src={heroImg?.src || heroImg}
             />
             <div className="absolute top-3 right-3 bg-secondary text-white text-[10px] font-label-caps px-2 py-1 rounded-full flex items-center gap-1">
               <span className="material-symbols-outlined text-[12px]">star</span> {t("projects.featured")}
@@ -47,7 +47,7 @@ const Projects = () => {
             <img 
               alt="Trainova" 
               className="w-full h-full object-cover opacity-80" 
-              src={heroImg}
+              src={heroImg?.src || heroImg}
             />
             <div className="absolute top-3 right-3 bg-secondary text-white text-[10px] font-label-caps px-2 py-1 rounded-full flex items-center gap-1">
               <span className="material-symbols-outlined text-[12px]">star</span> {t("projects.featured")}
@@ -74,7 +74,7 @@ const Projects = () => {
             <img 
               alt="Talabati" 
               className="w-full h-full object-cover opacity-80"
-              src={heroImg}
+              src={heroImg?.src || heroImg}
             />
             <div className="absolute top-3 right-3 bg-secondary text-white text-[10px] font-label-caps px-2 py-1 rounded-full flex items-center gap-1">
               <span className="material-symbols-outlined text-[12px]">star</span> {t("projects.featured")}

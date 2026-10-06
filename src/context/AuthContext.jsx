@@ -7,12 +7,23 @@ import { safeStorage } from '../utils/safeStorage';
 const AuthContext = createContext(null);
 const AUTH_STORAGE_KEY = 'pia_auth_session';
 
+const sanitizeAvatarUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  if (url.includes('/storage/v1/object/') && !url.includes('/storage/v1/object/public/')) {
+    return url.replace('/storage/v1/object/', '/storage/v1/object/public/');
+  }
+  return url;
+};
+
 const getStoredSession = () => {
   try {
     const raw = safeStorage.getItem(AUTH_STORAGE_KEY);
     if (raw) {
       const data = JSON.parse(raw);
       if (data && data.currentUser && data.currentUser.id) {
+        if (data.userData?.avatar_url) data.userData.avatar_url = sanitizeAvatarUrl(data.userData.avatar_url);
+        if (data.userData?.photoURL) data.userData.photoURL = sanitizeAvatarUrl(data.userData.photoURL);
+        if (data.currentUser?.photoURL) data.currentUser.photoURL = sanitizeAvatarUrl(data.currentUser.photoURL);
         return data;
       }
     }
@@ -89,7 +100,8 @@ export function AuthProvider({ children }) {
     }
 
     const profile = preloadedProfile !== null ? preloadedProfile : await fetchUserProfile(user.id);
-    const resolvedAvatar = (profile ? (profile.avatar_url || profile.photo_url || '') : (user.photoURL || ''));
+    const rawAvatar = (profile ? (profile.avatar_url || profile.photo_url || '') : (user.photoURL || ''));
+    const resolvedAvatar = sanitizeAvatarUrl(rawAvatar);
 
     const normalizedUser = {
       ...user,
@@ -315,7 +327,10 @@ export function AuthProvider({ children }) {
   };
 
   const updateUserData = (updates = {}) => {
-    const newAvatar = updates.avatar_url !== undefined ? updates.avatar_url : updates.photoURL;
+    let newAvatar = updates.avatar_url !== undefined ? updates.avatar_url : updates.photoURL;
+    if (newAvatar !== undefined) {
+      newAvatar = sanitizeAvatarUrl(newAvatar);
+    }
     const normalizedUpdates = {
       ...updates,
       ...(newAvatar !== undefined ? { avatar_url: newAvatar, photoURL: newAvatar } : {})

@@ -202,14 +202,18 @@ export default function StudentProfile() {
 
       let downloadURL = '';
       try {
-        const filePath = `${userId}_${Date.now()}.jpg`;
+        const filePath = `${userId}_${Date.now()}.webp`;
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+          .upload(filePath, blob, { upsert: true, contentType: 'image/webp' });
 
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-          downloadURL = urlData?.publicUrl || '';
+          let publicUrl = urlData?.publicUrl || '';
+          if (publicUrl && publicUrl.includes('/storage/v1/object/') && !publicUrl.includes('/storage/v1/object/public/')) {
+            publicUrl = publicUrl.replace('/storage/v1/object/', '/storage/v1/object/public/');
+          }
+          downloadURL = publicUrl;
         }
       } catch (storageErr) {
         console.warn('Storage upload notice, falling back to optimized data URL:', storageErr);

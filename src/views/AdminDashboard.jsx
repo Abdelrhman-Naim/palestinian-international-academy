@@ -5,7 +5,7 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase/client';
 import { AnimatePresence, motion } from 'framer-motion';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -133,11 +133,10 @@ const AdminDashboard = ({ children }) => {
           onClick={() => setIsSidebarOpen(false)}
           className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0 group hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-center"
         >
-          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg shadow-primary/20 ring-4 ring-primary/20 group-hover:scale-105 transition-transform overflow-hidden">
-            {adminAvatar ? (
-              <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
-            ) : (
-              <span>{adminInitials}</span>
+          <div className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg shadow-primary/20 ring-4 ring-primary/20 group-hover:scale-105 transition-transform overflow-hidden">
+            <span>{adminInitials}</span>
+            {adminAvatar && (
+              <img src={adminAvatar} alt={adminName} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             )}
           </div>
           <h2 className="font-semibold text-base group-hover:text-primary transition-colors line-clamp-1 max-w-[190px]">{adminName}</h2>

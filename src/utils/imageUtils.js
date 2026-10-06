@@ -39,17 +39,21 @@ export async function compressAvatarImage(file, maxDimension = 300, quality = 0.
           return resolve({ dataUrl: e.target.result, blob: file });
         }
 
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const mimeType = 'image/jpeg';
-        const dataUrl = canvas.toDataURL(mimeType, quality);
+        // Convert to WebP format for optimal compression and speed
+        const mimeType = 'image/webp';
+        let dataUrl = canvas.toDataURL(mimeType, quality);
+        // Fallback if browser does not support webp export (very rare)
+        if (!dataUrl.startsWith('data:image/webp')) {
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
 
         canvas.toBlob((blob) => {
           resolve({
             dataUrl,
-            blob: blob || file
+            blob: blob || file,
+            contentType: 'image/webp'
           });
-        }, mimeType, quality);
+        }, 'image/webp', quality);
       };
       img.src = e.target.result;
     };

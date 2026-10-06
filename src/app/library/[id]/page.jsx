@@ -18,7 +18,7 @@ export async function generateMetadata({ params }) {
         openGraph: {
           title: `${book.title} | أكاديمية فلسطين الدولية`,
           description: book.description || `كتاب ${book.title}.`,
-          images: book.cover_url ? [{ url: book.cover_url }] : ['/screen.png'],
+          images: book.cover_url ? [{ url: book.cover_url }] : ['/screen.webp'],
         },
       };
     }

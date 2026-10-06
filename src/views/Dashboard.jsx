@@ -4,7 +4,7 @@ import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-do
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -96,19 +96,18 @@ const Dashboard = ({ children }) => {
           onClick={() => setIsSidebarOpen(false)} 
           className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0 hover:bg-white/40 dark:hover:bg-gray-800/40 transition-colors group cursor-pointer"
         >
-          <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg group-hover:scale-105 transition-transform overflow-hidden">
-            {userData?.avatar_url || userData?.photoURL || currentUser?.photoURL ? (
-              <img src={userData?.avatar_url || userData?.photoURL || currentUser?.photoURL} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span>
-                {(userData?.name || userData?.fullName || currentUser?.displayName || 'طالب')
-                  .split(' ')
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map(w => w[0])
-                  .join('')
-                  .toUpperCase()}
-              </span>
+          <div className="relative w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg group-hover:scale-105 transition-transform overflow-hidden">
+            <span>
+              {(userData?.name || userData?.fullName || currentUser?.displayName || 'طالب')
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(w => w[0])
+                .join('')
+                .toUpperCase()}
+            </span>
+            {(userData?.avatar_url || userData?.photoURL || currentUser?.photoURL) && (
+              <img src={userData?.avatar_url || userData?.photoURL || currentUser?.photoURL} alt="Profile" className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             )}
           </div>
           <h2 className="font-semibold text-lg group-hover:text-primary transition-colors">

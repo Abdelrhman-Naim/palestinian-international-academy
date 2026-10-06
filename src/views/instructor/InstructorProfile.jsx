@@ -103,25 +103,29 @@ export default function InstructorProfile() {
     setProfileMessage({ type: '', text: '' });
 
     try {
-      // 1. Client-side resize and compression to guarantee fast loading and no storage/token bloat
+      // 1. Client-side resize and compression to WebP to guarantee fast loading and minimal size
       const { dataUrl, blob } = await compressAvatarImage(file, 280, 0.85);
 
       let downloadUrl = '';
       try {
-        const filePath = `${userId}_${Date.now()}.jpg`;
+        const filePath = `${userId}_${Date.now()}.webp`;
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+          .upload(filePath, blob, { upsert: true, contentType: 'image/webp' });
 
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-          downloadUrl = urlData?.publicUrl || '';
+          let publicUrl = urlData?.publicUrl || '';
+          if (publicUrl && publicUrl.includes('/storage/v1/object/') && !publicUrl.includes('/storage/v1/object/public/')) {
+            publicUrl = publicUrl.replace('/storage/v1/object/', '/storage/v1/object/public/');
+          }
+          downloadUrl = publicUrl;
         }
       } catch (storageErr) {
-        console.warn('Storage upload notice, falling back to optimized data URL:', storageErr);
+        console.warn('Storage upload notice, falling back to optimized WebP data URL:', storageErr);
       }
 
-      // If bucket is not public or has RLS, use the lightweight compressed data URL
+      // If bucket is not public or has RLS, use the lightweight compressed WebP data URL
       if (!downloadUrl) {
         downloadUrl = dataUrl;
       }

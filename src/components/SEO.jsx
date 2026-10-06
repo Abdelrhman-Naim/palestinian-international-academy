@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
 const SITE_URL = 'https://palestine-international-academy.netlify.app';
-const DEFAULT_IMAGE = `${SITE_URL}/screen.png`;
+const DEFAULT_IMAGE = `${SITE_URL}/screen.webp`;
 
 export default function SEO({
   title,

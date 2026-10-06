@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import { AnimatePresence, motion } from 'framer-motion';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -160,16 +160,15 @@ const Navbar = () => {
                 className="flex items-center gap-2 group min-h-[44px]"
                 aria-label={t('navbar.userMenu') || 'قائمة المستخدم'}
               >
-                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-transparent group-hover:ring-primary/40 transition-all overflow-hidden shrink-0">
-                  {avatarUrl ? (
+                <div className="relative w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-transparent group-hover:ring-primary/40 transition-all overflow-hidden shrink-0">
+                  <span className="select-none">{initials}</span>
+                  {avatarUrl && (
                     <img 
                       src={avatarUrl} 
                       alt={name} 
-                      className="w-full h-full object-cover" 
+                      className="absolute inset-0 w-full h-full object-cover" 
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
-                  ) : (
-                    initials
                   )}
                 </div>
                 <span className="hidden md:block text-xs font-bold text-dark dark:text-white max-w-24 truncate">
@@ -193,16 +192,15 @@ const Navbar = () => {
                     
                     {/* User Info */}
                     <div className="px-4 py-3 border-b border-stone-200 dark:border-gray-700 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">
-                        {avatarUrl ? (
+                      <div className="relative w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">
+                        <span className="select-none">{initials}</span>
+                        {avatarUrl && (
                           <img 
                             src={avatarUrl} 
                             alt={name} 
-                            className="w-full h-full object-cover" 
+                            className="absolute inset-0 w-full h-full object-cover" 
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
-                        ) : (
-                          initials
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -317,16 +315,15 @@ const Navbar = () => {
             {currentUser ? (
               <>
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#FAF7F2] dark:bg-gray-800/80 border border-[#E8E2D5] dark:border-gray-700 mb-1">
-                  <div className="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">
-                    {avatarUrl ? (
+                  <div className="relative w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">
+                    <span className="select-none">{initials}</span>
+                    {avatarUrl && (
                       <img 
                         src={avatarUrl} 
                         alt={name} 
-                        className="w-full h-full object-cover" 
+                        className="absolute inset-0 w-full h-full object-cover" 
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
-                    ) : (
-                      initials
                     )}
                   </div>
                   <div className="min-w-0 flex-1">

@@ -3,7 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase/client';

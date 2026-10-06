@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase/client';
 import { useLanguage } from '../context/LanguageContext';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 import SEO from '../components/SEO';
 
 export default function ForgotPassword() {

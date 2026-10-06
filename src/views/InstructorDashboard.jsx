@@ -4,7 +4,7 @@ import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-do
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.webp';
 import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -85,11 +85,10 @@ const InstructorDashboard = ({ children }) => {
 
         {/* Profile */}
         <div className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
-          <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg overflow-hidden border-2 border-white/60 dark:border-gray-700">
-            {userData?.avatar_url || userData?.photoURL || currentUser?.photoURL ? (
-              <img src={userData?.avatar_url || userData?.photoURL || currentUser?.photoURL} alt={displayName} className="w-full h-full object-cover" />
-            ) : (
-              <span>{initials || 'م'}</span>
+          <div className="relative w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg overflow-hidden border-2 border-white/60 dark:border-gray-700">
+            <span>{initials || 'م'}</span>
+            {(userData?.avatar_url || userData?.photoURL || currentUser?.photoURL) && (
+              <img src={userData?.avatar_url || userData?.photoURL || currentUser?.photoURL} alt={displayName} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             )}
           </div>
           <h2 className="font-semibold text-lg text-center">{t('instructorDashboard.eng')} {displayName}</h2>

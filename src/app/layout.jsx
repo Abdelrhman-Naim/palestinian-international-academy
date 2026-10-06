@@ -54,7 +54,7 @@ export const metadata = {
     description: 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي، ومكتبة رقمية ومختبرات تفاعلية بشهادات موثوقة.',
     images: [
       {
-        url: '/screen.png',
+        url: '/screen.webp',
         width: 1200,
         height: 630,
         alt: 'أكاديمية فلسطين الدولية (PIA)',
@@ -65,7 +65,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'أكاديمية فلسطين الدولية (PIA) - المنصة التعليمية الرائدة',
     description: 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي ومكتبة رقمية تفاعلية.',
-    images: ['/screen.png'],
+    images: ['/screen.webp'],
   },
   other: {
     'mobile-web-app-capable': 'yes',

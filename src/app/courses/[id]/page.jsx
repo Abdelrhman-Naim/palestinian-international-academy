@@ -18,7 +18,7 @@ export async function generateMetadata({ params }) {
         openGraph: {
           title: `${course.title} | أكاديمية فلسطين الدولية`,
           description: course.description || 'تفاصيل الدورة التدريبية.',
-          images: course.image_url ? [{ url: course.image_url }] : ['/screen.png'],
+          images: course.image_url ? [{ url: course.image_url }] : ['/screen.webp'],
         },
       };
     }
