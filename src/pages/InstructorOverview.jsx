@@ -1,3 +1,4 @@
+"use client";
 import { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -380,7 +381,7 @@ export default function InstructorOverview() {
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px] text-emerald-500">monetization_on</span>
-                      {(course.price === 'Free' || course.price === 'free' || !course.price) ? (dir === 'rtl' ? 'مجاني' : 'Free') : course.price}
+                      {(course.price === 'Free' || course.price === 'free' || !course.price || course.price == 0) ? (dir === 'rtl' ? 'مجاني' : 'Free') : `$${course.price}`}
                     </span>
                   </div>
                 </div>

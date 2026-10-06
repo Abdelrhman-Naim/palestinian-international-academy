@@ -1,7 +1,9 @@
+"use client";
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CustomSelect from '../components/CustomSelect';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const VirtualLab = () => {
@@ -59,6 +61,17 @@ const VirtualLab = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'المعمل الافتراضي السحابي | أكاديمية فلسطين الدولية (PIA)' : 'Virtual Cloud Laboratory | Palestinian International Academy'}
+        description={isRtl
+          ? 'بيئة تدريبية ومختبر سحابي متطور لمحاكاة الأنظمة الهندسية ومشاريع البرمجة والذكاء الاصطناعي التفاعلية.'
+          : 'Interactive cloud engineering and coding sandbox for real-time simulation, projects, and machine learning models.'}
+        canonical="/virtual-lab"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'المعمل الافتراضي' : 'Virtual Lab', item: '/virtual-lab' }
+        ]}
+      />
       <Navbar />
 
       <main className="grow">
@@ -90,7 +103,6 @@ const VirtualLab = () => {
         {/* Interactive Lab Preview Sandbox */}
         <section className="py-12 px-4 sm:px-6 md:px-8 max-w-6xl mx-auto">
           <div className="bg-[#181512] border border-[#332c25] rounded-3xl overflow-hidden shadow-2xl font-mono text-xs sm:text-sm">
-            {/* Terminal Header */}
             <div className="bg-[#24201c] px-5 py-3 border-b border-[#332c25] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
@@ -101,16 +113,10 @@ const VirtualLab = () => {
                   PIA_Virtual_Sandbox_Preview.py
                 </span>
               </div>
-              <button
-                onClick={handleRunSimulation}
-                disabled={isRunning}
-                className="bg-primary hover:bg-secondary text-dark font-bold text-xs px-4 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  {isRunning ? 'hourglass_top' : 'play_arrow'}
-                </span>
-                <span>{isRunning ? (isRtl ? 'جاري الاختبار...' : 'Testing...') : (isRtl ? 'تشغيل نموذج المحاكاة' : 'Run Demo Simulation')}</span>
-              </button>
+              <div className="bg-gray-800 text-gray-400 font-bold text-[10px] px-3 py-1 rounded-md flex items-center gap-1">
+                <span className="material-symbols-outlined text-xs">lock</span>
+                <span>{isRtl ? 'قريباً' : 'Coming Soon'}</span>
+              </div>
             </div>
 
             {/* Code */}
@@ -201,7 +207,7 @@ const VirtualLab = () => {
                       required
                       value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="name@example.com"
+                      placeholder={isRtl ? 'الاسم@example.com' : 'name@example.com'}
                       className="w-full rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 px-4 py-3 text-sm text-dark dark:text-white focus:border-primary focus:outline-none transition-colors"
                     />
                   </div>

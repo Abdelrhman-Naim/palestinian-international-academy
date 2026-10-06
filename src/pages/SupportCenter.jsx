@@ -1,6 +1,8 @@
+"use client";
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 
@@ -46,8 +48,33 @@ const SupportCenter = () => {
     setTicketSent(true);
   };
 
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': faqs.map(f => ({
+      '@type': 'Question',
+      'name': f.q,
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': f.a
+      }
+    }))
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'مركز الدعم والمساعدة | أكاديمية فلسطين الدولية (PIA)' : 'Help & Support Center | Palestinian International Academy'}
+        description={isRtl
+          ? 'مركز المساعدة والدعم الفني: إجابات عن الأسئلة الشائعة حول الشهادات، التسجيل في الدورات، واستعادة الحسابات وتفعيل المختبر السحابي.'
+          : 'Support & Help Center: FAQs on course enrollment, certificate verification, and platform technical assistance.'}
+        canonical="/support"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'مركز المساعدة' : 'Support', item: '/support' }
+        ]}
+        schema={faqSchema}
+      />
       <Navbar />
 
       <main className="grow">

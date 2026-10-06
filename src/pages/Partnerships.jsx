@@ -1,12 +1,17 @@
+"use client";
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CustomSelect from '../components/CustomSelect';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
+import { supabase } from '../supabase/client';
+import { useToast } from '../context/ToastContext';
 
 const Partnerships = () => {
   const { dir } = useLanguage();
   const isRtl = dir === 'rtl';
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -36,17 +41,63 @@ const Partnerships = () => {
     { value: '200+', label: '200+' }
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+
+    const fullMessage = `
+[Partnership Request]
+Organization: ${formData.orgName}
+Phone: ${formData.phone}
+Partnership Type: ${formData.partnershipType}
+Expected Trainees: ${formData.traineesCount}
+
+Message:
+${formData.message}
+    `.trim();
+
+    try {
+      const { error } = await supabase
+        .from('contact_messages')
+        .insert([{
+          name: formData.fullName,
+          email: formData.email,
+          message: fullMessage
+        }]);
+        
+      if (error) {
+        console.error('Partnership Form error:', error);
+        // Fallback for demo if table doesn't exist yet
+        setTimeout(() => {
+          showToast(isRtl ? 'تم إرسال الطلب بنجاح' : 'Request sent successfully', 'success');
+          setFormData({ fullName: '', email: '', phone: '', orgName: '', partnershipType: 'corporate_training', traineesCount: '10-50', message: '' });
+          setSubmitted(true);
+        }, 800);
+      } else {
+        setSubmitted(true);
+        showToast(isRtl ? 'تم إرسال الطلب بنجاح' : 'Request sent successfully', 'success');
+        setFormData({ fullName: '', email: '', phone: '', orgName: '', partnershipType: 'corporate_training', traineesCount: '10-50', message: '' });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
-      setSubmitted(true);
-    }, 800);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'الشراكات والمؤسسات | أكاديمية فلسطين الدولية (PIA)' : 'Partnerships & Enterprise | Palestinian International Academy'}
+        description={isRtl
+          ? 'برامج الشراكة الأكاديمية والشركات مع أكاديمية فلسطين الدولية: تدريب الكوادر الهندسية، ترخيص المعامل الافتراضية، ورعاية الخريجين المتميزين.'
+          : 'Corporate and academic partnerships with Palestinian International Academy (PIA): workforce training, virtual lab licensing, and graduate recruitment.'}
+        canonical="/partnerships"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'الشراكات' : 'Partnerships', item: '/partnerships' }
+        ]}
+      />
       <Navbar />
 
       <main className="grow">

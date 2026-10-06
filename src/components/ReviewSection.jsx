@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -96,7 +97,7 @@ export default function ReviewSection({
     setIsSubmitting(true);
     try {
       const resolvedName = userData?.fullName || userData?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || (isRtl ? 'طالب المنصة' : 'Platform Student');
-      const resolvedAvatar = userData?.photoURL || currentUser?.photoURL || '';
+      const resolvedAvatar = userData?.avatar_url || userData?.photoURL || currentUser?.photoURL || '';
 
       const activeUserId = currentUser.id || currentUser.uid;
       const res = await addOrUpdateReview({

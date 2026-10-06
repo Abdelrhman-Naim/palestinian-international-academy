@@ -1,3 +1,4 @@
+"use client";
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
@@ -231,7 +232,7 @@ export default function AdminOverview() {
 
           <div className="space-y-4">
             {courses.slice(0, 4).map((item) => {
-              const rawDate = item.createdAt || item.updatedAt || item.date || item.timestamp || (item.year ? `${item.year}-01-01` : new Date());
+              const rawDate = item.created_at || item.createdAt || item.updated_at || item.updatedAt || item.date || item.timestamp || (item.year ? `${item.year}-01-01` : new Date());
               const formattedTime = formatCustomDateTime(rawDate, dir);
               return (
                 <div
@@ -247,7 +248,7 @@ export default function AdminOverview() {
                         {item.title}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {t('adminOverview.by')} <span className="font-semibold text-gray-700 dark:text-gray-300">{item.instructor}</span>
+                        {t('adminOverview.by')} <span className="font-semibold text-gray-700 dark:text-gray-300">{item.instructor || item.instructor_name || (dir === 'rtl' ? 'مدرب' : 'Instructor')}</span>
                       </p>
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -8,6 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
 import PageLoader from '../components/PageLoader';
+import SEO from '../components/SEO';
 
 const navItemClass = ({ isActive }) =>
   `flex items-center px-4 py-2.5 rounded-lg transition-colors group text-sm ${
@@ -49,7 +51,11 @@ const InstructorDashboard = () => {
   const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden font-alexandria bg-[#FAF7F2] dark:bg-gray-900 relative" dir={dir}>
+    <div className="flex h-full pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-hidden font-alexandria bg-[#FAF7F2] dark:bg-gray-900 relative" dir={dir}>
+      <SEO
+        title={dir === 'rtl' ? 'لوحة تحكم المدرب | أكاديمية فلسطين الدولية' : 'Instructor Dashboard | Palestinian International Academy'}
+        noindex={true}
+      />
 
       {/* Mobile Overlay */}
       {isSidebarOpen && (
@@ -80,8 +86,8 @@ const InstructorDashboard = () => {
         {/* Profile */}
         <div className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
           <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg overflow-hidden border-2 border-white/60 dark:border-gray-700">
-            {userData?.photoURL ? (
-              <img src={userData.photoURL} alt={displayName} className="w-full h-full object-cover" />
+            {userData?.avatar_url || userData?.photoURL || currentUser?.photoURL ? (
+              <img src={userData?.avatar_url || userData?.photoURL || currentUser?.photoURL} alt={displayName} className="w-full h-full object-cover" />
             ) : (
               <span>{initials || 'م'}</span>
             )}

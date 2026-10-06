@@ -1,8 +1,10 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageLoader from '../components/PageLoader';
+import SEO from '../components/SEO';
 import { getCertificateByCode } from '../services/certificateService';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../supabase/client';
@@ -63,6 +65,17 @@ export default function CertificateVerificationPage() {
 
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-950 text-dark dark:text-gray-100 transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'التحقق من صحة الشهادات | أكاديمية فلسطين الدولية (PIA)' : 'Verify Certificate | Palestinian International Academy'}
+        description={isRtl
+          ? 'نظام التحقق الرقمي الرسمي من صحة ومصداقية الشهادات الممنوحة من أكاديمية فلسطين الدولية برقم الكود والباركود.'
+          : 'Official digital certificate verification portal for Palestinian International Academy (PIA). Verify student credentials and course completion.'}
+        canonical={code ? `/verify-certificate/${code}` : '/verify-certificate'}
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'فحص الشهادة' : 'Verify Certificate', item: '/verify-certificate' }
+        ]}
+      />
       <Navbar />
 
       <main className="grow py-12 px-4 sm:px-6">

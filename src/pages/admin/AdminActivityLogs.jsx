@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { collection, onSnapshot, query, limit, db } from '../../supabase/db';
@@ -16,12 +17,21 @@ export default function AdminActivityLogs() {
     let usersData = [];
     let booksData = [];
 
+    const toEpoch = (d) => {
+      if (!d) return 0;
+      if (typeof d === 'number') return d;
+      if (d.seconds) return d.seconds * 1000;
+      if (typeof d.toDate === 'function') return d.toDate().getTime();
+      const ms = new Date(d).getTime();
+      return isNaN(ms) ? 0 : ms;
+    };
+
     const updateAll = () => {
       const combined = [
         ...coursesData,
         ...usersData,
         ...booksData
-      ].sort((a, b) => (b.rawDate?.seconds || 0) - (a.rawDate?.seconds || 0));
+      ].sort((a, b) => toEpoch(b.rawDate) - toEpoch(a.rawDate));
 
       setActivities(combined);
       setLoading(false);
@@ -35,12 +45,12 @@ export default function AdminActivityLogs() {
         return {
           id: `course-${doc.id}`,
           title: data.title || 'دورة جديدة',
-          user: data.instructor || 'مدرب',
+          user: data.instructor_name || data.instructor || 'مدرب',
           type: 'course',
           typeLabel: t('adminOverview.typeCourse') || 'دورة تدريبية',
           icon: 'school',
           badgeColor: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/40',
-          rawDate: data.createdAt || data.date || { seconds: Date.now() / 1000 },
+          rawDate: data.created_at || data.createdAt || data.date || { seconds: Date.now() / 1000 },
           details: data.category ? `التصنيف: ${data.category}` : 'تم نشر دورة جديدة'
         };
       });
@@ -63,7 +73,7 @@ export default function AdminActivityLogs() {
           badgeColor: isPending 
             ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/40' 
             : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/40',
-          rawDate: data.createdAt || { seconds: Date.now() / 1000 },
+          rawDate: data.created_at || data.createdAt || { seconds: Date.now() / 1000 },
           details: data.role ? `الدور: ${data.role === 'instructor' ? 'مدرب' : 'طالب'}` : 'حساب جديد'
         };
       });
@@ -83,7 +93,7 @@ export default function AdminActivityLogs() {
           typeLabel: t('adminOverview.typeBook') || 'كتب ومراجع',
           icon: 'menu_book',
           badgeColor: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800/40',
-          rawDate: data.createdAt || { seconds: Date.now() / 1000 },
+          rawDate: data.created_at || data.createdAt || { seconds: Date.now() / 1000 },
           details: data.category ? `قسم: ${data.category}` : 'إضافة إلى المكتبة الرقمية'
         };
       });

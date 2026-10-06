@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, getDoc, db } from '../supabase/db';

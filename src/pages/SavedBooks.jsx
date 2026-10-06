@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSavedBooks } from '../hooks/useSavedBooks';
@@ -134,7 +135,7 @@ export default function SavedBooks() {
             {filteredBooks.map((item) => {
               const bookObj = {
                 ...item,
-                id: item.bookId || item.id,
+                id: item.bookId || item.book_id || item.id,
                 title: item.title,
                 author: item.author,
                 category: item.category,
@@ -146,11 +147,11 @@ export default function SavedBooks() {
               };
               return (
                 <BookCard
-                  key={item.id || item.bookId}
+                  key={item.id || item.bookId || item.book_id}
                   book={bookObj}
                   isSaved={true}
                   showBookmark={true}
-                  onBookmarkClick={() => removeSaved(item.bookId || item.id)}
+                  onBookmarkClick={() => removeSaved(item.bookId || item.book_id || item.id)}
                 />
               );
             })}

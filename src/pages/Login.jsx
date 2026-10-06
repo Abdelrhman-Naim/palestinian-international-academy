@@ -1,13 +1,17 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const Login = () => {
   const { t, dir, toggleLang, lang } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,25 +42,31 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setEmailError('');
+    setPasswordError('');
 
+    let hasError = false;
     const trimmedEmail = (email || '').trim();
     if (!trimmedEmail) {
-      setError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email.');
-      return;
+      setEmailError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email.');
+      hasError = true;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        setEmailError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
+        hasError = true;
+      }
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
-      return;
-    }
+    
     if (!password) {
-      setError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter your password.');
-      return;
+      setPasswordError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter your password.');
+      hasError = true;
+    } else if (password.length < 6) {
+      setPasswordError(dir === 'rtl' ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.' : 'Password must be at least 6 characters.');
+      hasError = true;
     }
-    if (password.length < 6) {
-      setError(dir === 'rtl' ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.' : 'Password must be at least 6 characters.');
-      return;
-    }
+
+    if (hasError) return;
 
     try {
       await login(trimmedEmail, password, role);
@@ -113,8 +123,17 @@ const Login = () => {
     }
   };
 
+  const isRtl = dir === 'rtl';
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 lg:p-0 bg-[#FAF7F2] dark:bg-gray-900 font-alexandria transition-colors relative" dir={dir}>
+      <SEO
+        title={role === 'instructor' 
+          ? (isRtl ? 'تسجيل دخول المدربين | أكاديمية فلسطين الدولية' : 'Instructor Login | Palestinian International Academy')
+          : (isRtl ? 'تسجيل دخول الطلاب | أكاديمية فلسطين الدولية' : 'Student Login | Palestinian International Academy')}
+        description={isRtl ? 'بوابة تسجيل الدخول لمنصة أكاديمية فلسطين الدولية للوصول إلى الدورات والمحاضرات والمكتبة الرقمية.' : 'Sign in to Palestinian International Academy to access your courses and library.'}
+        canonical={location.pathname}
+      />
       <main className="w-full max-w-250 bg-white border border-[#E8E2D5] dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row transition-colors">
         
         {/* Left Side */}
@@ -187,14 +206,20 @@ const Login = () => {
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-dark dark:text-gray-200 transition-colors" htmlFor="email">{t('register.email')}</label>
                 <input 
-                  className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
+                  className={`w-full bg-[#FAF7F2] dark:bg-gray-700 border ${emailError ? 'border-red-500 ring-2 ring-red-500/20 focus:ring-red-500' : 'border-[#E8E2D5] dark:border-gray-600 focus:ring-primary'} text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:border-transparent transition-all dark:placeholder-gray-400`}
                   id="email" 
                   required 
                   type="email"
                   placeholder="name@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(''); setError(''); }}
                 />
+                {emailError && (
+                  <p className="text-xs font-bold text-red-500 flex items-center gap-1.5 mt-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>{emailError}</span>
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -215,12 +240,12 @@ const Login = () => {
                 </div>
                 <div className="relative">
                   <input 
-                    className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 pe-11 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
+                    className={`w-full bg-[#FAF7F2] dark:bg-gray-700 border ${passwordError ? 'border-red-500 ring-2 ring-red-500/20 focus:ring-red-500' : 'border-[#E8E2D5] dark:border-gray-600 focus:ring-primary'} text-dark dark:text-white rounded-xl py-3 px-4 pe-11 focus:outline-none focus:border-transparent transition-all dark:placeholder-gray-400`}
                     id="password" 
                     required 
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); setPasswordError(''); setError(''); }}
                   />
                   <button
                     type="button"
@@ -234,6 +259,12 @@ const Login = () => {
                     </span>
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-xs font-bold text-red-500 flex items-center gap-1.5 mt-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>{passwordError}</span>
+                  </p>
+                )}
               </div>
               
               <button 

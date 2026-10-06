@@ -1,13 +1,14 @@
+"use client";
 import heroImg from '../assets/hero.png';
 import { useLanguage } from '../context/LanguageContext';
 
 const Projects = () => {
   const { t, } = useLanguage();
   return (
-    <section className="py-20 px-4 md:px-8 max-w-7xl mx-auto">
-      <div className="text-center mb-16 space-y-4">
-        <span className="font-label-caps text-text-main dark:text-gray-400 tracking-widest uppercase text-sm transition-colors">{t("projects.label")}</span>
-        <h2 className="font-headline-lg text-3xl md:text-4xl text-dark dark:text-white font-bold transition-colors">
+    <section className="py-14 sm:py-20 px-4 md:px-8 max-w-7xl mx-auto">
+      <div className="text-center mb-10 sm:mb-16 space-y-3 sm:space-y-4">
+        <span className="font-label-caps text-text-main dark:text-gray-400 tracking-widest uppercase text-xs sm:text-sm transition-colors">{t("projects.label")}</span>
+        <h2 className="font-headline-lg text-2xl sm:text-3xl md:text-4xl text-dark dark:text-white font-bold transition-colors">
           {t("projects.title1")} <span className="text-secondary">{t("projects.title2")}</span>
         </h2>
       </div>

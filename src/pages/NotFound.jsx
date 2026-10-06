@@ -1,4 +1,6 @@
+"use client";
 import { Link, useNavigate } from 'react-router-dom';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const NotFound = () => {
@@ -35,6 +37,10 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FAF7F2] dark:bg-gray-950 font-alexandria transition-colors duration-300 relative overflow-hidden p-4 sm:p-8" dir={dir}>
+      <SEO
+        title={isRtl ? '404 - الصفحة غير موجودة | أكاديمية فلسطين الدولية' : '404 - Page Not Found | Palestinian International Academy'}
+        noindex={true}
+      />
       
       {/* Background Decorators */}
       <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/20 dark:bg-primary/10 rounded-full blur-3xl mix-blend-multiply dark:mix-blend-lighten animate-pulse pointer-events-none"></div>

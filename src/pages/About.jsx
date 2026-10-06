@@ -1,14 +1,44 @@
+"use client";
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const About = () => {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
 
+  const aboutSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    'name': isRtl ? 'من نحن - أكاديمية فلسطين الدولية' : 'About Us - Palestinian International Academy',
+    'url': 'https://palestine-international-academy.netlify.app/about',
+    'description': isRtl 
+      ? 'تعرف على رؤية ورسالة الأكاديمية الفلسطينية الدولية، الصرح الأكاديمي الرائد في التدريب المهني والتقني.' 
+      : 'Learn about the vision and mission of Palestinian International Academy, the leading educational institution.',
+    'mainEntity': {
+      '@type': 'EducationalOrganization',
+      'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
+      'url': 'https://palestine-international-academy.netlify.app/',
+      'logo': 'https://palestine-international-academy.netlify.app/logo-wep.png'
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'من نحن | أكاديمية فلسطين الدولية (PIA)' : 'About Us | Palestinian International Academy'}
+        description={isRtl 
+          ? 'تعرف على رؤية، أهداف، ورسالة أكاديمية فلسطين الدولية (PIA)، الصرح الأكاديمي الرائد لتمكين الشباب العربي في المجالات التكنولوجية والهندسية والإدارية.'
+          : 'Discover the vision, mission, and leadership of the Palestinian International Academy (PIA), empowering students and professionals worldwide.'}
+        canonical="/about"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'من نحن' : 'About Us', item: '/about' }
+        ]}
+        schema={aboutSchema}
+      />
       <Navbar />
 
       <main className="grow">
@@ -42,7 +72,7 @@ const About = () => {
                 </span>
               </Link>
               <Link
-                to="/courses"
+                to="/virtual-lab"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-white dark:bg-gray-800 hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-dark dark:text-white border border-[#E8E2D5] dark:border-gray-700 font-semibold text-base px-7 py-3.5 rounded-xl shadow-sm transition-all duration-300"
               >
                 <span className="material-symbols-outlined text-primary text-xl">play_circle</span>
@@ -52,7 +82,7 @@ const About = () => {
           </div>
                       {/* Unified 4 Stat Strip Container matching Image 2 - Widened */}
               <div className="flex items-center justify-center">
-                <div className="w-4/5 bg-white/95 dark:bg-[#151311] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-sm dark:shadow-2xl">
+                <div className="w-[94%] sm:w-4/5 max-w-5xl bg-white/95 dark:bg-[#151311] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm dark:shadow-2xl">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                     {[
                       { num: t('about.stat1Num'), label: t('about.stat1Label'), sub: t('about.stat1Sub') },
@@ -240,7 +270,7 @@ const About = () => {
                     </span>
                   </Link>
                   <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs border border-amber-500/20">
-                    {isRtl ? 'قريباً (Coming Soon)' : 'Coming Soon'}
+                    {isRtl ? 'قريباً' : 'Coming Soon'}
                   </span>
                 </div>
               </div>

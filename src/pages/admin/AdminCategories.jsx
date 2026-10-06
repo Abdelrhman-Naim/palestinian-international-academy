@@ -1,10 +1,12 @@
+"use client";
 import { useState } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { useCategories } from '../../context/CategoriesContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 export default function AdminCategories() {
-  const { t } = useLanguage();
+  const { t, dir } = useLanguage();
+  const isRtl = dir === 'rtl';
   const { rawCategories, addCategory, updateCategory, removeCategory } = useCategories();
   const items = rawCategories.courses;
   const [name, setName] = useState('');
@@ -86,7 +88,7 @@ export default function AdminCategories() {
           ) : (
             <span className="material-symbols-outlined text-base">add</span>
           )}
-          {isAdding ? (dir === 'rtl' ? 'جاري الإضافة...' : 'Adding...') : t('adminLibraryCategories.add')}
+          {isAdding ? (dir === 'rtl' ? 'جاري الإضافة...' : 'Adding...') : t('adminCategories.add')}
         </button>
       </form>
 
@@ -101,7 +103,7 @@ export default function AdminCategories() {
           <span className="material-symbols-outlined mb-3 text-5xl text-gray-300 dark:text-gray-600">
             category
           </span>
-          <p className="font-bold text-gray-500 dark:text-gray-400">{t('adminLibraryCategories.noCategories')}</p>
+          <p className="font-bold text-gray-500 dark:text-gray-400">{t('adminCategories.noCategories')}</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-[#E8E2D5] bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -110,6 +112,12 @@ export default function AdminCategories() {
               key={item}
               className="flex items-center justify-between gap-4 border-b border-[#E8E2D5] px-5 py-4 last:border-0 hover:bg-[#FAF7F2] dark:border-gray-700 dark:hover:bg-gray-700/50"
             >
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-primary dark:bg-orange-900/30">
+                  <span className="material-symbols-outlined text-lg">label</span>
+                </span>
+                <span className="font-bold text-dark dark:text-white text-base">{item}</span>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -133,12 +141,6 @@ export default function AdminCategories() {
                   <span className="material-symbols-outlined text-[16px]">delete</span>
                   <span>{t('common.delete')}</span>
                 </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-dark dark:text-white">{item}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-primary dark:bg-orange-900/30">
-                  <span className="material-symbols-outlined text-lg">label</span>
-                </span>
               </div>
             </div>
           ))}

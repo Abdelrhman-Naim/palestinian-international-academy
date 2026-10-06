@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -12,6 +13,7 @@ import { supabase } from '../supabase/client';
 import CustomSelect from '../components/CustomSelect';
 import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
+import SEO from '../components/SEO';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -46,6 +48,17 @@ const Courses = ({ embedded = false }) => {
   const [sortBy, setSortBy] = useState('popular');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
+
+  useEffect(() => {
+    if (isMobileFiltersOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileFiltersOpen]);
 
   useEffect(() => {
     if (!userId) {
@@ -147,11 +160,9 @@ const Courses = ({ embedded = false }) => {
       }
 
       const matchLevel = selectedLevel === 'ALL' || course.level === selectedLevel;
-      const matchPrice = selectedPrice === 'ALL' || (
-        selectedPrice === 'Free' 
-          ? (course.price === 'Free' || course.price === 'free' || !course.price || course.price === 0) 
-          : (course.price !== 'Free' && course.price !== 'free' && course.price && course.price !== 0)
-      );
+      const numCoursePrice = Number(course.price);
+      const isCourseFree = !course.price || course.price === 'Free' || course.price === 'free' || isNaN(numCoursePrice) || numCoursePrice === 0;
+      const matchPrice = selectedPrice === 'ALL' || (selectedPrice === 'Free' ? isCourseFree : !isCourseFree);
       const isPublished = course.status !== '' && course.status !== 'Draft';
       return matchCategory && matchLevel && matchPrice && isPublished;
     });
@@ -176,6 +187,38 @@ const Courses = ({ embedded = false }) => {
 
   return (
     <div className={`${embedded ? 'min-h-full' : 'min-h-screen'} flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors`} dir={dir}>
+      <SEO
+        title={isRtl ? 'الدورات التدريبية المعتمدة | أكاديمية فلسطين الدولية (PIA)' : 'Accredited Courses | Palestinian International Academy'}
+        description={isRtl 
+          ? 'استكشف قائمة الدورات التدريبية المعتمدة في البرمجة، هندسة البرمجيات، الذكاء الاصطناعي، الأمن السيبراني، والتصميم مع نخبة من الخبراء والمدربين الدوليين.' 
+          : 'Explore accredited training courses in programming, software engineering, AI, cybersecurity, and design with elite international instructors.'}
+        canonical="/courses"
+        noindex={embedded}
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'الدورات' : 'Courses', item: '/courses' }
+        ]}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          'name': isRtl ? 'قائمة الدورات التدريبية' : 'Courses Catalog',
+          'itemListElement': filteredCourses.slice(0, 10).map((c, index) => ({
+            '@type': 'ListItem',
+            'position': index + 1,
+            'item': {
+              '@type': 'Course',
+              'name': c.title,
+              'description': c.description || c.title,
+              'provider': {
+                '@type': 'EducationalOrganization',
+                'name': 'Palestinian International Academy',
+                'sameAs': 'https://palestine-international-academy.netlify.app/'
+              },
+              'url': `https://palestine-international-academy.netlify.app/courses/${c.id}`
+            }
+          }))
+        }}
+      />
       {!embedded && <Navbar />}
       
       <main className="grow">
@@ -197,81 +240,99 @@ const Courses = ({ embedded = false }) => {
           {/* Mobile Overlay */}
           {isMobileFiltersOpen && (
             <div 
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-xs transition-opacity"
               onClick={() => setIsMobileFiltersOpen(false)}
             />
           )}
 
           {/* Sidebar / Filters */}
-          <aside className={`fixed inset-y-0 ${isRtl ? 'left-0' : 'right-0'} z-50 w-72 bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent transform transition-transform duration-300 lg:relative lg:w-64 xl:w-72 2xl:w-80 shrink-0 lg:translate-x-0 ${isMobileFiltersOpen ? 'translate-x-0' : (isRtl ? '-translate-x-full' : 'translate-x-full')} lg:block shadow-2xl lg:shadow-none overflow-y-auto lg:overflow-visible h-full lg:h-auto`}>
-            <div className="bg-white dark:bg-gray-800 lg:border border-[#E8E2D5] dark:border-gray-700 lg:rounded-2xl p-6 shadow-sm sticky top-28 transition-colors min-h-full lg:min-h-0">
-              <div className="flex justify-between items-center mb-6">
+          <aside className={`${isMobileFiltersOpen ? 'fixed inset-y-0 z-[70] flex flex-col translate-x-0 shadow-2xl h-[100dvh]' : 'hidden lg:block'} ${isRtl ? 'left-0' : 'right-0'} w-80 max-w-[88vw] bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent lg:relative lg:w-64 xl:w-72 2xl:w-80 shrink-0 lg:translate-x-0 lg:shadow-none lg:overflow-visible lg:h-auto transition-all duration-300`}>
+            <div className="bg-white dark:bg-gray-800 lg:border border-[#E8E2D5] dark:border-gray-700 lg:rounded-2xl shadow-sm lg:sticky lg:top-28 transition-colors flex flex-col h-full lg:h-auto overflow-hidden">
+              
+              {/* Drawer Header (Fixed at top of drawer on mobile) */}
+              <div className="flex justify-between items-center p-5 sm:p-6 border-b border-[#E8E2D5] dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
                 <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <button 
                     onClick={() => { setSelectedCategory('ALL'); setSelectedLevel('ALL'); setSelectedPrice('ALL'); }}
-                    className="text-xs text-gray-500 hover:text-primary transition-colors min-h-[44px] px-2 flex items-center cursor-pointer"
+                    className="text-xs font-bold text-gray-500 hover:text-primary transition-colors min-h-[40px] px-2 flex items-center cursor-pointer"
                   >
                     {t('library.reset')}
                   </button>
                   <button 
-                    className="lg:hidden text-gray-500 hover:text-primary w-11 h-11 flex items-center justify-center rounded-lg cursor-pointer"
+                    className="lg:hidden text-gray-500 hover:text-primary w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700/60 cursor-pointer transition-colors"
                     onClick={() => setIsMobileFiltersOpen(false)}
+                    aria-label="Close filters"
                   >
-                    <span className="material-symbols-outlined">close</span>
+                    <span className="material-symbols-outlined text-lg">close</span>
                   </button>
                 </div>
               </div>
               
-              {/* Category Filter */}
-              <div className="mb-8">
-                <h4 className="font-semibold text-text-main dark:text-gray-300 mb-4 text-sm">{t('adminAddBook.category')}</h4>
-                <div className="space-y-2">
-                  {categories.map(cat => (
-                    <label 
-                      key={cat.key}
-                      onClick={() => setSelectedCategory(cat.key)}
-                      className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${selectedCategory === cat.key ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'}`}
-                    >
-                      <span className={`text-sm ${selectedCategory === cat.key ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${selectedCategory === cat.key ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : ''}`}>
-                        {cat.key === 'ALL' ? filteredCourses.length : (categoryCounts[cat.key] || 0)}
-                      </span>
-                    </label>
-                  ))}
+              {/* Scrollable Filters Body */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-7 custom-scrollbar pb-32 lg:pb-6">
+                {/* Category Filter */}
+                <div>
+                  <h4 className="font-semibold text-text-main dark:text-gray-300 mb-3 text-sm">{t('adminAddBook.category')}</h4>
+                  <div className="space-y-1.5">
+                    {categories.map(cat => (
+                      <label 
+                        key={cat.key}
+                        onClick={() => setSelectedCategory(cat.key)}
+                        className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${selectedCategory === cat.key ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'}`}
+                      >
+                        <span className={`text-sm ${selectedCategory === cat.key ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${selectedCategory === cat.key ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : 'bg-gray-100 dark:bg-gray-700/60'}`}>
+                          {cat.key === 'ALL' ? filteredCourses.length : (categoryCounts[cat.key] || 0)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Level Filter */}
+                <div>
+                  <h4 className="font-semibold text-text-main dark:text-gray-300 mb-3 text-sm">{t('addCourse.level')}</h4>
+                  <div className="flex flex-col gap-2">
+                    {levels.map(level => (
+                      <button 
+                        key={level.value}
+                        onClick={() => setSelectedLevel(level.value)}
+                        className={`w-full text-start px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors cursor-pointer ${selectedLevel === level.value ? 'border border-primary text-primary font-bold bg-primary/5 dark:bg-primary/20' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
+                      >
+                        {level.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Price Filter */}
+                <div>
+                  <h4 className="font-semibold text-text-main dark:text-gray-300 mb-3 text-sm">{t('courseDetail.price')}</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {prices.map(price => (
+                      <button 
+                        key={price.value}
+                        onClick={() => setSelectedPrice(price.value)}
+                        className={`w-full text-center px-2 py-3 min-h-[44px] rounded-xl text-xs sm:text-sm transition-colors cursor-pointer ${selectedPrice === price.value ? 'border border-primary text-primary font-bold bg-primary/5 dark:bg-primary/20' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
+                      >
+                        {price.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              
-              {/* Level Filter */}
-              <div className="mb-8">
-                <h4 className="font-semibold text-text-main dark:text-gray-300 mb-4 text-sm">{t('addCourse.level')}</h4>
-                <div className="flex flex-col gap-2">
-                  {levels.map(level => (
-                    <button 
-                      key={level.value}
-                      onClick={() => setSelectedLevel(level.value)}
-                      className={`w-full text-start px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors cursor-pointer ${selectedLevel === level.value ? 'border border-primary text-primary font-bold bg-primary/5' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
-                    >
-                      {level.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Price Filter */}
-              <div>
-                <h4 className="font-semibold text-text-main dark:text-gray-300 mb-4 text-sm">{t('courseDetail.price')}</h4>
-                <div className="flex gap-3">
-                  {prices.map(price => (
-                    <button 
-                      key={price.value}
-                      onClick={() => setSelectedPrice(price.value)}
-                      className={`flex-1 px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors cursor-pointer ${selectedPrice === price.value ? 'border border-primary text-primary font-bold bg-primary/5' : 'border border-[#E8E2D5] dark:border-gray-700 text-text-main dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 font-medium'}`}
-                    >
-                      {price.label}
-                    </button>
-                  ))}
-                </div>
+
+              {/* Mobile Drawer Footer with Apply/Show Results Button */}
+              <div className="lg:hidden p-4 border-t border-[#E8E2D5] dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-secondary text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{isRtl ? `عرض النتائج (${filteredCourses.length})` : `Show Results (${filteredCourses.length})`}</span>
+                  <span className="material-symbols-outlined text-base">check</span>
+                </button>
               </div>
             </div>
           </aside>

@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { supabase } from '../../supabase/client';

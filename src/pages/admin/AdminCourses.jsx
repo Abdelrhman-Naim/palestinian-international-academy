@@ -1,3 +1,4 @@
+"use client";
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import AdminPageShell from './AdminPageShell';
@@ -383,6 +384,16 @@ export default function AdminCourses() {
                           {course.category}
                         </span>
                       )}
+
+                      {/* Price Badge */}
+                      <span className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-0.5 text-xs font-bold ${
+                        Number(course.price) > 0
+                          ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300'
+                          : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/30 dark:text-blue-300'
+                      }`}>
+                        <span className="material-symbols-outlined text-[13px]">payments</span>
+                        {Number(course.price) > 0 ? `$${course.price}` : (isRtl ? 'مجاني' : 'Free')}
+                      </span>
                     </div>
 
                     {/* Metadata Row: Instructor, Students, Dates */}
@@ -497,7 +508,7 @@ export default function AdminCourses() {
                 }}
                 className="flex-1 rounded-xl bg-rose-500 py-3 text-sm font-bold text-white hover:bg-rose-600"
               >
-                {t('adminLibraryCategories.confirmDelete')}
+                {t('adminCourses.confirmDelete')}
               </button>
             </div>
           </div>

@@ -1,8 +1,10 @@
+"use client";
 import { useState, useEffect } from "react";
 import { useCategories } from "../context/CategoriesContext";
 import { useCourses } from "../context/CoursesContext";
 import { useNavigate } from "react-router-dom";
 import { collection, query, where, getDocs, db } from '../supabase/db';
+import { supabase } from '../supabase/client';
 import CustomSelect from "../components/CustomSelect";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from '../context/LanguageContext';
@@ -23,6 +25,9 @@ export default function AddCourse() {
   const [description, setDescription] = useState("");
   const [lecturesCount, setLecturesCount] = useState("");
   const [level, setLevel] = useState("مبتدئ");
+  const [status, setStatus] = useState("مستمرة");
+  const [priceType, setPriceType] = useState("free");
+  const [priceValue, setPriceValue] = useState("");
   const [category, setCategory] = useState("");
   const [icon, setIcon] = useState("code");
   const [goals, setGoals] = useState([""]);
@@ -40,13 +45,33 @@ export default function AddCourse() {
 
   useEffect(() => {
     const fetchInstructors = async () => {
-      const q = query(collection(db, "users"), where("role", "==", "instructor"));
-      const snap = await getDocs(q);
-      setInstructorsList(snap.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name || doc.data().fullName || doc.id,
-        fullName: doc.data().fullName || doc.data().name || doc.id,
-      })));
+      try {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name, name, email')
+          .eq('role', 'instructor');
+        if (profs && profs.length > 0) {
+          setInstructorsList(profs.map(p => ({
+            id: p.id,
+            name: p.full_name || p.name || p.email,
+            fullName: p.full_name || p.name || p.email,
+          })));
+          return;
+        }
+      } catch (e) {
+        console.warn('Profiles fetch error in AddCourse:', e);
+      }
+      try {
+        const q = query(collection(db, "users"), where("role", "==", "instructor"));
+        const snap = await getDocs(q);
+        setInstructorsList(snap.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name || doc.data().fullName || doc.id,
+          fullName: doc.data().fullName || doc.data().name || doc.id,
+        })));
+      } catch (err) {
+        console.warn('Firestore fallback fetch instructors error:', err);
+      }
     };
     fetchInstructors();
   }, []);
@@ -71,6 +96,9 @@ export default function AddCourse() {
         }
         if (!lecturesCount || Number(lecturesCount) <= 0) {
             errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح أكبر من صفر' : 'Valid lecture count (> 0) is required';
+        }
+        if (priceType === 'paid' && (!priceValue || Number(priceValue) <= 0)) {
+            errs.priceValue = dir === 'rtl' ? 'يرجى إدخال سعر صحيح أكبر من صفر' : 'Valid price (> 0) is required';
         }
         if (!isDraft) {
             if (!description?.trim()) {
@@ -190,7 +218,7 @@ export default function AddCourse() {
     // Save Course
     // =========================
 
-    const handleSaveCourse = async (status = t('addCourse.published')) => {
+    const handleSaveCourse = async (overrideStatus = null) => {
         if (isSubmitting) return; // Prevent double submit
         if (!title || !instructor || !category) {
             alert(t('addCourse.requiredFields'));
@@ -202,8 +230,10 @@ export default function AddCourse() {
         try {
             const selectedInst = instructorsList.find(i => (typeof i === 'object' ? (i.name === instructor || i.fullName === instructor) : i === instructor));
             const instructorId = userRole === 'instructor'
-                ? (currentUser?.uid || userData?.uid || '')
+                ? (currentUser?.id || currentUser?.uid || userData?.id || '')
                 : (selectedInst?.id || selectedInst?.uid || '');
+
+            const finalStatus = overrideStatus || status || 'مستمرة';
 
             const result = await addCourse({
                 title,
@@ -221,9 +251,9 @@ export default function AddCourse() {
                     : (level === 'متوسط' || level === 'Intermediate' || level === t('addCourse.intermediate'))
                     ? 'INTERMEDIATE' 
                     : 'ADVANCED',
-                price: 'Free',
+                price: priceType === 'paid' ? Number(priceValue) : 0,
                 rating: 0,
-                status: status,
+                status: finalStatus,
                 students: 0,
                 avatar: instructor.substring(0, 2).toUpperCase()
             });
@@ -231,7 +261,7 @@ export default function AddCourse() {
             // Notify instructor and platform admins in real-time
             try {
                 const newCourseId = result?.id || null;
-                await notifyInstructor({ instructor }, {
+                await notifyInstructor(newCourseId || { instructor, instructor_id: instructorId }, {
                     title: 'دورة جديدة في حسابك',
                     title_en: 'New Course Assigned',
                     message: `تم إدراج دورة جديدة لدوراتك: «${title}». يمكنك الآن إضافة وتعديل المحاضرات والواجبات.`,
@@ -272,6 +302,8 @@ export default function AddCourse() {
         setDescription("");
         setLecturesCount("");
         setLevel("مبتدئ");
+        setPriceType("free");
+        setPriceValue("");
         setCategory("");
         setGoals([""]);
         setSessions([
@@ -398,6 +430,51 @@ export default function AddCourse() {
                                 />
                             </div>
 
+                            {/* Price Type */}
+                            <div>
+                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    {dir === 'rtl' ? 'نوع الدورة' : 'Course Type'}
+                                </label>
+                                <CustomSelect
+                                    value={priceType}
+                                    onChange={(v) => { setPriceType(v); setPriceValue(""); }}
+                                    placeholder={dir === 'rtl' ? 'اختر نوع الدورة' : 'Select course type'}
+                                    options={[
+                                        { value: "free", label: dir === 'rtl' ? "مجاني" : "Free" },
+                                        { value: "paid", label: dir === 'rtl' ? "مدفوع" : "Paid" }
+                                    ]}
+                                />
+                            </div>
+
+                            {/* Price Value (if Paid) */}
+                            {priceType === 'paid' && (
+                                <div>
+                                    <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        {dir === 'rtl' ? 'سعر الدورة ($)' : 'Course Price ($)'}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        placeholder={dir === 'rtl' ? "أدخل السعر..." : "Enter price..."}
+                                        value={priceValue}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            if (v === '' || Number(v) >= 0) {
+                                                setPriceValue(v);
+                                                if (errors.priceValue) setErrors(p => ({ ...p, priceValue: null }));
+                                            }
+                                        }}
+                                        className={`w-full rounded-xl border px-4 py-3 text-sm text-gray-700 outline-none transition ${
+                                            errors.priceValue 
+                                                ? 'border-red-500 bg-red-50 focus:border-red-500 dark:bg-red-900/10' 
+                                                : 'border-[#E8E2D5] bg-[#FAF7F2] focus:border-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                        }`}
+                                    />
+                                    {errors.priceValue && (
+                                        <p className="mt-1 text-xs font-bold text-red-500">{errors.priceValue}</p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Course Icon */}
                             <div>
                                 <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -418,6 +495,22 @@ export default function AddCourse() {
                                         { value: "school", label: dir === 'rtl' ? '🎓 تعليم عام (Education)' : '🎓 Education' },
                                         { value: "auto_stories", label: dir === 'rtl' ? '📚 معرفة وفكر (Knowledge)' : '📚 Knowledge' },
                                         { value: "view_quilt", label: dir === 'rtl' ? '🧱 تنسيق وتخطيط (Layout)' : '🧱 Layout' }
+                                    ]}
+                                />
+                            </div>
+
+                            {/* Course Status */}
+                            <div>
+                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    {dir === 'rtl' ? 'حالة الدورة' : 'Course Status'}
+                                </label>
+
+                                <CustomSelect
+                                    value={status}
+                                    onChange={setStatus}
+                                    options={[
+                                        { value: "مستمرة", label: dir === 'rtl' ? "مستمرة" : "Ongoing" },
+                                        { value: "مكتملة", label: dir === 'rtl' ? "مكتملة" : "Completed" }
                                     ]}
                                 />
                             </div>

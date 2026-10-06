@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -868,7 +869,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div dir={dir} className="h-full md:h-[calc(100vh-5rem)] flex flex-col overflow-hidden bg-[#FAF7F2] dark:bg-gray-900 font-alexandria transition-colors">
+    <div dir={dir} className="h-full flex-1 flex flex-col overflow-hidden bg-[#FAF7F2] dark:bg-gray-900 font-alexandria transition-colors">
       
       {/* Outer Shell: 2-Pane WhatsApp Style */}
       <div className="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-0 sm:p-2 md:p-4 lg:p-6 gap-0 md:gap-4">

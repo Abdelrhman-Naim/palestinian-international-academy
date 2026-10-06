@@ -1,3 +1,4 @@
+"use client";
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -55,8 +56,9 @@ const Navbar = () => {
     userRole === 'instructor' ? '/instructor-dashboard/messages' :
     '/dashboard/messages';
 
-  const name = userData?.name || userData?.fullName || currentUser?.email || '';
+  const name = userData?.name || userData?.fullName || currentUser?.displayName || currentUser?.email || '';
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  const avatarUrl = userData?.avatar_url || userData?.photoURL || currentUser?.photoURL || '';
 
   const roleLabel =
     userRole === 'admin' ? t('navbar.admin') :
@@ -64,10 +66,10 @@ const Navbar = () => {
     t('navbar.student');
 
   return (
-    <header className="flex justify-between items-center px-4 md:px-30 h-20 w-full mx-auto bg-[#FAF7F2]/90 dark:bg-gray-900/90 backdrop-blur-md z-50 border-b border-[#E8E2D5]/70 dark:border-white/5 sticky top-0 transition-all duration-300">
+    <header className="flex justify-between items-center px-4 sm:px-6 md:px-8 lg:px-16 xl:px-24 h-20 w-full mx-auto bg-[#FAF7F2]/90 dark:bg-gray-900/90 backdrop-blur-md z-50 border-b border-[#E8E2D5]/70 dark:border-white/5 sticky top-0 transition-all duration-300">
       
       {/* Logo + Nav */}
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-4 sm:gap-8">
         <Link className="flex items-center gap-2 group" to="/">
           <img src={logo} alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)" className="h-12 md:h-14 w-auto object-contain rounded-lg drop-shadow-sm transition-transform duration-300 group-hover:scale-105" />
         </Link>
@@ -90,27 +92,24 @@ const Navbar = () => {
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 my-auto mx-2"></div>
           
           <Link to="/partnerships" className="relative px-3 py-2 font-label-caps text-sm tracking-wider font-bold text-stone-800 dark:text-gray-200 hover:text-primary transition-all duration-300 group">
-            {t('navbar.organizations')}
-          </Link>
-          <Link to="/partnerships" className="relative px-3 py-2 font-label-caps text-sm tracking-wider font-bold text-stone-800 dark:text-gray-200 hover:text-primary transition-all duration-300 group">
-            {t('navbar.partnerships')}
+            {lang === 'ar' ? 'الشراكات والمؤسسات' : 'Partnerships & Orgs'}
           </Link>
         </nav>
       </div>
       
       {/* Right Side */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
 
         {/* Dark mode + Language */}
-        <div className="flex gap-2 text-text-main dark:text-gray-200">
+        <div className="flex gap-1 sm:gap-2 text-text-main dark:text-gray-200">
           <button 
             type="button"
             onClick={toggleLang}
             aria-label={lang === 'ar' ? 'التغيير إلى اللغة الإنجليزية' : 'Switch to Arabic language'}
             title={lang === 'ar' ? 'English' : 'العربية'}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer hover:text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-xl"
+            className="w-10 h-10 sm:w-11 sm:h-11 min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center cursor-pointer hover:text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-xl"
           >
-            <span className="material-symbols-outlined text-[20px]">
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">
               language
             </span>
           </button>
@@ -119,9 +118,9 @@ const Navbar = () => {
             onClick={toggleDarkMode}
             aria-label={isDarkMode ? (lang === 'ar' ? 'تفعيل الوضع الفاتح' : 'Switch to Light Mode') : (lang === 'ar' ? 'تفعيل الوضع الداكن' : 'Switch to Dark Mode')}
             title={isDarkMode ? (lang === 'ar' ? 'الوضع الفاتح' : 'Light Mode') : (lang === 'ar' ? 'الوضع الداكن' : 'Dark Mode')}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer hover:text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-xl"
+            className="w-10 h-10 sm:w-11 sm:h-11 min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center cursor-pointer hover:text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-xl"
           >
-            <span className="material-symbols-outlined text-[20px]">
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">
               {isDarkMode ? 'light_mode' : 'dark_mode'}
             </span>
           </button>
@@ -129,7 +128,7 @@ const Navbar = () => {
 
         {currentUser ? (
           /* ============ LOGGED IN STATE ============ */
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             
             {/* Dashboard Button */}
             <Link
@@ -159,9 +158,19 @@ const Navbar = () => {
               <button
                 onClick={() => setDropdownOpen(p => !p)}
                 className="flex items-center gap-2 group min-h-[44px]"
+                aria-label={t('navbar.userMenu') || 'قائمة المستخدم'}
               >
-                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
-                  {initials}
+                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-transparent group-hover:ring-primary/40 transition-all overflow-hidden shrink-0">
+                  {avatarUrl ? (
+                    <img 
+                      src={avatarUrl} 
+                      alt={name} 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    initials
+                  )}
                 </div>
                 <span className="hidden md:block text-xs font-bold text-dark dark:text-white max-w-24 truncate">
                   {name.split(' ')[0]}
@@ -183,9 +192,23 @@ const Navbar = () => {
                   >
                     
                     {/* User Info */}
-                    <div className="px-4 py-3 border-b border-stone-200 dark:border-gray-700">
-                      <p className="text-sm font-bold text-dark dark:text-white truncate">{name}</p>
-                      <p className="text-xs text-primary font-bold mt-0.5">{roleLabel}</p>
+                    <div className="px-4 py-3 border-b border-stone-200 dark:border-gray-700 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">
+                        {avatarUrl ? (
+                          <img 
+                            src={avatarUrl} 
+                            alt={name} 
+                            className="w-full h-full object-cover" 
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          initials
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-dark dark:text-white truncate">{name}</p>
+                        <p className="text-xs text-primary font-bold mt-0.5">{roleLabel}</p>
+                      </div>
                     </div>
 
                     {/* Links */}
@@ -270,7 +293,7 @@ const Navbar = () => {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="absolute top-20 left-0 w-full bg-white dark:bg-gray-900 border-b border-stone-200 dark:border-gray-800 md:hidden flex flex-col px-6 py-6 space-y-4 shadow-xl overflow-hidden z-50"
+            className="absolute top-20 left-0 w-full bg-white dark:bg-gray-900 border-b border-stone-200 dark:border-gray-800 md:hidden flex flex-col px-6 py-6 space-y-4 shadow-xl overflow-y-auto max-h-[calc(100dvh-5rem)] custom-scrollbar z-50"
           >
             <Link to="/about" onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-stone-800 dark:text-gray-100 hover:text-primary py-1 flex items-center gap-2">
               <span className="material-symbols-outlined text-base text-primary">info</span>
@@ -293,9 +316,31 @@ const Navbar = () => {
 
             {currentUser ? (
               <>
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#FAF7F2] dark:bg-gray-800/80 border border-[#E8E2D5] dark:border-gray-700 mb-1">
+                  <div className="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">
+                    {avatarUrl ? (
+                      <img 
+                        src={avatarUrl} 
+                        alt={name} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      initials
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-stone-900 dark:text-white truncate">{name}</p>
+                    <p className="text-xs text-primary font-bold">{roleLabel}</p>
+                  </div>
+                </div>
                 <Link to={dashboardRoute} onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-primary py-1 flex items-center gap-2">
                   <span className="material-symbols-outlined text-base">dashboard</span>
                   <span>{t('navbar.dashboard') || (lang === 'ar' ? 'لوحة التحكم' : 'Dashboard')}</span>
+                </Link>
+                <Link to={profileRoute} onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-stone-800 dark:text-gray-100 hover:text-primary py-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">person</span>
+                  <span>{t('navbar.profile') || (lang === 'ar' ? 'الملف الشخصي' : 'Profile')}</span>
                 </Link>
                 <button onClick={() => { handleLogout(); setIsOpen(false); }} className="text-start font-label-caps text-sm font-bold text-rose-600 py-1 flex items-center gap-2 cursor-pointer">
                   <span className="material-symbols-outlined text-base">logout</span>

@@ -1,23 +1,24 @@
-import { Link } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
-import { getLocalizedCategory } from '../utils/categoryUtils';
+"use client";
+import { Link } from "react-router-dom";
+import { useLanguage } from "../context/LanguageContext";
+import { getLocalizedCategory } from "../utils/categoryUtils";
 
 const BookCard = ({
   book,
   rank,
   onBookmarkClick,
   isSaved = false,
-  showBookmark = false
+  showBookmark = false,
 }) => {
   const { t, dir, lang } = useLanguage();
-  const isRtl = dir === 'rtl';
+  const isRtl = dir === "rtl";
 
   if (!book) return null;
 
-  const verifiedDownloadsLabel = isRtl ? 'تنزيل موثق' : 'verified downloads';
-  const categoryLabel = isRtl ? 'التصنيف:' : 'Category:';
-  const downloadsLabel = isRtl ? 'التحميلات:' : 'Downloads:';
-  const viewBookText = isRtl ? 'عرض وتحميل الكتاب' : 'View & Download Book';
+  const verifiedDownloadsLabel = isRtl ? "تنزيل موثق" : "verified downloads";
+  const categoryLabel = isRtl ? "التصنيف:" : "Category:";
+  const downloadsLabel = isRtl ? "التحميلات:" : "Downloads:";
+  const viewBookText = isRtl ? "عرض الكتاب" : "View The Book";
 
   const formattedDownloads = (book.downloads || 0).toLocaleString();
   const categoryDisplay = getLocalizedCategory(book.category, lang);
@@ -34,7 +35,9 @@ const BookCard = ({
 
         {/* Center Book Icon */}
         <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 dark:border-amber-500/20 flex items-center justify-center mb-3 mt-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform duration-300">
-          <span className="material-symbols-outlined text-3xl">auto_stories</span>
+          <span className="material-symbols-outlined text-3xl">
+            auto_stories
+          </span>
         </div>
 
         {/* Book Main Title */}
@@ -44,18 +47,27 @@ const BookCard = ({
 
         {/* Subtitle / Author */}
         <p className="text-gray-500 dark:text-stone-400 text-xs line-clamp-1 font-body-md">
-          {book.subtitle || book.author || book.description || (isRtl ? 'دراسة وفكر' : 'Book details')}
+          {book.subtitle ||
+            book.author ||
+            book.description ||
+            (isRtl ? "دراسة وفكر" : "Book details")}
         </p>
       </div>
 
       {/* Metadata Section Below Box */}
       <div className="space-y-2 mb-5 px-1">
         <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-stone-300 font-medium">
-          <span className="text-gray-500 dark:text-stone-400">{categoryLabel}</span>
-          <span className="text-amber-600 dark:text-amber-400 font-bold">{categoryDisplay}</span>
+          <span className="text-gray-500 dark:text-stone-400">
+            {categoryLabel}
+          </span>
+          <span className="text-amber-600 dark:text-amber-400 font-bold">
+            {categoryDisplay}
+          </span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-stone-300 font-medium">
-          <span className="text-gray-500 dark:text-stone-400">{downloadsLabel}</span>
+          <span className="text-gray-500 dark:text-stone-400">
+            {downloadsLabel}
+          </span>
           <span className="text-amber-600 dark:text-amber-400 font-bold">
             {formattedDownloads} {verifiedDownloadsLabel}
           </span>
@@ -67,34 +79,36 @@ const BookCard = ({
         {/* View & Download Book Button */}
         <Link
           to={`/library/${book.id}`}
-          className="grow flex items-center justify-center gap-2.5 bg-white dark:bg-[#141210] border border-[#E8E2D5] dark:border-[#2E2823] hover:border-amber-500/50 hover:bg-[#F5F0E6] dark:hover:bg-[#201C18] text-dark dark:text-white hover:text-amber-600 dark:hover:text-amber-400 text-sm font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-sm min-h-[44px]"
+          className="grow flex items-center justify-center gap-2 sm:gap-2.5 bg-white dark:bg-[#141210] border border-[#E8E2D5] dark:border-[#2E2823] hover:border-amber-500/50 hover:bg-[#F5F0E6] dark:hover:bg-[#201C18] text-dark dark:text-white hover:text-amber-600 dark:hover:text-amber-400 text-xs sm:text-sm font-bold py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl transition-all duration-300 shadow-sm min-h-[44px]"
         >
           <span>{viewBookText}</span>
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">download</span>
+          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">
+            download
+          </span>
         </Link>
 
         {/* Optional Bookmark Button for Library page */}
         {showBookmark && onBookmarkClick && (
           <button
             type="button"
-            onClick={(e) => onBookmarkClick(e, book)}
+            onClick={e => onBookmarkClick(e, book)}
             className={`w-11 h-11 shrink-0 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
               isSaved
-                ? 'bg-amber-500 text-white border-amber-500 shadow-xs scale-105'
-                : 'bg-[#F5F0E6] dark:bg-[#27221D] border-[#E8E2D5] dark:border-[#3A322B] text-gray-500 dark:text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/40'
+                ? "bg-amber-500 text-white border-amber-500 shadow-xs scale-105"
+                : "bg-[#F5F0E6] dark:bg-[#27221D] border-[#E8E2D5] dark:border-[#3A322B] text-gray-500 dark:text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/40"
             }`}
             title={
               isSaved
                 ? isRtl
-                  ? 'محفوظ في حسابك (انقر للإزالة)'
-                  : 'Saved (Click to remove)'
+                  ? "محفوظ في حسابك (انقر للإزالة)"
+                  : "Saved (Click to remove)"
                 : isRtl
-                ? 'حفظ الكتاب'
-                : 'Save book'
+                  ? "حفظ الكتاب"
+                  : "Save book"
             }
           >
             <span className="material-symbols-outlined text-[18px]">
-              {isSaved ? 'bookmark' : 'bookmark_add'}
+              {isSaved ? "bookmark" : "bookmark_add"}
             </span>
           </button>
         )}

@@ -1,3 +1,4 @@
+"use client";
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,6 +14,7 @@ import PageLoader from '../components/PageLoader';
 import { useAuth } from '../context/AuthContext';
 import { useSavedBooks } from '../hooks/useSavedBooks';
 import { getLocalizedCategory, matchesCategory } from '../utils/categoryUtils';
+import SEO from '../components/SEO';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -67,6 +69,18 @@ const Library = () => {
     setSelectedCategory('');
     setCurrentPage(1);
   }, [lang]);
+
+  // Lock body scroll when mobile filters drawer is open
+  useEffect(() => {
+    if (isMobileFiltersOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileFiltersOpen]);
 
   // Reset page when filters or search change
   useEffect(() => {
@@ -174,6 +188,17 @@ const Library = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'المكتبة الرقمية والمراجع الأكاديمية | أكاديمية فلسطين الدولية (PIA)' : 'Digital Library & References | Palestinian International Academy'}
+        description={isRtl 
+          ? 'تصفح وحمّل آلاف الكتب والمراجع التقنية والأكاديمية والأبحاث في علوم الحاسوب والبرمجة والذكاء الاصطناعي والإدارة.' 
+          : 'Browse and download academic, technical and research books in computer science, software engineering, AI, and business.'}
+        canonical="/library"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'المكتبة الرقمية' : 'Library', item: '/library' }
+        ]}
+      />
       <Navbar />
       
       <main className="grow">
@@ -195,49 +220,67 @@ const Library = () => {
           {/* Mobile Overlay */}
           {isMobileFiltersOpen && (
             <div 
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-xs transition-opacity"
               onClick={() => setIsMobileFiltersOpen(false)}
             />
           )}
 
           {/* Sidebar / Filters */}
-          <aside className={`fixed inset-y-0 ${isRtl ? 'left-0' : 'right-0'} z-50 w-72 bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent transform transition-transform duration-300 lg:relative lg:w-64 xl:w-72 2xl:w-80 shrink-0 lg:translate-x-0 ${isMobileFiltersOpen ? 'translate-x-0' : (isRtl ? '-translate-x-full' : 'translate-x-full')} lg:block shadow-2xl lg:shadow-none overflow-y-auto lg:overflow-visible h-full lg:h-auto`}>
-            <div className="bg-white dark:bg-gray-800 lg:rounded-2xl p-6 shadow-sm border border-[#E8E2D5] dark:border-gray-700 sticky top-28 transition-colors min-h-full lg:min-h-0">
-              <div className="flex justify-between items-center mb-6">
+          <aside className={`${isMobileFiltersOpen ? 'fixed inset-y-0 z-[70] flex flex-col translate-x-0 shadow-2xl h-[100dvh]' : 'hidden lg:block'} ${isRtl ? 'left-0' : 'right-0'} w-80 max-w-[88vw] bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent lg:relative lg:w-64 xl:w-72 2xl:w-80 shrink-0 lg:translate-x-0 lg:shadow-none lg:overflow-visible lg:h-auto transition-all duration-300`}>
+            <div className="bg-white dark:bg-gray-800 lg:border border-[#E8E2D5] dark:border-gray-700 lg:rounded-2xl shadow-sm lg:sticky lg:top-28 transition-colors flex flex-col h-full lg:h-auto overflow-hidden">
+              
+              {/* Drawer Header (Fixed at top of drawer on mobile) */}
+              <div className="flex justify-between items-center p-5 sm:p-6 border-b border-[#E8E2D5] dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
                 <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <button 
                     onClick={() => { setSelectedCategory(''); setSearchQuery(''); }}
-                    className="text-xs text-gray-500 hover:text-primary transition-colors min-h-[44px] px-2 flex items-center"
+                    className="text-xs font-bold text-gray-500 hover:text-primary transition-colors min-h-[40px] px-2 flex items-center cursor-pointer"
                   >
                     {t('library.reset')}
                   </button>
                   <button 
-                    className="lg:hidden text-gray-500 hover:text-primary w-11 h-11 flex items-center justify-center rounded-lg"
+                    className="lg:hidden text-gray-500 hover:text-primary w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700/60 cursor-pointer transition-colors"
                     onClick={() => setIsMobileFiltersOpen(false)}
+                    aria-label="Close filters"
                   >
-                    <span className="material-symbols-outlined">close</span>
+                    <span className="material-symbols-outlined text-lg">close</span>
                   </button>
                 </div>
               </div>
               
-              {/* Category Filter */}
-              <div className="mb-8">
-                <h4 className="font-semibold text-text-main dark:text-gray-300 mb-4 text-sm">{t('adminAddBook.category')}</h4>
-                <div className="space-y-2">
-                  {categories.map(cat => (
-                    <label 
-                      key={cat.name}
-                      onClick={() => setSelectedCategory(cat.name)}
-                      className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${selectedCategory === cat.name ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'}`}
-                    >
-                      <span className={`text-sm ${selectedCategory === cat.name ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${selectedCategory === cat.name ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : ''}`}>
-                        {!cat.name ? (booksData || []).length : (categoryCounts[cat.name] || 0)}
-                      </span>
-                    </label>
-                  ))}
+              {/* Scrollable Filters Body */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-7 custom-scrollbar pb-32 lg:pb-6">
+                {/* Category Filter */}
+                <div>
+                  <h4 className="font-semibold text-text-main dark:text-gray-300 mb-3 text-sm">{t('adminAddBook.category')}</h4>
+                  <div className="space-y-1.5">
+                    {categories.map(cat => (
+                      <label 
+                        key={cat.name}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${selectedCategory === cat.name ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'}`}
+                      >
+                        <span className={`text-sm ${selectedCategory === cat.name ? 'font-bold' : 'font-medium'}`}>{cat.label}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${selectedCategory === cat.name ? 'bg-white dark:bg-gray-900 font-bold shadow-sm' : 'bg-gray-100 dark:bg-gray-700/60'}`}>
+                          {!cat.name ? (booksData || []).length : (categoryCounts[cat.name] || 0)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
+              </div>
+
+              {/* Mobile Drawer Footer with Apply/Show Results Button */}
+              <div className="lg:hidden p-4 border-t border-[#E8E2D5] dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-secondary text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{isRtl ? `عرض الكتب (${processedBooks.length})` : `Show Books (${processedBooks.length})`}</span>
+                  <span className="material-symbols-outlined text-base">check</span>
+                </button>
               </div>
             </div>
           </aside>
@@ -336,7 +379,7 @@ const Library = () => {
                 {/* Pagination Controls Bar */}
                 <div className="mt-10 bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm transition-colors">
                   {/* Results Counter & Per-Page Selector */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-bold">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between sm:justify-start gap-3 w-full md:w-auto text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-bold">
                     {loading ? (
                       <span className="h-5 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse inline-block" />
                     ) : (
@@ -344,7 +387,7 @@ const Library = () => {
                         {t('library.showing')} {Math.min((currentPage - 1) * itemsPerPage + 1, processedBooks.length)} - {Math.min(currentPage * itemsPerPage, processedBooks.length)} {t('library.of')} {processedBooks.length.toLocaleString()} {libraryTitle}
                       </span>
                     )}
-                    <div className="w-56 font-bold">
+                    <div className="w-full sm:w-56 font-bold">
                       <CustomSelect
                         options={itemsPerPageOptions}
                         value={itemsPerPage}

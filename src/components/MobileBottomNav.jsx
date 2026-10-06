@@ -1,3 +1,4 @@
+"use client";
 import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +10,9 @@ export default function MobileBottomNav() {
   const { currentUser, userRole } = useAuth();
   const { unreadTotal } = useUnreadMessages();
   const isRtl = dir === 'rtl';
+
+  const hideOnPaths = ['/login', '/register', '/login-admin', '/login-trainer'];
+  if (hideOnPaths.includes(location.pathname)) return null;
 
   const profileRoute = !currentUser
     ? '/login'
@@ -62,8 +66,8 @@ export default function MobileBottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-4 inset-x-3 z-50 max-w-md mx-auto pointer-events-none" dir={dir}>
-      <nav className="pointer-events-auto bg-stone-900/95 dark:bg-gray-900/95 backdrop-blur-xl border border-stone-700/60 dark:border-gray-700/60 shadow-[0_12px_40px_rgba(0,0,0,0.45)] rounded-full px-2 py-1.5 flex items-center justify-between transition-all select-none">
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-50 w-full bg-white dark:bg-[#18181b] border-t border-gray-200 dark:border-gray-800" dir={dir}>
+      <nav className="flex items-center justify-between px-2 h-14 safe-area-bottom">
         {navItems.map((item) => {
           const isActive = item.exact 
             ? location.pathname === item.to 
@@ -73,24 +77,24 @@ export default function MobileBottomNav() {
             <NavLink
               key={item.id}
               to={item.to}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-full transition-all duration-300 grow text-center ${
+              className={`relative flex flex-col items-center justify-center py-1 px-2 transition-all duration-200 grow text-center ${
                 isActive
-                  ? 'bg-primary/25 text-primary font-bold shadow-xs scale-105'
-                  : 'text-stone-400 dark:text-gray-400 hover:text-white'
+                  ? 'text-primary'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               <div className="relative flex items-center justify-center">
-                <span className={`material-symbols-outlined text-xl transition-transform ${isActive ? 'scale-110' : ''}`}>
+                <span className={`material-symbols-outlined text-[22px] transition-transform ${isActive ? 'filled scale-110' : ''}`}>
                   {item.icon}
                 </span>
                 {item.badge > 0 && (
-                  <span className="absolute -top-1 -end-2 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-xs">
+                  <span className="absolute -top-1 -end-2 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-xs border border-white dark:border-gray-900">
                     {item.badge > 9 ? '9+' : item.badge}
                   </span>
                 )}
               </div>
 
-              <span className="text-[10px] font-bold leading-tight mt-0.5 truncate max-w-[56px]">
+              <span className={`text-[10px] mt-1 truncate max-w-[56px] ${isActive ? 'font-bold' : 'font-medium'}`}>
                 {item.label}
               </span>
             </NavLink>

@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useMemo } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { useLanguage } from '../../context/LanguageContext';
@@ -18,8 +19,7 @@ export default function AdminSettings() {
   // Courses Context for Hero Featured Course
   const { courses, featuredCourseConfig, updateFeaturedCourse } = useCourses();
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [totalLessons, setTotalLessons] = useState(10);
-  const [completedLessons, setCompletedLessons] = useState(8);
+  const [isAutoFeatured, setIsAutoFeatured] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
   const [isSavingHero, setIsSavingHero] = useState(false);
   const [heroSuccess, setHeroSuccess] = useState('');
@@ -38,12 +38,7 @@ export default function AdminSettings() {
         : courses[0].id;
 
       setSelectedCourseId(activeId);
-      const matchedCourse = courses.find(c => c.id === activeId);
-      const defaultTotal = Number(matchedCourse?.lectures?.length || matchedCourse?.lecturesCount || 10);
-      const total = Math.max(1, Number(featuredCourseConfig?.totalLessons) || defaultTotal);
-      const completed = Math.max(0, Math.min(total, Number(featuredCourseConfig?.completedLessons ?? 8)));
-      setTotalLessons(total);
-      setCompletedLessons(completed);
+      setIsAutoFeatured(!!featuredCourseConfig?.isAuto);
       if (featuredCourseConfig?.customLabel !== undefined) {
         setCustomLabel(featuredCourseConfig.customLabel || '');
       }
@@ -53,47 +48,7 @@ export default function AdminSettings() {
   const handleCourseChange = (courseId) => {
     setSelectedCourseId(courseId);
     setHeroError('');
-    const selectedCourse = (courses || []).find(c => c.id === courseId);
-    if (selectedCourse) {
-      const lecturesCount = Number(selectedCourse.lectures?.length || selectedCourse.lecturesCount || 10);
-      setTotalLessons(lecturesCount);
-      setCompletedLessons(prev => Math.min(lecturesCount, Number(prev) || 0));
-    }
   };
-
-  const handleTotalLessonsChange = (valStr) => {
-    setTotalLessons(valStr);
-    const val = Number(valStr);
-    const completed = Number(completedLessons);
-    if (valStr === '' || isNaN(val) || val <= 0) {
-      setHeroError(isRtl ? 'يجب أن يكون إجمالي الدروس رقماً موجباً أكبر من صفر' : 'Total lessons must be a positive number greater than 0');
-    } else if (completed > val) {
-      setHeroError(isRtl 
-        ? `لا يمكن أن يتجاوز عدد الدروس المكتملة (${completed}) إجمالي الدروس (${val})!` 
-        : `Completed lessons (${completed}) cannot exceed total lessons (${val})!`);
-    } else {
-      setHeroError('');
-    }
-  };
-
-  const handleCompletedLessonsChange = (valStr) => {
-    setCompletedLessons(valStr);
-    const val = Number(valStr);
-    const total = Number(totalLessons) || 1;
-    if (valStr === '' || isNaN(val) || val < 0) {
-      setHeroError(isRtl ? 'لا يمكن أن يكون عدد الدروس سالباً' : 'Completed lessons cannot be negative');
-    } else if (val > total) {
-      setHeroError(isRtl 
-        ? `لا يمكن أن يتجاوز عدد الدروس المكتملة (${val}) إجمالي الدروس (${total})!` 
-        : `Completed lessons (${val}) cannot exceed total lessons (${total})!`);
-    } else {
-      setHeroError('');
-    }
-  };
-
-  const numTotal = Math.max(1, Number(totalLessons) || 1);
-  const numCompleted = Math.max(0, Math.min(numTotal, Number(completedLessons) || 0));
-  const calculatedProgress = Math.min(100, Math.max(0, Math.round((numCompleted / numTotal) * 100)));
 
   const handleToggle = async () => {
     setIsUpdating(true);
@@ -120,29 +75,55 @@ export default function AdminSettings() {
     }
   };
 
+  const courseOptions = useMemo(() => {
+    const defaultOpt = { value: '', label: isRtl ? '-- اختر كورس من القائمة --' : '-- Select a course --' };
+    const items = (courses || []).map((course) => ({
+      value: course.id,
+      label: `${course.title}${course.category ? ` (${course.category})` : ''}`
+    }));
+    return [defaultOpt, ...items];
+  }, [courses, isRtl]);
+
+  // Dynamic preview course selection for both auto and manual modes
+  const currentPreviewCourse = useMemo(() => {
+    if (!courses || courses.length === 0) return null;
+    if (isAutoFeatured) {
+      const sorted = [...courses].sort((a, b) => {
+        const aPop = Number(a.enrollments || a.students || 0) + Number(a.ratingCount || 0);
+        const bPop = Number(b.enrollments || b.students || 0) + Number(b.ratingCount || 0);
+        return bPop - aPop;
+      });
+      return sorted[0] || courses[0];
+    }
+    return courses.find(c => c.id === selectedCourseId) || courses[0];
+  }, [courses, isAutoFeatured, selectedCourseId]);
+
+  // Derive lesson counts strictly from the course information
+  const actualLecturesCount = (currentPreviewCourse?.lectures || currentPreviewCourse?.lessons || currentPreviewCourse?.sessions || []).length;
+  const courseLessonsCount = Number(currentPreviewCourse?.lessons_count || currentPreviewCourse?.lecturesCount) || 0;
+  const numTotal = Math.max(1, Math.max(courseLessonsCount, actualLecturesCount));
+  const numCompleted = actualLecturesCount > 0 ? actualLecturesCount : Math.min(numTotal, 1);
+  const calculatedProgress = Math.min(100, Math.max(0, Math.round((numCompleted / numTotal) * 100)));
+
+  const previewTitle = currentPreviewCourse?.title || (isRtl ? 'دورة الهندسة والتصميم التطبيقي' : 'Applied Digital Engineering');
+  const previewLabelText = customLabel.trim() || currentPreviewCourse?.category || (isRtl ? 'منصة التعلم الهندسية' : 'Engineering Platform');
+
   const handleSaveHeroCourse = async (e) => {
     e.preventDefault();
     setHeroError('');
     setHeroSuccess('');
 
-    if (!selectedCourseId) {
-      setHeroError(isRtl ? 'يرجى اختيار كورس من القائمة قبل الحفظ' : 'Please select a course before saving');
-      return;
-    }
-
-    if (numTotal < 1) {
-      setHeroError(isRtl ? 'يجب أن يكون إجمالي الدروس 1 على الأقل!' : 'Total lessons must be at least 1!');
-      return;
-    }
-
-    if (numCompleted > numTotal) {
-      setHeroError(isRtl ? 'عدد الدروس المكتملة لا يمكن أن يتجاوز إجمالي دروس الدورة!' : 'Completed lessons cannot exceed total lessons!');
-      return;
+    if (!isAutoFeatured) {
+      if (!selectedCourseId) {
+        setHeroError(isRtl ? 'يرجى اختيار كورس من القائمة قبل الحفظ' : 'Please select a course before saving');
+        return;
+      }
     }
 
     setIsSavingHero(true);
 
     const res = await updateFeaturedCourse({
+      isAuto: isAutoFeatured,
       courseId: selectedCourseId,
       progress: calculatedProgress,
       completedLessons: numCompleted,
@@ -156,22 +137,6 @@ export default function AdminSettings() {
       setTimeout(() => setHeroSuccess(''), 4000);
     }
   };
-
-  const courseOptions = useMemo(() => {
-    const defaultOpt = { value: '', label: isRtl ? '-- اختر كورس من القائمة --' : '-- Select a course --' };
-    const items = (courses || []).map((course) => ({
-      value: course.id,
-      label: `${course.title}${course.category ? ` (${course.category})` : ''}`
-    }));
-    return [defaultOpt, ...items];
-  }, [courses, isRtl]);
-
-  // Preview computations
-  const currentPreviewCourse = (courses || []).find(c => c.id === selectedCourseId) 
-    || (courses && courses.length > 0 ? courses[0] : null);
-
-  const previewTitle = currentPreviewCourse?.title || (isRtl ? 'دورة الهندسة والتصميم التطبيقي' : 'Applied Digital Engineering');
-  const previewLabelText = customLabel.trim() || currentPreviewCourse?.category || (isRtl ? 'منصة التعلم الهندسية' : 'Engineering Platform');
 
   return (
     <AdminPageShell
@@ -202,80 +167,61 @@ export default function AdminSettings() {
               
               {/* Form Inputs Column */}
               <div className="space-y-4">
-                {/* Course Select */}
-                <div>
-                  <label htmlFor="hero-course-select" className="block text-xs font-bold text-dark dark:text-white mb-2">
-                    {isRtl ? 'اختر الكورس المميز' : 'Select Course'} <span className="text-rose-500">*</span>
+                {/* Auto Select Toggle */}
+                <div className="flex items-center justify-between bg-[#FAF7F2] dark:bg-gray-900 border border-[#E8E2D5] dark:border-gray-700 p-4 rounded-xl">
+                  <div>
+                    <h4 className="text-sm font-bold text-dark dark:text-white">
+                      {isRtl ? 'تحديد الكورس المميز تلقائياً' : 'Auto-select Featured Course'}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {isRtl ? 'اختيار الكورس الأكثر شهرة من حيث التسجيلات والتقييمات تلقائياً' : 'Automatically select the most popular course based on enrollments and ratings'}
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={isAutoFeatured}
+                      onChange={(e) => setIsAutoFeatured(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
                   </label>
-                  <CustomSelect
-                    id="hero-course-select"
-                    options={courseOptions}
-                    value={selectedCourseId}
-                    onChange={(val) => handleCourseChange(val)}
-                    placeholder={isRtl ? '-- اختر كورس من القائمة --' : '-- Select a course --'}
-                  />
                 </div>
 
-                {/* Custom Promotional Label */}
-                <div>
-                  <label htmlFor="hero-badge-input" className="block text-xs font-bold text-dark dark:text-white mb-2">
-                    {isRtl ? 'العنوان الترويجي العلوي (Label Badge)' : 'Top Badge Text'}
-                  </label>
-                  <input
-                    id="hero-badge-input"
-                    type="text"
-                    value={customLabel}
-                    onChange={(e) => setCustomLabel(e.target.value)}
-                    placeholder={isRtl ? 'منصة التعلم الهندسية (أو اترك فارغاً لاستخدام القسم)' : 'Engineering Platform (or leave blank)'}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
+                {!isAutoFeatured && (
+                  <>
+                    {/* Course Select */}
+                    <div>
+                      <label htmlFor="hero-course-select" className="block text-xs font-bold text-dark dark:text-white mb-2">
+                        {isRtl ? 'اختر الكورس المميز' : 'Select Course'} <span className="text-rose-500">*</span>
+                      </label>
+                      <CustomSelect
+                        id="hero-course-select"
+                        options={courseOptions}
+                        value={selectedCourseId}
+                        onChange={(val) => handleCourseChange(val)}
+                        placeholder={isRtl ? '-- اختر كورس من القائمة --' : '-- Select a course --'}
+                      />
+                    </div>
 
-                {/* Progress & Lessons Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label htmlFor="hero-total-lessons" className="block text-xs font-bold text-dark dark:text-white mb-2">
-                      {isRtl ? 'إجمالي دروس الكورس' : 'Total Lessons'}
-                    </label>
-                    <input
-                      id="hero-total-lessons"
-                      type="number"
-                      min="1"
-                      value={totalLessons}
-                      onChange={(e) => handleTotalLessonsChange(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="hero-completed-lessons" className="block text-xs font-bold text-dark dark:text-white mb-2">
-                      {isRtl ? 'عدد الدروس المكتملة' : 'Completed Lessons'}
-                    </label>
-                    <input
-                      id="hero-completed-lessons"
-                      type="number"
-                      min="0"
-                      max={totalLessons}
-                      value={completedLessons}
-                      onChange={(e) => handleCompletedLessonsChange(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="hero-progress-display" className="block text-xs font-bold text-dark dark:text-white mb-2 flex items-center justify-between">
-                      <span>{isRtl ? 'نسبة الإنجاز (%)' : 'Progress (%)'}</span>
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold">
-                        {isRtl ? 'تلقائي' : 'Auto'}
-                      </span>
-                    </label>
-                    <input
-                      id="hero-progress-display"
-                      type="text"
-                      readOnly
-                      value={`${calculatedProgress}%`}
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-sm font-extrabold cursor-not-allowed select-none text-center"
-                    />
-                  </div>
-                </div>
+                    {/* Custom Promotional Label */}
+                    <div>
+                      <label htmlFor="hero-badge-input" className="block text-xs font-bold text-dark dark:text-white mb-2">
+                        {isRtl ? 'العنوان الترويجي العلوي (Label Badge)' : 'Top Badge Text'}
+                      </label>
+                      <input
+                        id="hero-badge-input"
+                        type="text"
+                        value={customLabel}
+                        onChange={(e) => setCustomLabel(e.target.value)}
+                        placeholder={isRtl ? 'منصة التعلم الهندسية (أو اترك فارغاً لاستخدام القسم)' : 'Engineering Platform (or leave blank)'}
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white text-sm focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+
+
+                </>
+                )}
 
                 {heroError && (
                   <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2 animate-fade-in">

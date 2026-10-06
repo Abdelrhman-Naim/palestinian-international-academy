@@ -1,3 +1,4 @@
+"use client";
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Pagination({
@@ -73,7 +74,7 @@ export default function Pagination({
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center gap-1.5" dir="ltr">
+      <div className="flex flex-wrap items-center justify-center gap-1.5" dir="ltr">
         {/* Previous Button */}
         <button
           type="button"

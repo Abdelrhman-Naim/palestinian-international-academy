@@ -1,3 +1,4 @@
+"use client";
 import { Link } from 'react-router-dom';
 import { useLibrary } from '../context/LibraryContext';
 import { useLanguage } from '../context/LanguageContext';

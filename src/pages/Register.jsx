@@ -1,7 +1,9 @@
+"use client";
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const Register = () => {
@@ -27,34 +29,41 @@ const Register = () => {
   const isPasswordMismatch = (confirmTouched || confirmPassword.length > 0) && password !== confirmPassword;
   const isPasswordMatchSuccess = (confirmTouched || confirmPassword.length > 0) && password.length >= 6 && password === confirmPassword;
 
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setConfirmTouched(true);
+    setError('');
+    setNameError('');
+    setEmailError('');
+
+    let hasError = false;
 
     if (!fullName.trim()) {
-      setError(dir === 'rtl' ? 'يرجى إدخال الاسم الكامل.' : 'Please enter your full name.');
-      return;
-    }
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email address.');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
-      return;
-    }
-    if (password.length < 6) {
-      setError(t('register.passwordMinLength'));
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError(t('register.passwordMismatch'));
-      return;
+      setNameError(dir === 'rtl' ? 'يرجى إدخال الاسم الكامل.' : 'Please enter your full name.');
+      hasError = true;
     }
     
-    setError('');
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setEmailError(dir === 'rtl' ? 'يرجى إدخال البريد الإلكتروني.' : 'Please enter your email address.');
+      hasError = true;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        setEmailError(dir === 'rtl' ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com).' : 'Please enter a valid email address (e.g. name@example.com).');
+        hasError = true;
+      }
+    }
+
+    if (password.length < 6 || password !== confirmPassword) {
+      hasError = true;
+    }
+    
+    if (hasError) return;
+
     setLoading(true);
 
     try {
@@ -82,8 +91,17 @@ const Register = () => {
     }
   };
 
+  const isRtl = dir === 'rtl';
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 lg:p-0 bg-[#FAF7F2] dark:bg-gray-900 font-alexandria transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'إنشاء حساب جديد | أكاديمية فلسطين الدولية (PIA)' : 'Create New Account | Palestinian International Academy'}
+        description={isRtl
+          ? 'أنشئ حسابك الأكاديمي المجاني في أكاديمية فلسطين الدولية وابدأ فوراً في تعلم مهارات البرمجة والذكاء الاصطناعي مع وصول للمكتبة والمختبرات.'
+          : 'Create your free account at Palestinian International Academy to access courses, digital library, and cloud labs.'}
+        canonical="/register"
+      />
       <main className="w-full max-w-250 bg-white border border-[#E8E2D5] dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row transition-colors">
         
         {/* Left Side */}
@@ -188,27 +206,39 @@ const Register = () => {
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-dark dark:text-gray-200 transition-colors" htmlFor="fullName">{t('register.fullName')}</label>
                 <input 
-                  className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
+                  className={`w-full bg-[#FAF7F2] dark:bg-gray-700 border ${nameError ? 'border-red-500 ring-2 ring-red-500/20 focus:ring-red-500' : 'border-[#E8E2D5] dark:border-gray-600 focus:ring-primary'} text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:border-transparent transition-all dark:placeholder-gray-400`}
                   id="fullName" 
                   required 
                   type="text"
                   placeholder={t('register.fullNamePlaceholder')}
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => { setFullName(e.target.value); setNameError(''); setError(''); }}
                 />
+                {nameError && (
+                  <p className="text-xs font-bold text-red-500 flex items-center gap-1.5 mt-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>{nameError}</span>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-dark dark:text-gray-200 transition-colors" htmlFor="regEmail">{t('register.email')}</label>
                 <input 
-                  className="w-full bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all dark:placeholder-gray-400" 
+                  className={`w-full bg-[#FAF7F2] dark:bg-gray-700 border ${emailError ? 'border-red-500 ring-2 ring-red-500/20 focus:ring-red-500' : 'border-[#E8E2D5] dark:border-gray-600 focus:ring-primary'} text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:border-transparent transition-all dark:placeholder-gray-400`}
                   id="regEmail" 
                   required 
                   type="email"
                   placeholder="example@email.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(''); setError(''); }}
                 />
+                {emailError && (
+                  <p className="text-xs font-bold text-red-500 flex items-center gap-1.5 mt-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>{emailError}</span>
+                  </p>
+                )}
               </div>
               
               <div className="space-y-1.5">
@@ -224,7 +254,7 @@ const Register = () => {
                   type="password"
                   placeholder={t('register.passwordHint')}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 />
                 {isPasswordTooShort && (
                   <p className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-1">
@@ -251,6 +281,7 @@ const Register = () => {
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value);
+                    setError('');
                     if (!confirmTouched) setConfirmTouched(true);
                   }}
                   onBlur={() => setConfirmTouched(true)}

@@ -1,7 +1,9 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const AdminLogin = () => {
@@ -19,6 +21,9 @@ const AdminLogin = () => {
   const [forgotSuccess, setForgotSuccess] = useState('');
   const [forgotError, setForgotError] = useState('');
 
+  const [userError, setUserError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const navigate = useNavigate();
   const { login, resetPassword, currentUser, userRole } = useAuth();
 
@@ -31,15 +36,21 @@ const AdminLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setUserError('');
+    setPasswordError('');
+    
+    let hasError = false;
     
     if (!username?.trim()) {
-      setError(dir === 'rtl' ? 'يرجى إدخال اسم المستخدم أو البريد الإلكتروني.' : 'Please enter username or email.');
-      return;
+      setUserError(dir === 'rtl' ? 'يرجى إدخال اسم المستخدم أو البريد الإلكتروني.' : 'Please enter username or email.');
+      hasError = true;
     }
     if (!password) {
-      setError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter password.');
-      return;
+      setPasswordError(dir === 'rtl' ? 'يرجى إدخال كلمة المرور.' : 'Please enter password.');
+      hasError = true;
     }
+
+    if (hasError) return;
 
     setLoading(true);
     try {
@@ -84,6 +95,10 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#FAF7F2] dark:bg-gray-950 font-alexandria transition-colors relative" dir={dir}>
+      <SEO
+        title={dir === 'rtl' ? 'تسجيل دخول الإدارة | أكاديمية فلسطين الدولية' : 'Admin Login | Palestinian International Academy'}
+        noindex={true}
+      />
       
       {/* Language Switcher Button */}
       <div className="absolute top-4 sm:top-6 end-4 sm:end-6 z-20">
@@ -136,14 +151,20 @@ const AdminLogin = () => {
                 {t('adminLogin.username')}
               </label>
               <input
-                className="w-full bg-[#FAF7F2] dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder-gray-400 text-sm"
+                className={`w-full bg-[#FAF7F2] dark:bg-gray-800 border ${userError ? 'border-red-500 ring-2 ring-red-500/20 focus:ring-red-500' : 'border-[#E8E2D5] dark:border-gray-700 focus:ring-primary'} text-dark dark:text-white rounded-xl py-3 px-4 focus:outline-none focus:border-transparent transition-all placeholder-gray-400 text-sm`}
                 id="admin-user"
                 required
                 type="text"
                 placeholder="admin@example.com"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); setUserError(''); setError(''); }}
               />
+              {userError && (
+                <p className="text-xs font-bold text-red-500 flex items-center gap-1.5 mt-1">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  <span>{userError}</span>
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5 text-start">
@@ -167,13 +188,13 @@ const AdminLogin = () => {
 
               <div className="relative">
                 <input
-                  className="w-full bg-[#FAF7F2] dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 text-dark dark:text-white rounded-xl py-3 px-4 pe-11 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder-gray-400 text-sm"
+                  className={`w-full bg-[#FAF7F2] dark:bg-gray-800 border ${passwordError ? 'border-red-500 ring-2 ring-red-500/20 focus:ring-red-500' : 'border-[#E8E2D5] dark:border-gray-700 focus:ring-primary'} text-dark dark:text-white rounded-xl py-3 px-4 pe-11 focus:outline-none focus:border-transparent transition-all placeholder-gray-400 text-sm`}
                   id="admin-pass"
                   required
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setPasswordError(''); setError(''); }}
                 />
                 <button
                   type="button"
@@ -187,6 +208,12 @@ const AdminLogin = () => {
                   </span>
                 </button>
               </div>
+              {passwordError && (
+                <p className="text-xs font-bold text-red-500 flex items-center gap-1.5 mt-1">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  <span>{passwordError}</span>
+                </p>
+              )}
             </div>
 
             <button

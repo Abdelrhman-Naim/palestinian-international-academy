@@ -1,6 +1,8 @@
+"use client";
 import React from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const TermsOfService = () => {
@@ -9,6 +11,17 @@ const TermsOfService = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'شروط وسياسة الاستخدام | أكاديمية فلسطين الدولية (PIA)' : 'Terms of Service | Palestinian International Academy'}
+        description={isRtl
+          ? 'الشروط والأحكام المنظمة لاستخدام منصة أكاديمية فلسطين الدولية، التسجيل في الدورات، وحقوق الملكية الفكرية.'
+          : 'Terms of service and terms of use for Palestinian International Academy (PIA).'}
+        canonical="/terms"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'شروط الاستخدام' : 'Terms of Service', item: '/terms' }
+        ]}
+      />
       <Navbar />
 
       <main className="grow">
@@ -65,7 +78,7 @@ const TermsOfService = () => {
               </h2>
               <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base leading-relaxed">
                 {isRtl
-                  ? 'جميع المحتويات المرئية، المواد الهندسية، الكتب المرفوعة، الشفرات المصدريّة، والتصاميم هي ملك حصري للمنصة ولصنّاع المحتوى والمدربين المعتمدين. يُمنع منعاً باتاً نسخ أو إعادة إعادة بيع أو تسجيل أجزاء من الكورسات دون إذن خطي مسبق.'
+                  ? 'جميع المحتويات المرئية، المواد الهندسية، الكتب المرفوعة، الشفرات المصدريّة، والتصاميم هي ملك حصري للمنصة ولصنّاع المحتوى والمدربين المعتمدين. يُمنع منعاً باتاً نسخ أو إعادة بيع أو تسجيل أجزاء من الكورسات دون إذن خطي مسبق.'
                   : 'All course video material, library books, and source designs belong strictly to the platform and certified instructors.'}
               </p>
             </div>

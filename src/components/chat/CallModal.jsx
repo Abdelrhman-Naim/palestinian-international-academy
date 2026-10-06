@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../supabase/client';
@@ -479,21 +480,29 @@ export default function CallModal({
 
         const createAndSendOffer = async () => {
           if (!pc || !isCaller || isOfferingRef.current) return;
-          if (pc.signalingState !== 'stable') return;
           isOfferingRef.current = true;
 
           try {
-            const offer = await pc.createOffer({
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: isVideo
-            });
-            await pc.setLocalDescription(offer);
+            let offer;
+            if (pc.signalingState === 'have-local-offer') {
+              // Callee missed the first offer (e.g. was waiting for camera permission). Resend existing.
+              offer = pc.localDescription;
+            } else if (pc.signalingState === 'stable') {
+              offer = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: isVideo
+              });
+              await pc.setLocalDescription(offer);
+            } else {
+              return; // Cannot send offer in other states
+            }
+            
             await broadcastToChannel(sessionTopic, 'webrtc_offer', {
               offer: { type: offer.type, sdp: offer.sdp },
               from: myUid
             });
           } catch (offErr) {
-            console.warn('Could not create offer:', offErr);
+            console.warn('Could not create/send offer:', offErr);
           } finally {
             setTimeout(() => { isOfferingRef.current = false; }, 1200);
           }
@@ -736,8 +745,8 @@ export default function CallModal({
       onClick={attemptPlayAudio}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in font-alexandria"
     >
-      {/* Dedicated audio element for remote stream in both voice & video calls */}
-      <audio ref={remoteAudioRef} autoPlay playsInline />
+      {/* Dedicated audio element for remote stream only in voice calls to avoid double playback */}
+      {!isVideo && <audio ref={remoteAudioRef} autoPlay playsInline />}
 
       <div 
         dir={dir}
@@ -759,7 +768,13 @@ export default function CallModal({
         {audioAutoplayBlocked && (
           <button 
             type="button"
-            onClick={attemptPlayAudio}
+            onClick={() => {
+              attemptPlayAudio();
+              if (remoteVideoRef.current) {
+                remoteVideoRef.current.muted = false;
+                remoteVideoRef.current.play().catch(()=>{});
+              }
+            }}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-base">volume_up</span>
@@ -776,7 +791,7 @@ export default function CallModal({
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                muted={true}
+                muted={false}
                 className="w-full h-full object-cover"
               />
             ) : (

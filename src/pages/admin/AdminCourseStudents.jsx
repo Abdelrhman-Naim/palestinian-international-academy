@@ -1,3 +1,4 @@
+"use client";
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { doc, updateDoc, increment, db } from '../../supabase/db';

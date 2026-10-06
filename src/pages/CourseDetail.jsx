@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, setDoc, getDoc, updateDoc, increment, serverTimestamp, collection, query, where, getDocs, onSnapshot, db } from '../supabase/db';
@@ -17,6 +18,7 @@ import CertificateModal from '../components/CertificateModal';
 import GraduationExamModal from '../components/GraduationExamModal';
 import ReviewSection from '../components/ReviewSection';
 import { listenToTargetReviews } from '../services/reviewService';
+import SEO from '../components/SEO';
 
 export default function CourseDetail() {
   const { t, dir } = useLanguage();
@@ -27,9 +29,12 @@ export default function CourseDetail() {
   const { currentUser, userData, userRole } = useAuth();
   const course = courses.find(c => c.id === id);
 
+  const initialRatingCount = Number(course?.ratingCount ?? course?.rating_count ?? 0);
+  const initialRatingAvg = Number(course?.ratingAverage ?? course?.rating ?? 0);
+
   const [reviewStats, setReviewStats] = useState({
-    average: Number(course?.ratingAverage ?? course?.rating ?? 5.0),
-    count: Number(course?.ratingCount ?? 0)
+    average: initialRatingCount > 0 ? initialRatingAvg : 0,
+    count: initialRatingCount
   });
 
   // Real-time listener for this specific course's reviews
@@ -38,7 +43,9 @@ export default function CourseDetail() {
     const unsub = listenToTargetReviews('course', id, (reviewsList) => {
       const count = reviewsList.length;
       const sum = reviewsList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
-      const avg = count > 0 ? Number((sum / count).toFixed(1)) : (Number(course?.ratingAverage ?? course?.rating) || 5.0);
+      const currentCount = Number(course?.ratingCount ?? course?.rating_count ?? 0);
+      const currentAvg = Number(course?.ratingAverage ?? course?.rating ?? 0);
+      const avg = count > 0 ? Number((sum / count).toFixed(1)) : (currentCount > 0 ? currentAvg : 0);
       setReviewStats({
         average: avg,
         count
@@ -46,21 +53,23 @@ export default function CourseDetail() {
     });
 
     return () => unsub();
-  }, [id, course?.ratingAverage, course?.rating]);
+  }, [id, course?.ratingCount, course?.rating_count, course?.ratingAverage, course?.rating]);
 
   useEffect(() => {
-    if (course?.ratingCount !== undefined) {
+    const rCount = Number(course?.ratingCount ?? course?.rating_count ?? 0);
+    const rAvg = Number(course?.ratingAverage ?? course?.rating ?? 0);
+    if (rCount > 0) {
       setReviewStats(prev => {
-        if (prev.count === 0 && course.ratingCount > 0) {
+        if (prev.count === 0) {
           return {
-            average: Number(course.ratingAverage ?? course.rating ?? prev.average),
-            count: Number(course.ratingCount)
+            average: rAvg,
+            count: rCount
           };
         }
         return prev;
       });
     }
-  }, [course?.ratingCount, course?.ratingAverage, course?.rating]);
+  }, [course?.ratingCount, course?.rating_count, course?.ratingAverage, course?.rating]);
 
   const [enrolled, setEnrolled] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
@@ -513,8 +522,51 @@ export default function CourseDetail() {
     );
   };
 
+  const courseSchema = course ? {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    'name': course.title,
+    'description': course.description || course.title,
+    'provider': {
+      '@type': 'EducationalOrganization',
+      'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
+      'sameAs': 'https://palestine-international-academy.netlify.app/'
+    },
+    'instructor': {
+      '@type': 'Person',
+      'name': course.instructor || (isRtl ? 'مدرب معتمد' : 'Certified Instructor')
+    },
+    'offers': {
+      '@type': 'Offer',
+      'category': Number(course.price) > 0 ? 'Paid' : 'Free',
+      'price': Number(course.price) || 0,
+      'priceCurrency': 'USD',
+      'availability': 'https://schema.org/InStock'
+    },
+    ...(reviewStats.count > 0 ? {
+      'aggregateRating': {
+        '@type': 'AggregateRating',
+        'ratingValue': reviewStats.average,
+        'reviewCount': reviewStats.count
+      }
+    } : {})
+  } : null;
+
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors" dir={dir}>
+      <SEO
+        title={course ? `${course.title} | ${isRtl ? 'أكاديمية فلسطين الدولية' : 'Palestinian International Academy'}` : undefined}
+        description={course ? (course.description?.slice(0, 160) || course.title) : undefined}
+        ogImage={course?.image || course?.thumbnail}
+        canonical={`/courses/${id}`}
+        ogType="article"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'الدورات' : 'Courses', item: '/courses' },
+          { name: course?.title || (isRtl ? 'تفاصيل الدورة' : 'Course Details'), item: `/courses/${id}` }
+        ]}
+        schema={courseSchema}
+      />
       <Navbar />
       <main className="grow">
         {/* Breadcrumb Navigation */}
@@ -575,11 +627,19 @@ export default function CourseDetail() {
                 className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer group/rating"
                 title={isRtl ? 'عرض مراجعات وتقييمات الدورة' : 'View course reviews and ratings'}
               >
-                <span className="material-symbols-outlined text-[16px] text-amber-500 fill-current">star</span>
-                <span className="text-dark dark:text-white font-bold">{reviewStats.count > 0 ? reviewStats.average.toFixed(1) : (course.rating?.toFixed?.(1) ?? '5.0')}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 group-hover/rating:underline">
-                  ({reviewStats.count > 0 ? `${reviewStats.count} ${isRtl ? (reviewStats.count === 1 ? 'تقييم' : 'تقييمات') : (reviewStats.count === 1 ? 'review' : 'reviews')}` : (isRtl ? 'لا توجد تقييمات بعد' : 'No ratings yet')})
-                </span>
+                {reviewStats.count > 0 ? (
+                  <>
+                    <span className="material-symbols-outlined text-[16px] text-amber-500 fill-current">star</span>
+                    <span className="text-dark dark:text-white font-bold">{reviewStats.average.toFixed(1)}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 group-hover/rating:underline">
+                      ({reviewStats.count} {isRtl ? (reviewStats.count === 1 ? 'تقييم' : 'تقييمات') : (reviewStats.count === 1 ? 'review' : 'reviews')})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-stone-500 dark:text-gray-400 group-hover/rating:underline">
+                    ({isRtl ? 'لا توجد تقييمات بعد' : 'No ratings yet'})
+                  </span>
+                )}
               </a>
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[16px]">group</span>
@@ -594,7 +654,7 @@ export default function CourseDetail() {
             </div>
             <div className="flex flex-wrap gap-3 items-center">
               <div className="text-3xl font-extrabold text-success">
-                {course.price === 'Free' || !course.price ? t('courseDetail.free') : course.price}
+                {course.price === 'Free' || !course.price || course.price == 0 ? t('courseDetail.free') : (String(course.price).startsWith('$') ? course.price : `$${course.price}`)}
               </div>
               <EnrollButton className="px-8 py-3.5 rounded-xl font-bold text-lg transition-colors shadow-xl" />
               <button onClick={() => navigate(-1)} className="flex items-center gap-2 border border-[#E8E2D5] dark:border-gray-700 hover:border-primary text-dark dark:text-white px-6 py-3.5 rounded-xl font-bold transition-colors bg-white dark:bg-gray-800">
@@ -857,7 +917,7 @@ export default function CourseDetail() {
                     },
                     { icon: 'category', label: t('adminAddBook.category'), value: course.category },
                     { icon: 'signal_cellular_alt', label: t('addCourse.level'), value: levelMap[course.level] || course.level },
-                    { icon: 'payments', label: t('courseDetail.price'), value: course.price === 'Free' ? t('courseDetail.free') : course.price },
+                    { icon: 'payments', label: t('courseDetail.price'), value: (course.price === 'Free' || !course.price || course.price == 0) ? t('courseDetail.free') : (String(course.price).startsWith('$') ? course.price : `$${course.price}`) },
                     { icon: 'group', label: t('common.students'), value: `${course.students || 0}` },
                     { 
                       icon: 'star', 
@@ -980,7 +1040,7 @@ export default function CourseDetail() {
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-500">{dir === 'rtl' ? 'التكلفة:' : 'Price:'}</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  {course.price === 'Free' || !course.price ? (dir === 'rtl' ? 'مجاني' : 'Free') : course.price}
+                  {course.price === 'Free' || !course.price || course.price == 0 ? (dir === 'rtl' ? 'مجاني' : 'Free') : (String(course.price).startsWith('$') ? course.price : `$${course.price}`)}
                 </span>
               </div>
             </div>

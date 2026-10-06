@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCourses } from '../../context/CoursesContext';
@@ -5,12 +6,13 @@ import { useLanguage } from '../../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../../utils/courseUtils';
 import { auth, db, storage, doc, updateDoc } from '../../supabase/db';
 import { supabase } from '../../supabase/client';
+import { compressAvatarImage } from '../../utils/imageUtils';
 import { Link } from 'react-router-dom';
 
 export default function InstructorProfile() {
   const { t, dir, lang } = useLanguage();
   const isRtl = dir === 'rtl';
-  const { currentUser, userData, resetPassword } = useAuth();
+  const { currentUser, userData, resetPassword, updateUserData } = useAuth();
   const { courses } = useCourses();
   const fileInputRef = useRef(null);
 
@@ -78,13 +80,21 @@ export default function InstructorProfile() {
   // Upload or change avatar photo
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !currentUser?.uid) return;
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!file || !userId) return;
 
-    // Check size limit (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    if (!file.type.startsWith('image/')) {
       setProfileMessage({
         type: 'error',
-        text: isRtl ? 'حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 5 ميجابايت' : 'Image size too large, please select under 5MB'
+        text: isRtl ? 'يرجى اختيار ملف صورة صالح' : 'Please select a valid image file'
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setProfileMessage({
+        type: 'error',
+        text: isRtl ? 'حجم الصورة يجب أن لا يتجاوز 10 ميجابايت' : 'Image size must be under 10MB'
       });
       return;
     }
@@ -93,34 +103,38 @@ export default function InstructorProfile() {
     setProfileMessage({ type: '', text: '' });
 
     try {
+      // 1. Client-side resize and compression to guarantee fast loading and no storage/token bloat
+      const { dataUrl, blob } = await compressAvatarImage(file, 280, 0.85);
+
       let downloadUrl = '';
       try {
-        const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
-        const storageRef = ref(storage, `avatars/${currentUser.uid}_${Date.now()}.${fileExt}`);
-        const uploadTask = uploadBytes(storageRef, file).then(snap => getDownloadURL(snap.ref));
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
-        downloadUrl = await Promise.race([uploadTask, timeout]);
+        const filePath = `${userId}_${Date.now()}.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          downloadUrl = urlData?.publicUrl || '';
+        }
       } catch (storageErr) {
-        console.warn('Falling back to Data URL for avatar:', storageErr);
-        downloadUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(file);
-        });
+        console.warn('Storage upload notice, falling back to optimized data URL:', storageErr);
+      }
+
+      // If bucket is not public or has RLS, use the lightweight compressed data URL
+      if (!downloadUrl) {
+        downloadUrl = dataUrl;
       }
 
       if (downloadUrl) {
+        const { error: dbError } = await supabase.from('profiles').update({ avatar_url: downloadUrl }).eq('id', userId);
+        if (dbError) throw dbError;
+
         setFormData(prev => ({ ...prev, photoURL: downloadUrl }));
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          photoURL: downloadUrl,
-          updatedAt: new Date().toISOString()
-        });
-        try {
-          await updateProfile(auth.currentUser, { photoURL: downloadUrl });
-        } catch (authErr) {
-          console.warn('Could not update photoURL on auth user:', authErr);
+        if (updateUserData) {
+          updateUserData({ avatar_url: downloadUrl, photoURL: downloadUrl });
         }
+
         setProfileMessage({
           type: 'success',
           text: isRtl ? 'تم تحديث الصورة الشخصية بنجاح' : 'Profile photo updated successfully'
@@ -131,7 +145,7 @@ export default function InstructorProfile() {
       console.error('Photo upload error:', err);
       setProfileMessage({
         type: 'error',
-        text: isRtl ? 'حدث خطأ أثناء رفع الصورة، يرجى المحاولة لاحقاً' : 'Error uploading photo, please try again'
+        text: isRtl ? 'حدث خطأ أثناء حفظ الصورة، يرجى المحاولة لاحقاً' : 'Error updating photo, please try again'
       });
     } finally {
       setUploadingPhoto(false);
@@ -139,16 +153,18 @@ export default function InstructorProfile() {
   };
 
   const handleRemovePhoto = async () => {
-    if (!currentUser?.uid) return;
-    setFormData(prev => ({ ...prev, photoURL: '' }));
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!userId) return;
+    setUploadingPhoto(true);
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        photoURL: '',
-        updatedAt: new Date().toISOString()
-      });
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { photoURL: '' });
+      const { error: dbError } = await supabase.from('profiles').update({ avatar_url: '' }).eq('id', userId);
+      if (dbError) throw dbError;
+
+      setFormData(prev => ({ ...prev, photoURL: '' }));
+      if (updateUserData) {
+        updateUserData({ avatar_url: '', photoURL: '' });
       }
+
       setProfileMessage({
         type: 'success',
         text: isRtl ? 'تم حذف الصورة الشخصية' : 'Profile photo removed'
@@ -156,6 +172,8 @@ export default function InstructorProfile() {
       setTimeout(() => setProfileMessage({ type: '', text: '' }), 3000);
     } catch (err) {
       console.error('Error removing photo:', err);
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -208,9 +226,22 @@ export default function InstructorProfile() {
 
       try {
         await supabase.auth.updateUser({
-          data: { full_name: formData.fullName.trim(), avatar_url: formData.photoURL || '' }
+          data: { full_name: formData.fullName.trim() }
         });
       } catch (authErr) {}
+
+      if (updateUserData) {
+        updateUserData({
+          full_name: formData.fullName.trim(),
+          name: formData.fullName.trim(),
+          fullName: formData.fullName.trim(),
+          specialization: formData.field.trim(),
+          bio: formData.bio.trim(),
+          phone: phoneTrimmed,
+          avatar_url: formData.photoURL || '',
+          photoURL: formData.photoURL || ''
+        });
+      }
 
       setProfileMessage({
         type: 'success',

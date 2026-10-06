@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { collection, query, where, onSnapshot, doc, updateDoc, db } from '../supabase/db';
@@ -281,7 +282,7 @@ export default function SubmittedAssignments() {
       {/* Submissions Table */}
       <div className="rounded-2xl border border-[#E8E2D5] bg-white overflow-hidden dark:border-gray-700 dark:bg-gray-800/60">
         <div className="overflow-x-auto">
-          <table className="w-full text-right">
+          <table className="w-full min-w-[640px] text-right">
             <thead className="bg-[#FAF7F2] dark:bg-gray-700/50 border-b border-[#E8E2D5] dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 text-sm font-bold text-gray-700 dark:text-gray-300">{t('submittedAssignments.studentName')}</th>

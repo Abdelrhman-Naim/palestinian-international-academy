@@ -1,8 +1,10 @@
+"use client";
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase/client';
 import { useLanguage } from '../context/LanguageContext';
 import logo from '../assets/logo.png';
+import SEO from '../components/SEO';
 
 export default function ForgotPassword() {
   const { t, dir, toggleLang, lang } = useLanguage();
@@ -70,6 +72,10 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#FAF7F2] dark:bg-gray-900 font-alexandria transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'استعادة كلمة المرور | أكاديمية فلسطين الدولية' : 'Forgot Password | Palestinian International Academy'}
+        noindex={true}
+      />
       <main className="w-full max-w-md bg-white border border-[#E8E2D5] dark:bg-gray-800 dark:border-gray-700 rounded-3xl shadow-xl p-6 sm:p-8 relative">
         {/* Language Switcher Button */}
         <div className="absolute top-4 sm:top-6 end-4 sm:end-6">

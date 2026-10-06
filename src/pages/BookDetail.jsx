@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLibrary } from '../context/LibraryContext';
@@ -11,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSavedBooks } from '../hooks/useSavedBooks';
 import { getLocalizedCategory } from '../utils/categoryUtils';
 import { listenToTargetReviews } from '../services/reviewService';
+import SEO from '../components/SEO';
 
 export default function BookDetail() {
   const { t, dir, lang } = useLanguage();
@@ -173,8 +175,41 @@ export default function BookDetail() {
     }
   };
 
+  const bookSchema = book ? {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    'name': book.title,
+    'author': {
+      '@type': 'Person',
+      'name': book.author || (isRtl ? 'مؤلف أكاديمي' : 'Academic Author')
+    },
+    'description': book.description || book.title,
+    'image': book.coverImage || 'https://palestine-international-academy.netlify.app/logo-wep.png',
+    ...(book.pages ? { 'numberOfPages': Number(book.pages) } : {}),
+    ...(reviewStats.count > 0 ? {
+      'aggregateRating': {
+        '@type': 'AggregateRating',
+        'ratingValue': reviewStats.average,
+        'reviewCount': reviewStats.count
+      }
+    } : {})
+  } : null;
+
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors" dir={dir}>
+      <SEO
+        title={book ? `${book.title} | ${isRtl ? 'المكتبة الرقمية' : 'Digital Library'}` : undefined}
+        description={book ? (book.description?.slice(0, 160) || `${book.title} - ${book.author || ''}`) : undefined}
+        ogImage={book?.coverImage}
+        canonical={`/library/${id}`}
+        ogType="book"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'المكتبة' : 'Library', item: '/library' },
+          { name: book?.title || (isRtl ? 'تفاصيل الكتاب' : 'Book Details'), item: `/library/${id}` }
+        ]}
+        schema={bookSchema}
+      />
       <Navbar />
       <main className="grow">
 
@@ -313,16 +348,18 @@ export default function BookDetail() {
             <div className="md:col-span-2 space-y-6">
 
               {directDownloadUrl && (
-                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex items-center gap-4">
-                  <span className="material-symbols-outlined text-4xl text-primary">cloud_download</span>
-                  <div>
-                    <p className="font-bold text-dark dark:text-white mb-1">{t('bookDetail.availableForDownload')}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('bookDetail.clickToDownload')}</p>
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <span className="material-symbols-outlined text-3xl sm:text-4xl text-primary shrink-0">cloud_download</span>
+                    <div>
+                      <p className="font-bold text-dark dark:text-white mb-0.5 text-sm sm:text-base">{t('bookDetail.availableForDownload')}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{t('bookDetail.clickToDownload')}</p>
+                    </div>
                   </div>
                   <button
                     onClick={handleDownload}
                     disabled={downloading}
-                    className="mr-auto bg-primary hover:bg-secondary text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+                    className="w-full sm:w-auto bg-primary hover:bg-secondary text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50 min-h-[44px]"
                   >
                     <span className="material-symbols-outlined text-base">
                       {downloading ? 'hourglass_top' : 'download'}

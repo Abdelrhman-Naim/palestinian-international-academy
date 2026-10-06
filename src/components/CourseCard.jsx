@@ -1,3 +1,4 @@
+"use client";
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -48,14 +49,15 @@ const CourseCard = ({ course, isEnrolled = false }) => {
     }
   }
 
-  // Rating or Status
+  // Rating or Status (Only display rating when course actually has verified reviews)
+  const ratingCount = Number(course.ratingCount ?? course.rating_count ?? 0);
   const ratingVal = Number(course.ratingAverage ?? course.rating ?? 0);
-  const studentsCount = course.studentsCount || course.students || 0;
-  const hasRating = ratingVal > 0;
+  const studentsCount = Number(course.studentsCount || course.students || 0);
+  const hasRating = ratingCount > 0 && ratingVal > 0;
 
   // Price Display
-  const isFree = !course.price || course.price === 'Free' || course.price === 'free';
-  const priceDisplay = isFree ? (isRtl ? 'مجاني' : 'Free') : course.price;
+  const isFree = !course.price || course.price === 'Free' || course.price === 'free' || course.price == 0;
+  const priceDisplay = isFree ? (isRtl ? 'مجاني' : 'Free') : (String(course.price).startsWith('$') ? course.price : `$${course.price}`);
 
   const startLearningText = isRtl ? 'ابدأ التعلم الآن' : 'Start Learning Now';
   const continueLearningText = isRtl ? 'متابعة الدراسة' : 'Continue Learning';
@@ -110,6 +112,10 @@ const CourseCard = ({ course, isEnrolled = false }) => {
                 <span>★ {ratingVal.toFixed(1)}</span>
                 {studentsCount > 0 && <span className="text-gray-500 dark:text-stone-400 font-normal">({studentsCount} {isRtl ? 'طلاب' : 'students'})</span>}
               </div>
+            ) : studentsCount > 0 ? (
+              <span className="text-gray-500 dark:text-stone-400 text-xs font-medium">
+                {studentsCount} {isRtl ? 'طلاب' : 'students'}
+              </span>
             ) : (
               <span className="text-gray-500 dark:text-stone-400 text-xs font-medium">{availableText}</span>
             )}

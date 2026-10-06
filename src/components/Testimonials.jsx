@@ -1,41 +1,48 @@
-import { useLanguage } from '../context/LanguageContext';
+"use client";
+import { useLanguage } from "../context/LanguageContext";
 
 const Testimonials = () => {
   const { dir } = useLanguage();
-  const isRtl = dir === 'rtl';
+  const isRtl = dir === "rtl";
 
   const reviews = [
     {
       text: isRtl
         ? '"الدورات هنا ليست مجرد مقاطع فيديو مسجلة، بل بيئة عمل حقيقية نقلت مهاراتي في هندسة النظم من الأساسيات إلى قيادة مشاريع متقدمة في وقت قياسي."'
         : '"The courses here are not just recorded videos, but a real work environment that transformed my skills in systems engineering from basic concepts to leading advanced projects in record time."',
-      initials: isRtl ? 'إ.ح' : 'E.H',
-      name: isRtl ? 'م. إياد الحلي' : 'Eng. Eyad Al-Helli',
-      role: isRtl ? 'مهندس حلول برمجية وسحابية' : 'Software & Cloud Solutions Engineer',
+      initials: isRtl ? "إ.ح" : "E.H",
+      name: isRtl ? "م. إياد الحلي" : "Eng. Eyad Al-Helli",
+      role: isRtl
+        ? "مهندس حلول برمجية وسحابية"
+        : "Software & Cloud Solutions Engineer",
     },
     {
       text: isRtl
         ? '"المسارات التعليمية المنظمة وتحديات الكود وفرت عليّ سنوات من التشتت، والمجتمع التفاعلي مع المدربين كان الداعم الأكبر لي في اجتياز مقابلات التوظيف."'
         : '"The structured learning paths and coding challenges saved me years of distraction, and the interactive instructor community was my biggest support in passing job interviews."',
-      initials: isRtl ? 'إ.ف' : 'I.F',
-      name: isRtl ? 'م. إبراهيم فالح' : 'Eng. Ibrahim Faleh',
-      role: isRtl ? 'مهندس ذكاء اصطناعي وأتمتة' : 'AI & Automation Engineer',
+      initials: isRtl ? "إ.ف" : "I.F",
+      name: isRtl ? "م. إبراهيم فالح" : "Eng. Ibrahim Faleh",
+      role: isRtl ? "مهندس ذكاء اصطناعي وأتمتة" : "AI & Automation Engineer",
     },
     {
       text: isRtl
         ? '"أفضل استثمار في مسيرتي الهندسية! الشهادات معتمدة ومحتوى المسارات يحاكي بالضبط متطلبات الشركات الكبرى وسوق العمل الإقليمي."'
         : '"The best investment in my engineering career! The certificates are accredited, and the path content exactly mirrors the requirements of major tech companies and the regional job market."',
-      initials: isRtl ? 'س.ش' : 'S.S',
-      name: isRtl ? 'د. سماحة الشامي' : 'Dr. Samaha Al-Shami',
-      role: isRtl ? 'مهندسة بيانات وبنية تحتية' : 'Data & Infrastructure Engineer',
+      initials: isRtl ? "س.ش" : "S.S",
+      name: isRtl ? "د. سماحة الشامي" : "Dr. Samaha Al-Shami",
+      role: isRtl
+        ? "مهندسة بيانات وبنية تحتية"
+        : "Data & Infrastructure Engineer",
     },
   ];
 
-  const badgeText = isRtl ? 'قصص نجاح ملهمة' : 'Inspiring Success Stories';
-  const titleText = isRtl ? 'ماذا يقول مهندسو أكاديمية فلسطين الدولية؟' : 'What Do PIA Engineers Say?';
+  const badgeText = isRtl ? "قصص نجاح ملهمة" : "Inspiring Success Stories";
+  const titleText = isRtl
+    ? "ماذا يقول مهندسو أكاديمية فلسطين الدولية؟"
+    : "What Do PIA Engineers Say?";
   const subtitleText = isRtl
-    ? 'تجارب حقيقية لمهندسين غيّرت مساراتهم المهنية بفضل التدريب العملي المكثّف.'
-    : 'Real experiences of engineers whose career paths transformed thanks to intensive practical training.';
+    ? "تجارب حقيقية لمهندسين غيّرت مساراتهم المهنية بفضل التدريب العملي المكثّف."
+    : "Real experiences of engineers whose career paths transformed thanks to intensive practical training.";
 
   return (
     <section
@@ -48,7 +55,7 @@ const Testimonials = () => {
           <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-block font-label-caps">
             {badgeText}
           </span>
-          <h2 className="font-headline-lg text-3xl sm:text-4xl md:text-5xl font-black text-dark dark:text-white">
+          <h2 className="leading-relaxed font-headline-lg text-3xl sm:text-4xl md:text-5xl font-black text-dark dark:text-white">
             {titleText}
           </h2>
           <p className="text-gray-600 dark:text-stone-400 text-sm sm:text-base leading-relaxed font-body-md">

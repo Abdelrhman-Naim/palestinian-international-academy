@@ -1,3 +1,4 @@
+"use client";
 import { useLanguage } from '../context/LanguageContext';
 import { useMaintenance } from '../context/MaintenanceContext';
 

@@ -1,6 +1,8 @@
+"use client";
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
 const PrivacyPolicy = () => {
@@ -9,6 +11,17 @@ const PrivacyPolicy = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+      <SEO
+        title={isRtl ? 'سياسة الخصوصية وحماية البيانات | أكاديمية فلسطين الدولية (PIA)' : 'Privacy Policy | Palestinian International Academy'}
+        description={isRtl
+          ? 'تعرف على التزام أكاديمية فلسطين الدولية بحماية بيانات المستخدمين والطلاب وفقاً لأعلى المعايير الأمنية العالمية.'
+          : 'Privacy and data protection policy at Palestinian International Academy (PIA).'}
+        canonical="/privacy"
+        breadcrumbs={[
+          { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
+          { name: isRtl ? 'سياسة الخصوصية' : 'Privacy Policy', item: '/privacy' }
+        ]}
+      />
       <Navbar />
 
       <main className="grow">
@@ -136,7 +149,7 @@ const PrivacyPolicy = () => {
               {isRtl ? 'فريق مسؤول حماية البيانات (DPO) متواجد للرد على كافة الاستفسارات بخصوص بياناتك.' : 'Our Data Protection team is here to assist with any questions regarding your data rights.'}
             </p>
             <Link
-              to="/about"
+              to="/contact"
               className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-dark dark:text-gray-950 font-bold px-6 py-3 rounded-xl transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-lg">mail</span>

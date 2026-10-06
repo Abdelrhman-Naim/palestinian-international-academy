@@ -1,3 +1,4 @@
+"use client";
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { createCourseGroupChat } from '../services/chatService';
@@ -100,10 +101,12 @@ export default function MyCourses() {
                     </span>
                     {!course.draft && (
                       <>
-                        <span className="flex items-center gap-1">
-                          <i className="fa-solid fa-star text-orange-400"></i>
-                          {course.rating || 0}
-                        </span>
+                        {Number(course.ratingCount ?? course.rating_count ?? 0) > 0 && Number(course.rating || 0) > 0 ? (
+                          <span className="flex items-center gap-1">
+                            <i className="fa-solid fa-star text-orange-400"></i>
+                            {Number(course.rating).toFixed(1)}
+                          </span>
+                        ) : null}
                         <span className="flex items-center gap-1">
                           <i className="fa-solid fa-tag text-gray-400"></i>
                           {course.category || 'غير محدد'}

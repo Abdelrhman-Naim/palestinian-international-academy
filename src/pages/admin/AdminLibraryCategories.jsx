@@ -1,10 +1,12 @@
+"use client";
 import { useState } from 'react';
 import AdminPageShell from './AdminPageShell';
 import { useCategories } from '../../context/CategoriesContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 export default function AdminLibraryCategories() {
-  const { t } = useLanguage();
+  const { t, dir } = useLanguage();
+  const isRtl = dir === 'rtl';
   const { rawCategories, addCategory, updateCategory, removeCategory } = useCategories();
   const items = rawCategories.library;
   const [name, setName] = useState('');
@@ -110,6 +112,12 @@ export default function AdminLibraryCategories() {
               key={item}
               className="flex items-center justify-between gap-4 border-b border-[#E8E2D5] px-5 py-4 last:border-0 hover:bg-[#FAF7F2] dark:border-gray-700 dark:hover:bg-gray-700/50"
             >
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/15">
+                  <span className="material-symbols-outlined text-lg">label</span>
+                </span>
+                <span className="font-bold text-dark dark:text-white text-base">{item}</span>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -129,12 +137,6 @@ export default function AdminLibraryCategories() {
                   <span className="material-symbols-outlined text-[16px]">delete</span>
                   <span>{t('common.delete')}</span>
                 </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-dark dark:text-white">{item}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/15">
-                  <span className="material-symbols-outlined text-lg">label</span>
-                </span>
               </div>
             </div>
           ))}

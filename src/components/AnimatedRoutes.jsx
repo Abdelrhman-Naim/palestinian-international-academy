@@ -1,3 +1,4 @@
+"use client";
 import { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -22,6 +23,7 @@ import PrivacyPolicy from '../pages/PrivacyPolicy';
 import TermsOfService from '../pages/TermsOfService';
 import SupportCenter from '../pages/SupportCenter';
 import Partnerships from '../pages/Partnerships';
+import ContactUs from '../pages/ContactUs';
 import MaintenancePage from '../pages/MaintenancePage';
 import CertificateVerificationPage from '../pages/CertificateVerificationPage';
 import ForgotPassword from '../pages/ForgotPassword';
@@ -56,6 +58,7 @@ const AdminLibraryCategories = lazy(() => import('../pages/admin/AdminLibraryCat
 const AdminSettings = lazy(() => import('../pages/admin/AdminSettings'));
 const AdminActivityLogs = lazy(() => import('../pages/admin/AdminActivityLogs'));
 const AdminProfile = lazy(() => import('../pages/admin/AdminProfile'));
+const AdminContactMessages = lazy(() => import('../pages/admin/AdminContactMessages'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -79,6 +82,8 @@ const PageWrapper = ({ children }) => {
     ? '/dashboard'
     : location.pathname;
 
+  const isDashboard = rootKey === '/admin-dashboard' || rootKey === '/instructor-dashboard' || rootKey === '/dashboard';
+
   return (
     <motion.div
       key={rootKey}
@@ -87,7 +92,7 @@ const PageWrapper = ({ children }) => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="w-full flex-1 flex flex-col min-h-screen"
+      className={`w-full flex-1 flex flex-col ${isDashboard ? 'h-[100dvh] overflow-hidden' : 'min-h-screen pb-16 md:pb-0'}`}
     >
       <Suspense fallback={<PageLoader fullScreen={true} />}>
         {children}
@@ -169,6 +174,7 @@ export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGua
           <Route path="activity-logs" element={<AdminActivityLogs />} />
           <Route path="profile" element={<AdminProfile />} />
           <Route path="messages" element={<ChatPage />} />
+          <Route path="contact-messages" element={<AdminContactMessages />} />
         </Route>
         
         <Route path="/instructor-dashboard" element={<InstructorGuard><PageWrapper><InstructorDashboard /></PageWrapper></InstructorGuard>}>
@@ -195,6 +201,7 @@ export default function AnimatedRoutes({ StudentGuard, AdminGuard, InstructorGua
         <Route path="/support" element={<PageWrapper><SupportCenter /></PageWrapper>} />
         <Route path="/partnerships" element={<PageWrapper><Partnerships /></PageWrapper>} />
         <Route path="/virtual-lab" element={<PageWrapper><VirtualLab /></PageWrapper>} />
+        <Route path="/contact" element={<PageWrapper><ContactUs /></PageWrapper>} />
         <Route path="/assignments" element={<Navigate to="/dashboard/assignments" replace />} />
         <Route path="/saved-books" element={<Navigate to="/dashboard/saved-books" replace />} />
         <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />

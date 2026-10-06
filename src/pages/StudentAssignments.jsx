@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase/client';

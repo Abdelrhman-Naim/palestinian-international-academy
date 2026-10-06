@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCourses } from '../../context/CoursesContext';
@@ -5,12 +6,13 @@ import { useLanguage } from '../../context/LanguageContext';
 import { auth, db, storage, doc, updateDoc } from '../../supabase/db';
 import { supabase } from '../../supabase/client';
 import { useSavedBooks } from '../../hooks/useSavedBooks';
+import { compressAvatarImage } from '../../utils/imageUtils';
 import { Link } from 'react-router-dom';
 
 export default function StudentProfile() {
   const { t, dir, lang } = useLanguage();
   const isRtl = dir === 'rtl';
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, updateUserData } = useAuth();
   const { courses } = useCourses();
   const { savedList } = useSavedBooks();
   const fileInputRef = useRef(null);
@@ -100,6 +102,16 @@ export default function StudentProfile() {
         });
       } catch (authErr) {}
 
+      if (updateUserData) {
+        updateUserData({
+          full_name: formData.fullName.trim(),
+          name: formData.fullName.trim(),
+          fullName: formData.fullName.trim(),
+          phone: phoneTrimmed,
+          bio: formData.bio.trim()
+        });
+      }
+
       setInfoSuccess(isRtl ? 'تم حفظ التعديلات بنجاح' : 'Profile updated successfully');
       setTimeout(() => setInfoSuccess(''), 4000);
     } catch (err) {
@@ -173,47 +185,78 @@ export default function StudentProfile() {
     const userId = currentUser?.id || currentUser?.uid || userData?.id;
     if (!file || !userId) return;
 
+    if (!file.type.startsWith('image/')) {
+      setInfoError(isRtl ? 'يرجى اختيار ملف صورة صالح' : 'Please select a valid image file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setInfoError(isRtl ? 'حجم الصورة يجب أن لا يتجاوز 10 ميجابايت' : 'Image size must be under 10MB');
+      return;
+    }
+
     setPhotoUploading(true);
     setInfoError('');
     try {
+      // Compress and resize avatar client-side (under 30KB)
+      const { dataUrl, blob } = await compressAvatarImage(file, 280, 0.85);
+
       let downloadURL = '';
       try {
-        const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
-        const filePath = `${userId}_${Date.now()}.${fileExt}`;
+        const filePath = `${userId}_${Date.now()}.jpg`;
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, file, { upsert: true });
+          .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
 
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
           downloadURL = urlData?.publicUrl || '';
         }
       } catch (storageErr) {
-        console.warn('Falling back to Data URL for avatar:', storageErr);
+        console.warn('Storage upload notice, falling back to optimized data URL:', storageErr);
       }
 
+      // If bucket is not public or has RLS, use the lightweight compressed data URL
       if (!downloadURL) {
-        downloadURL = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(file);
-        });
+        downloadURL = dataUrl;
       }
 
       if (downloadURL) {
-        await supabase.from('profiles').update({ avatar_url: downloadURL }).eq('id', userId);
-        try {
-          await supabase.auth.updateUser({ data: { avatar_url: downloadURL } });
-        } catch (authErr) {}
+        const { error: dbError } = await supabase.from('profiles').update({ avatar_url: downloadURL }).eq('id', userId);
+        if (dbError) throw dbError;
 
         setFormData(prev => ({ ...prev, photoURL: downloadURL }));
+        if (updateUserData) {
+          updateUserData({ avatar_url: downloadURL, photoURL: downloadURL });
+        }
         setInfoSuccess(isRtl ? 'تم تحديث الصورة الشخصية بنجاح' : 'Profile photo updated');
         setTimeout(() => setInfoSuccess(''), 4000);
       }
     } catch (err) {
       console.error('Error uploading photo:', err);
       setInfoError(isRtl ? 'فشل رفع الصورة.' : 'Failed to upload photo.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    const userId = currentUser?.id || currentUser?.uid || userData?.id;
+    if (!userId) return;
+    setPhotoUploading(true);
+    setInfoError('');
+    try {
+      const { error: dbError } = await supabase.from('profiles').update({ avatar_url: '' }).eq('id', userId);
+      if (dbError) throw dbError;
+
+      setFormData(prev => ({ ...prev, photoURL: '' }));
+      if (updateUserData) {
+        updateUserData({ avatar_url: '', photoURL: '' });
+      }
+      setInfoSuccess(isRtl ? 'تم حذف الصورة الشخصية بنجاح' : 'Profile photo removed');
+      setTimeout(() => setInfoSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error removing photo:', err);
+      setInfoError(isRtl ? 'فشل حذف الصورة.' : 'Failed to remove photo.');
     } finally {
       setPhotoUploading(false);
     }
@@ -277,6 +320,18 @@ export default function StudentProfile() {
                 {photoUploading ? 'sync' : 'photo_camera'}
               </span>
             </button>
+            {formData.photoURL && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                disabled={photoUploading}
+                className="absolute top-0 end-0 w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer border-2 border-white dark:border-gray-800"
+                title={isRtl ? 'إزالة الصورة الشخصية' : 'Remove photo'}
+                aria-label={isRtl ? 'إزالة الصورة الشخصية' : 'Remove photo'}
+              >
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"

@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -8,6 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
 import PageLoader from '../components/PageLoader';
+import SEO from '../components/SEO';
 
 const navItemClass = (props = {}) => {
   const isActive = Boolean(props && typeof props === 'object' ? props.isActive : props);
@@ -58,7 +60,11 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden font-cairo bg-[#FAF7F2] dark:bg-gray-900 relative" dir={dir}>
+    <div className="flex h-full pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-hidden font-cairo bg-[#FAF7F2] dark:bg-gray-900 relative" dir={dir}>
+      <SEO
+        title={dir === 'rtl' ? 'لوحة تحكم الطالب | أكاديمية فلسطين الدولية' : 'Student Dashboard | Palestinian International Academy'}
+        noindex={true}
+      />
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
@@ -68,7 +74,7 @@ const Dashboard = () => {
       )}
 
       {/* BEGIN: Sidebar */}
-      <aside className={`w-72 bg-[#F3EFE6] dark:bg-gray-900 text-dark dark:text-white border-e border-[#E8E2D5] dark:border-gray-800 flex flex-col h-full shrink-0 z-50 shadow-lg overflow-y-auto custom-scrollbar fixed md:relative transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'} right-0`}>
+      <aside className={`w-72 max-w-[85vw] sm:max-w-xs md:max-w-none bg-[#F3EFE6] dark:bg-gray-900 text-dark dark:text-white border-e border-[#E8E2D5] dark:border-gray-800 flex flex-col h-full shrink-0 z-50 shadow-lg overflow-y-auto custom-scrollbar fixed md:relative transition-transform duration-300 inset-y-0 start-0 md:inset-auto ${isSidebarOpen ? 'translate-x-0' : 'max-md:-translate-x-full max-md:rtl:translate-x-full md:translate-x-0 md:rtl:translate-x-0'}`}>
         {/* Logo */}
         <div className="h-24 flex items-center justify-center relative px-6 border-b border-[#E8E2D5] dark:border-gray-800 shrink-0">
           <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center justify-center group">
@@ -91,8 +97,8 @@ const Dashboard = () => {
           className="p-6 flex flex-col items-center border-b border-[#E8E2D5] dark:border-gray-800 shrink-0 hover:bg-white/40 dark:hover:bg-gray-800/40 transition-colors group cursor-pointer"
         >
           <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold mb-3 shadow-lg group-hover:scale-105 transition-transform overflow-hidden">
-            {userData?.photoURL || currentUser?.photoURL ? (
-              <img src={userData?.photoURL || currentUser?.photoURL} alt="Profile" className="w-full h-full object-cover" />
+            {userData?.avatar_url || userData?.photoURL || currentUser?.photoURL ? (
+              <img src={userData?.avatar_url || userData?.photoURL || currentUser?.photoURL} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <span>
                 {(userData?.name || userData?.fullName || currentUser?.displayName || 'طالب')

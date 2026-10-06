@@ -1,3 +1,4 @@
+"use client";
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import AdminPageShell from './AdminPageShell';

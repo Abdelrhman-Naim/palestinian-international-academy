@@ -1,8 +1,9 @@
+"use client";
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCategories } from "../context/CategoriesContext";
 import { useCourses } from "../context/CoursesContext";
-import { doc, getDoc, updateDoc, db } from '../supabase/db';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, db } from '../supabase/db';
 import { supabase } from "../supabase/client";
 import CustomSelect from "../components/CustomSelect";
 import { AnimatePresence, motion } from "framer-motion";
@@ -27,6 +28,9 @@ export default function EditCourse() {
     const [saving, setSaving] = useState(false);
     const [courseTitle, setCourseTitle] = useState('');
     const [courseInstructor, setCourseInstructor] = useState('');
+    const [instructorsList, setInstructorsList] = useState([]);
+    const [priceType, setPriceType] = useState("free");
+    const [priceValue, setPriceValue] = useState("");
     const [category, setCategory] = useState('');
     const [icon, setIcon] = useState('code');
     const [level, setLevel] = useState('BEGINNER');
@@ -47,7 +51,7 @@ export default function EditCourse() {
             errs.courseTitle = dir === 'rtl' ? 'يرجى إدخال عنوان الدورة' : 'Course title is required';
         }
         if (userRole === 'admin' && !courseInstructor?.trim()) {
-            errs.courseInstructor = dir === 'rtl' ? 'يرجى إدخال اسم المدرب' : 'Instructor is required';
+            errs.courseInstructor = dir === 'rtl' ? 'يرجى اختيار مدرب الدورة' : 'Instructor is required';
         }
         if (userRole === 'admin' && !category?.trim()) {
             errs.category = dir === 'rtl' ? 'يرجى اختيار تصنيف الدورة' : 'Category is required';
@@ -56,7 +60,14 @@ export default function EditCourse() {
             errs.description = dir === 'rtl' ? 'يرجى كتابة نبذة عن الدورة' : 'Description is required';
         }
         if (!lecturesCount || Number(lecturesCount) <= 0) {
-            errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح أكبر من صفر' : 'Valid lecture count (> 0) is required';
+            if (sessions && sessions.length > 0) {
+                setLecturesCount(sessions.length);
+            } else {
+                errs.lecturesCount = dir === 'rtl' ? 'يرجى إدخال عدد محاضرات صالح أكبر من صفر' : 'Valid lecture count (> 0) is required';
+            }
+        }
+        if (userRole === 'admin' && priceType === 'paid' && (!priceValue || Number(priceValue) <= 0)) {
+            errs.priceValue = dir === 'rtl' ? 'يرجى إدخال سعر صحيح أكبر من صفر' : 'Valid price (> 0) is required';
         }
         const hasValidGoal = goals?.some(g => g && g.trim() !== '');
         if (!hasValidGoal) {
@@ -68,30 +79,80 @@ export default function EditCourse() {
         }
 
         // Validate URL format for all provided lesson links
-        const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+        const isValidUrl = (urlStr) => {
+            if (!urlStr || !urlStr.trim()) return true;
+            try {
+                const trimmed = urlStr.trim();
+                const testUrl = trimmed.startsWith('http://') || trimmed.startsWith('https://') 
+                    ? trimmed 
+                    : `https://${trimmed}`;
+                const parsed = new URL(testUrl);
+                return Boolean(parsed.hostname && parsed.hostname.includes('.'));
+            } catch {
+                return false;
+            }
+        };
+
         for (let i = 0; i < (sessions || []).length; i++) {
             const link = sessions[i]?.link?.trim();
-            if (link && !urlPattern.test(link)) {
+            if (link && !isValidUrl(link)) {
                 errs.sessions = dir === 'rtl'
-                    ? `رابط المحاضرة رقم ${i + 1} غير صالح! يرجى إدخال رابط يبدأ بـ https://`
-                    : `Invalid URL format in lecture #${i + 1}! Must start with https://`;
+                    ? `رابط المحاضرة رقم ${i + 1} غير صالح! يرجى التأكد من كتابة رابط صحيح (مثل https://youtube.com/...)`
+                    : `Invalid URL format in lecture #${i + 1}! Must be a valid URL`;
                 break;
             }
         }
 
-        // Check for duplicate non-empty lesson links
-        const filledLinks = sessions?.map(s => s?.link?.trim()).filter(Boolean);
-        if (filledLinks && filledLinks.length > 0) {
-            const uniqueLinks = new Set(filledLinks);
-            if (filledLinks.length > uniqueLinks.size) {
-                errs.sessions = dir === 'rtl'
-                    ? 'روابط الدروس مكررة! يرجى التأكد من إدخال رابط فيديو مختلف لكل درس.'
-                    : 'Duplicate lesson links detected! Please ensure each lesson has a unique video link.';
-            }
-        }
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
+
+    // Fetch platform instructors for Admin dropdown
+    useEffect(() => {
+        const fetchInstructors = async () => {
+            try {
+                const q = query(collection(db, "users"), where("role", "==", "instructor"));
+                const snap = await getDocs(q);
+                let list = snap.docs.map(doc => ({
+                    id: doc.id,
+                    name: doc.data().name || doc.data().fullName || doc.id,
+                    fullName: doc.data().fullName || doc.data().name || doc.id,
+                }));
+                if (!list.length) {
+                    const { data: profs } = await supabase
+                        .from('profiles')
+                        .select('id, name, full_name')
+                        .eq('role', 'instructor');
+                    if (profs && profs.length > 0) {
+                        list = profs.map(p => ({
+                            id: p.id,
+                            name: p.full_name || p.name || p.id,
+                            fullName: p.full_name || p.name || p.id,
+                        }));
+                    }
+                }
+                setInstructorsList(list);
+            } catch (err) {
+                console.warn("Failed to fetch instructors:", err);
+                try {
+                    const { data: profs } = await supabase
+                        .from('profiles')
+                        .select('id, name, full_name')
+                        .eq('role', 'instructor');
+                    if (profs && profs.length > 0) {
+                        setInstructorsList(profs.map(p => ({
+                            id: p.id,
+                            name: p.full_name || p.name || p.id,
+                            fullName: p.full_name || p.name || p.id,
+                        })));
+                    }
+                } catch (e) {
+                    console.warn("Profiles fetch fallback error:", e);
+                }
+            }
+        };
+        fetchInstructors();
+    }, []);
 
     // Fetch course from Database / Cache
     useEffect(() => {
@@ -145,7 +206,15 @@ export default function EditCourse() {
                 setCourseTitle(courseData.title || '');
 
                 // Resolve instructor name
-                let instName = courseData.instructor || courseData.instructor_name || courseData.instructorName || courseData.instructor_en || '';
+                let instName = '';
+                if (typeof courseData.instructor === 'string') {
+                    instName = courseData.instructor;
+                } else if (courseData.instructor && typeof courseData.instructor === 'object') {
+                    instName = courseData.instructor.name || courseData.instructor.fullName || '';
+                }
+                if (!instName) {
+                    instName = courseData.instructor_name || courseData.instructorName || courseData.instructor_en || '';
+                }
                 const instId = courseData.instructor_id || courseData.instructorId || '';
                 if (!instName && instId) {
                     try {
@@ -159,10 +228,28 @@ export default function EditCourse() {
                 }
                 setCourseInstructor(instName);
 
-                setCategory(courseData.category || courseData.category_name || courseData.categoryName || '');
+                // Resolve category
+                let catName = '';
+                if (typeof courseData.category === 'string') {
+                    catName = courseData.category;
+                } else if (courseData.category && typeof courseData.category === 'object') {
+                    catName = courseData.category.name || courseData.category.title || '';
+                }
+                if (!catName) {
+                    catName = courseData.category_name || courseData.categoryName || '';
+                }
+                setCategory(catName);
                 setIcon(courseData.icon || 'code');
                 setLevel(courseData.level || 'BEGINNER');
                 setDescription(courseData.description || '');
+
+                // Pricing
+                const rawPrice = courseData.price;
+                const numPrice = Number(rawPrice);
+                const hasValidPrice = rawPrice !== undefined && rawPrice !== null && rawPrice !== '' && !isNaN(numPrice) && numPrice > 0;
+                const isPaid = hasValidPrice || courseData.isPaid === true || courseData.is_paid === true;
+                setPriceType(isPaid ? "paid" : "free");
+                setPriceValue(hasValidPrice ? String(numPrice) : (courseData.price && courseData.price !== '0' && courseData.price !== 'Free' ? String(courseData.price) : ""));
 
                 const rawSessions = courseData.sessions || courseData.lectures || courseData.lessons || [];
                 const formattedSessions = (Array.isArray(rawSessions) && rawSessions.length > 0)
@@ -174,9 +261,12 @@ export default function EditCourse() {
                     : [{ number: 1, title: dir === 'rtl' ? 'المحاضرة التمهيدية' : 'Introductory Lecture', link: '' }];
 
                 setSessions(formattedSessions);
-                setLecturesCount(courseData.lecturesCount || courseData.lessons_count || formattedSessions.length || 1);
+                const loadedCount = Number(courseData.lecturesCount || courseData.lessons_count) || formattedSessions.length;
+                setLecturesCount(loadedCount < formattedSessions.length ? formattedSessions.length : loadedCount);
                 setInitialLecturesCount(formattedSessions.length);
-                setStatus(courseData.status || '');
+                const rawStatus = courseData.status || '';
+                const initialStatus = (rawStatus === 'مكتملة' || rawStatus?.toLowerCase() === 'completed') ? 'مكتملة' : 'مستمرة';
+                setStatus(initialStatus);
 
                 const validGoals = Array.isArray(courseData.goals) 
                     ? courseData.goals.filter(g => typeof g === 'string' && g.trim() !== '') 
@@ -197,12 +287,18 @@ export default function EditCourse() {
     const handleSaveCourse = async () => {
         if (!id || loading || saving || courseNotFound) return;
         setSaving(true);
+
+        const actualSessionsCount = sessions?.length || 1;
+        const enteredCount = Number(lecturesCount) || 0;
+        const finalLecturesCount = enteredCount < actualSessionsCount ? actualSessionsCount : enteredCount;
+
         const updateData = {
             level,
             icon,
+            status: status || 'مستمرة',
             description,
-            lecturesCount: sessions.length,
-            lessons_count: sessions.length,
+            lecturesCount: finalLecturesCount,
+            lessons_count: finalLecturesCount,
             goals,
             lectures: sessions,
             lessons: sessions,
@@ -213,6 +309,22 @@ export default function EditCourse() {
             category_name: category,
             title: courseTitle,
         };
+
+        if (userRole === 'admin') {
+            const isPaid = priceType === 'paid';
+            const numPrice = isPaid ? Number(priceValue) || 0 : 0;
+            updateData.isPaid = isPaid;
+            updateData.is_paid = isPaid;
+            updateData.price = numPrice;
+
+            if (courseInstructor) {
+                const foundInst = instructorsList.find(i => (i.name === courseInstructor || i.fullName === courseInstructor));
+                if (foundInst) {
+                    updateData.instructor_id = foundInst.id;
+                    updateData.instructorId = foundInst.id;
+                }
+            }
+        }
 
         if (userRole === 'instructor' && currentUser?.uid) {
             updateData.instructorId = currentUser.uid;
@@ -231,7 +343,6 @@ export default function EditCourse() {
 
         try {
             await updateCourse(id, updateData);
-            await updateDoc(doc(db, 'courses', id), updateData);
         } catch (saveErr) {
             console.warn("Course update error:", saveErr);
         }
@@ -293,22 +404,28 @@ export default function EditCourse() {
     // =========================
 
     const addSession = () => {
-
+        if (errors.sessions) setErrors((prev) => ({ ...prev, sessions: null }));
         setSessions((prev) => {
-            const newSession = {
-                number: prev.length + 1,
-                title: "",
-                link: "",
-            };
-            return [...prev, newSession];
+            const nextCount = prev.length + 1;
+            setLecturesCount((prevCount) => {
+                const currentEntered = Number(prevCount) || 0;
+                return currentEntered < nextCount ? nextCount : currentEntered;
+            });
+            return [
+                ...prev,
+                {
+                    number: nextCount,
+                    title: "",
+                    link: "",
+                }
+            ];
         });
         setOpenSession(sessions.length);
     };
 
     const removeSession = (index) => {
-
         if (sessions.length === 1) return;
-
+        if (errors.sessions) setErrors((prev) => ({ ...prev, sessions: null }));
         const updatedSessions = sessions
             .filter((_, i) => i !== index)
             .map((session, i) => ({
@@ -317,6 +434,10 @@ export default function EditCourse() {
             }));
 
         setSessions(updatedSessions);
+        setLecturesCount((prevCount) => {
+            const current = Number(prevCount) || 0;
+            return current < updatedSessions.length ? updatedSessions.length : current;
+        });
 
         if (openSession === index) {
             setOpenSession(
@@ -330,7 +451,7 @@ export default function EditCourse() {
     };
 
     const updateSession = (index, field, value) => {
-
+        if (errors.sessions) setErrors((prev) => ({ ...prev, sessions: null }));
         setSessions((prev) => {
             const updated = [...prev];
             updated[index] = {
@@ -431,18 +552,39 @@ export default function EditCourse() {
 
                             {/* Instructor */}
                             <div>
-                                <label htmlFor="edit-course-instructor" className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {t('adminInstructors.instructor')}
                                     {userRole === 'instructor' && <span className="mr-2 text-xs text-gray-400 font-normal">{t('editCourse.cannotEdit')}</span>}
                                 </label>
-                                <input
-                                    id="edit-course-instructor"
-                                    type="text"
-                                    value={loading ? t('common.loading') : courseInstructor}
-                                    onChange={(e) => { setCourseInstructor(e.target.value); if (errors.courseInstructor) setErrors(p => ({ ...p, courseInstructor: null })); }}
-                                    disabled={userRole === 'instructor'}
-                                    className={`w-full rounded-xl border border-[#E8E2D5] bg-gray-50 px-4 py-3 text-sm text-gray-500 outline-none ${userRole === 'instructor' ? 'cursor-not-allowed opacity-70' : 'bg-white focus:border-orange-500 focus:ring-2'} dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 ${errors.courseInstructor ? "border-rose-500 ring-2 ring-rose-500/10" : ""}`}
-                                />
+                                {userRole === 'instructor' ? (
+                                    <input
+                                        id="edit-course-instructor"
+                                        type="text"
+                                        value={loading ? t('common.loading') : courseInstructor}
+                                        disabled
+                                        className="w-full rounded-xl border border-[#E8E2D5] bg-gray-50 px-4 py-3 text-sm text-gray-500 outline-none cursor-not-allowed opacity-70 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                    />
+                                ) : (
+                                    <CustomSelect
+                                        value={courseInstructor}
+                                        onChange={(val) => {
+                                            setCourseInstructor(val);
+                                            if (errors.courseInstructor) setErrors(p => ({ ...p, courseInstructor: null }));
+                                        }}
+                                        placeholder={dir === 'rtl' ? 'اختر المدرب' : 'Select Instructor'}
+                                        options={[
+                                            { value: "", label: dir === 'rtl' ? "اختر المدرب" : "Select Instructor" },
+                                            ...instructorsList.map((inst) => {
+                                                const val = typeof inst === 'object' ? (inst.name || inst.fullName) : inst;
+                                                return { value: val, label: val };
+                                            }),
+                                            ...(courseInstructor && !instructorsList.some(i => (i.name || i.fullName) === courseInstructor)
+                                                ? [{ value: courseInstructor, label: courseInstructor }]
+                                                : []
+                                            )
+                                        ]}
+                                    />
+                                )}
                                 {errors.courseInstructor && <p className="mt-1.5 text-xs font-semibold text-rose-500">{errors.courseInstructor}</p>}
                             </div>
 
@@ -458,7 +600,11 @@ export default function EditCourse() {
                                     disabled={userRole === 'instructor'}
                                     options={[
                                         { value: "", label: t('addCourse.selectCategory') },
-                                        ...rawCategories.courses.map((item) => ({ value: item, label: item }))
+                                        ...rawCategories.courses.map((item) => ({ value: item, label: item })),
+                                        ...(category && !rawCategories.courses.includes(category)
+                                            ? [{ value: category, label: category }]
+                                            : []
+                                        )
                                     ]}
                                 />
                                 {errors.category && <p className="mt-1.5 text-xs font-semibold text-rose-500">{errors.category}</p>}
@@ -480,6 +626,55 @@ export default function EditCourse() {
                                 />
                             </div>
 
+                            {/* Price Type (Admin Only) */}
+                            {userRole === 'admin' && (
+                                <>
+                                    <div>
+                                        <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                            {dir === 'rtl' ? 'نوع الدورة' : 'Course Type'}
+                                        </label>
+                                        <CustomSelect
+                                            value={priceType}
+                                            onChange={(v) => { setPriceType(v); setPriceValue(""); }}
+                                            placeholder={dir === 'rtl' ? 'اختر نوع الدورة' : 'Select course type'}
+                                            options={[
+                                                { value: "free", label: dir === 'rtl' ? "مجاني" : "Free" },
+                                                { value: "paid", label: dir === 'rtl' ? "مدفوع" : "Paid" }
+                                            ]}
+                                        />
+                                    </div>
+
+                                    {/* Price Value (if Paid) */}
+                                    {priceType === 'paid' && (
+                                        <div>
+                                            <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                {dir === 'rtl' ? 'سعر الدورة ($)' : 'Course Price ($)'}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                placeholder={dir === 'rtl' ? "أدخل السعر..." : "Enter price..."}
+                                                value={priceValue}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    if (v === '' || Number(v) >= 0) {
+                                                        setPriceValue(v);
+                                                        if (errors.priceValue) setErrors(p => ({ ...p, priceValue: null }));
+                                                    }
+                                                }}
+                                                className={`w-full rounded-xl border px-4 py-3 text-sm text-gray-700 outline-none transition ${
+                                                    errors.priceValue 
+                                                        ? 'border-red-500 bg-red-50 focus:border-red-500 dark:bg-red-900/10' 
+                                                        : 'border-[#E8E2D5] bg-[#FAF7F2] focus:border-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                                }`}
+                                            />
+                                            {errors.priceValue && (
+                                                <p className="mt-1 text-xs font-bold text-red-500">{errors.priceValue}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
                             {/* Course Icon */}
                             <div>
                                 <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -500,6 +695,23 @@ export default function EditCourse() {
                                         { value: "school", label: dir === 'rtl' ? '🎓 تعليم عام (Education)' : '🎓 Education' },
                                         { value: "auto_stories", label: dir === 'rtl' ? '📚 معرفة وفكر (Knowledge)' : '📚 Knowledge' },
                                         { value: "view_quilt", label: dir === 'rtl' ? '🧱 تنسيق وتخطيط (Layout)' : '🧱 Layout' }
+                                    ]}
+                                />
+                            </div>
+
+                            {/* Course Status */}
+                            <div>
+                                <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    {dir === 'rtl' ? 'حالة الدورة' : 'Course Status'}
+                                </label>
+
+                                <CustomSelect
+                                    value={status === 'مكتملة' || status?.toLowerCase() === 'completed' ? 'مكتملة' : 'مستمرة'}
+                                    onChange={(val) => setStatus(val)}
+                                    placeholder={dir === 'rtl' ? 'اختر حالة الدورة' : 'Select course status'}
+                                    options={[
+                                        { value: "مستمرة", label: dir === 'rtl' ? "مستمرة" : "Ongoing" },
+                                        { value: "مكتملة", label: dir === 'rtl' ? "مكتملة" : "Completed" }
                                     ]}
                                 />
                             </div>
@@ -610,6 +822,13 @@ export default function EditCourse() {
                             {sessions.length} {t('addCourse.lecturesLabel')}
                         </span>
                     </div>
+
+                    {errors.sessions && (
+                        <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-600 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-400">
+                            <i className="fa-solid fa-circle-exclamation text-sm shrink-0"></i>
+                            <span>{errors.sessions}</span>
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         {sessions.map((session, index) => {
@@ -757,9 +976,18 @@ export default function EditCourse() {
             </div>
 
             {Object.keys(errors).length > 0 && (
-                <div className="mx-auto mb-4 flex max-w-xl items-center gap-2 rounded-xl bg-rose-50 p-4 text-xs font-bold text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">
-                    <i className="fa-solid fa-triangle-exclamation"></i>
-                    <span>{t('addCourse.requiredFields') || 'يرجى تعبئة كافة الحقول المطلوبة قبل حفظ التعديلات.'}</span>
+                <div className="mx-auto mb-6 max-w-2xl rounded-2xl border border-rose-200 bg-rose-50/95 p-4 text-rose-700 shadow-sm dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
+                    <div className="flex items-center gap-2 font-bold text-sm mb-2 text-rose-600 dark:text-rose-400">
+                        <i className="fa-solid fa-triangle-exclamation"></i>
+                        <span>{dir === 'rtl' ? 'يرجى مراجعة وتصحيح الملاحظات التالية قبل الحفظ:' : 'Please check and fix the following before saving:'}</span>
+                    </div>
+                    <ul className="list-disc list-inside space-y-1.5 text-xs font-semibold">
+                        {Object.entries(errors).map(([key, msg]) => msg ? (
+                            <li key={key} className="text-rose-600 dark:text-rose-400">
+                                {msg}
+                            </li>
+                        ) : null)}
+                    </ul>
                 </div>
             )}
             {/* ================= Bottom Buttons ================= */}

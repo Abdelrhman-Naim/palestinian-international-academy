@@ -1,3 +1,4 @@
+"use client";
 import { useLanguage } from '../../context/LanguageContext';
 
 export default function AdminPageShell({ parent, title, subtitle, icon, actions, children }) {
@@ -32,7 +33,7 @@ export default function AdminPageShell({ parent, title, subtitle, icon, actions,
               </div>
             </div>
           </div>
-          {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
+          {actions && <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">{actions}</div>}
         </div>
         {children}
       </div>

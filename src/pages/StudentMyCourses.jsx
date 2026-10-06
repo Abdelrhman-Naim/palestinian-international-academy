@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase/client';
@@ -178,7 +179,7 @@ const StudentMyCourses = () => {
     setIsSubmitting(true);
     try {
       const resolvedName = userData?.fullName || userData?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || (dir === 'rtl' ? 'طالب المنصة' : 'Platform Student');
-      const resolvedAvatar = userData?.photoURL || currentUser?.photoURL || '';
+      const resolvedAvatar = userData?.avatar_url || userData?.photoURL || currentUser?.photoURL || '';
 
       const { data: existing } = await supabase
         .from('reviews')

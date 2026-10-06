@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -9,6 +10,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages';
 import NotificationDropdown from '../components/NotificationDropdown';
 import PageLoader from '../components/PageLoader';
+import SEO from '../components/SEO';
 
 const navItemClass = ({ isActive }) =>
   `flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 group text-sm font-semibold ${
@@ -38,7 +40,7 @@ const AdminDashboard = () => {
 
   const adminName = userData?.full_name || userData?.name || currentUser?.displayName || (isRtl ? 'مدير النظام' : 'Administrator');
   const adminInitials = adminName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'AD';
-  const adminAvatar = userData?.avatar_url || currentUser?.photoURL || '';
+  const adminAvatar = userData?.avatar_url || userData?.photoURL || currentUser?.photoURL || '';
 
   const handleLogout = async () => {
     try {
@@ -96,7 +98,11 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden font-alexandria bg-[#FAF7F2] dark:bg-gray-900 relative" dir={dir}>
+    <div className="flex h-full pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 overflow-hidden font-alexandria bg-[#FAF7F2] dark:bg-gray-900 relative" dir={dir}>
+      <SEO
+        title={dir === 'rtl' ? 'لوحة تحكم المسؤول | أكاديمية فلسطين الدولية' : 'Admin Dashboard | Palestinian International Academy'}
+        noindex={true}
+      />
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
@@ -159,6 +165,11 @@ const AdminDashboard = () => {
                 {unreadTotal > 99 ? '99+' : unreadTotal}
               </span>
             )}
+          </NavLink>
+
+          <NavLink to="/admin-dashboard/contact-messages" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+            <span className="material-symbols-outlined ml-3 text-lg">mail</span>
+            {isRtl ? 'البريد الوارد' : 'Inbox'}
           </NavLink>
 
           <div className="pt-2">
