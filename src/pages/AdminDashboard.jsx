@@ -19,7 +19,7 @@ const navItemClass = ({ isActive }) =>
       : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 hover:text-dark dark:hover:text-white hover:shadow-xs'
   }`;
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ children }) => {
   const { t, dir, toggleLang, lang } = useLanguage();
   const isRtl = dir === 'rtl';
   const { unreadTotal } = useUnreadMessages();
@@ -401,10 +401,10 @@ const AdminDashboard = () => {
         }>
           {isMessages ? (
             <div className="flex-1 overflow-hidden flex flex-col">
-              <Outlet />
+              {children || <Outlet />}
             </div>
           ) : (
-            <Outlet />
+            children || <Outlet />
           )}
         </Suspense>
       </main>

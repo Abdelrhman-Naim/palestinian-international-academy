@@ -18,7 +18,7 @@ const navItemClass = ({ isActive }) =>
       : 'text-gray-600 dark:text-gray-300 hover:bg-[#FAF7F2] dark:hover:bg-gray-700 hover:text-dark dark:hover:text-white'
   }`;
 
-const InstructorDashboard = () => {
+const InstructorDashboard = ({ children }) => {
   const { t, dir, toggleLang, lang } = useLanguage();
   const { unreadTotal } = useUnreadMessages();
   const navigate = useNavigate();
@@ -187,7 +187,7 @@ const InstructorDashboard = () => {
               <PageLoader size="sm" />
             </div>
           }>
-            <Outlet />
+            {children || <Outlet />}
           </Suspense>
         </div>
       </main>

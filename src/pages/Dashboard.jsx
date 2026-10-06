@@ -20,7 +20,7 @@ const navItemClass = (props = {}) => {
   }`;
 };
 
-const Dashboard = () => {
+const Dashboard = ({ children }) => {
   const { t, dir, toggleLang, lang } = useLanguage();
   const { unreadTotal } = useUnreadMessages();
   const location = useLocation();
@@ -299,7 +299,7 @@ const Dashboard = () => {
               <PageLoader size="sm" />
             </div>
           }>
-            <Outlet />
+            {children || <Outlet />}
           </Suspense>
         </div>
       </main>
