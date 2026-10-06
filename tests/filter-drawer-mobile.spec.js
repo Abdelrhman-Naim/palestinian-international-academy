@@ -46,7 +46,7 @@ test.describe('Mobile Filter Drawer Suite', () => {
     await page.waitForTimeout(1000);
 
     // Locate mobile filter button
-    const filterBtn = page.locator('button:has(span:has-text("filter_alt"))');
+    const filterBtn = page.locator('button:has(span:has-text("filter_alt"))').first();
     await expect(filterBtn).toBeVisible({ timeout: 15000 });
     await filterBtn.click();
     await page.waitForTimeout(500);
