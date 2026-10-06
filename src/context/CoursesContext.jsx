@@ -5,13 +5,15 @@ import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
 import { sanitizeObject } from '../utils/sanitize';
 
+import { safeStorage } from '../utils/safeStorage';
+
 const CoursesContext = createContext(null);
 
 const LOCAL_STORAGE_KEY = 'local_custom_courses';
 
 const getStoredLocalCourses = () => {
   try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const saved = safeStorage.getItem(LOCAL_STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   } catch (e) {
     return [];
@@ -20,7 +22,7 @@ const getStoredLocalCourses = () => {
 
 const saveLocalCourses = (coursesArr) => {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(coursesArr));
+    safeStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(coursesArr));
   } catch (e) {}
 };
 
@@ -49,7 +51,7 @@ export function CoursesProvider({ children }) {
 
   const [featuredCourseConfig, setFeaturedCourseConfig] = useState(() => {
     try {
-      const saved = localStorage.getItem('hero_featured_course');
+      const saved = safeStorage.getItem('hero_featured_course');
       if (saved) {
         const parsed = JSON.parse(saved);
         const total = Math.max(1, Number(parsed.totalLessons) || 10);
@@ -227,7 +229,7 @@ export function CoursesProvider({ children }) {
           progress: config.progress !== undefined ? Math.min(100, Number(config.progress)) : progress
         };
         try {
-          localStorage.setItem('hero_featured_course', JSON.stringify(safeConfig));
+          safeStorage.setItem('hero_featured_course', JSON.stringify(safeConfig));
         } catch (e) {}
         return safeConfig;
       });

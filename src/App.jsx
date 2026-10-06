@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { useAuth } from './context/AuthContext';
 import AnimatedRoutes from './components/AnimatedRoutes';
 import { CategoriesProvider } from './context/CategoriesContext';
@@ -111,33 +112,35 @@ function StudentGuard({ children }) {
 function App() {
   useDarkMode();
   return (
-    <LanguageProvider>
-    <AuthProvider>
-    <ToastProvider>
-    <MaintenanceProvider>
-    <LibraryProvider>
-    <CoursesProvider>
-    <CategoriesProvider>
-    <CallProvider>
-    <Router>
-      <div className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors flex-1 w-full">
-        <OfflineBanner />
-        <ScrollToTop />
-        <RouteTransitionLoader />
-        <ErrorBoundary>
-          <AnimatedRoutes StudentGuard={StudentGuard} AdminGuard={AdminGuard} InstructorGuard={InstructorGuard} />
-        </ErrorBoundary>
-        <MobileBottomNav />
-      </div>
-    </Router>
-    </CallProvider>
-    </CategoriesProvider>
-    </CoursesProvider>
-    </LibraryProvider>
-    </MaintenanceProvider>
-    </ToastProvider>
-    </AuthProvider>
-    </LanguageProvider>
+    <HelmetProvider>
+      <LanguageProvider>
+      <AuthProvider>
+      <ToastProvider>
+      <MaintenanceProvider>
+      <LibraryProvider>
+      <CoursesProvider>
+      <CategoriesProvider>
+      <CallProvider>
+      <Router>
+        <div className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors flex-1 w-full">
+          <OfflineBanner />
+          <ScrollToTop />
+          <RouteTransitionLoader />
+          <ErrorBoundary>
+            <AnimatedRoutes StudentGuard={StudentGuard} AdminGuard={AdminGuard} InstructorGuard={InstructorGuard} />
+          </ErrorBoundary>
+          <MobileBottomNav />
+        </div>
+      </Router>
+      </CallProvider>
+      </CategoriesProvider>
+      </CoursesProvider>
+      </LibraryProvider>
+      </MaintenanceProvider>
+      </ToastProvider>
+      </AuthProvider>
+      </LanguageProvider>
+    </HelmetProvider>
   );
 }
 

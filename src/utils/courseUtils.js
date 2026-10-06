@@ -15,13 +15,15 @@ export function isCourseOwnedByInstructor(course, currentUser, userData) {
   if (!course) return false;
   if (!currentUser && !userData) return false;
 
-  const currentUid = currentUser?.uid || userData?.uid || userData?.id;
+  const currentUid = currentUser?.id || currentUser?.uid || userData?.uid || userData?.id;
 
   // 1. Direct UID match (authoritative, 100% language-independent)
   const courseInstructorId =
+    course.instructor_id ||
     course.instructorId ||
     course.instructorUid ||
     course.userId ||
+    course.originalData?.instructor_id ||
     course.originalData?.instructorId ||
     course.originalData?.instructorUid ||
     course.originalData?.userId;

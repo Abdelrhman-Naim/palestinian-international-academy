@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import ar from '../i18n/ar.json';
 import en from '../i18n/en.json';
+import { safeStorage } from '../utils/safeStorage';
 
 const translations = { ar, en };
 const LanguageContext = createContext();
@@ -9,7 +10,7 @@ const LanguageContext = createContext();
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('lang') || 'ar';
+      return safeStorage.getItem('lang') || 'ar';
     }
     return 'ar';
   });
@@ -20,7 +21,7 @@ export function LanguageProvider({ children }) {
     const root = document.documentElement;
     root.setAttribute('lang', lang);
     root.setAttribute('dir', dir);
-    localStorage.setItem('lang', lang);
+    safeStorage.setItem('lang', lang);
     // Update font family based on language
     document.body.style.fontFamily = lang === 'ar'
       ? "'Alexandria', sans-serif"

@@ -454,10 +454,33 @@ export const updateDoc = async (docRef, data) => {
     if (record.dueDate && !record.due_date) record.due_date = record.dueDate;
     if (record.studentId && !record.student_id) record.student_id = record.studentId;
     if (table === 'courses') {
-      if (record.instructor && !record.instructor_name) record.instructor_name = record.instructor;
-      if (record.instructor_name && !record.instructor) record.instructor = record.instructor_name;
-      if (record.category && !record.category_name) record.category_name = record.category;
-      if (record.category_name && !record.category) record.category = record.category_name;
+      const COURSE_VALID_COLUMNS = new Set([
+        'title', 'title_en', 'description', 'description_en',
+        'price', 'category', 'category_name', 'category_id', 'category_en',
+        'instructor', 'instructor_name', 'instructor_id', 'instructor_en',
+        'image_url', 'image_name', 'avatar', 'rating', 'students', 'students_count',
+        'lessons_count', 'duration', 'level', 'level_en',
+        'lessons', 'lectures', 'sessions', 'goals', 'goals_en',
+        'is_published', 'status', 'icon', 'updated_at'
+      ]);
+
+      const cleanCourseRecord = {};
+      for (const [k, v] of Object.entries(record)) {
+        if (COURSE_VALID_COLUMNS.has(k)) {
+          cleanCourseRecord[k] = v;
+        }
+      }
+      if (record.instructor || record.instructor_name) {
+        cleanCourseRecord.instructor = record.instructor || record.instructor_name;
+        cleanCourseRecord.instructor_name = record.instructor_name || record.instructor;
+      }
+      if (record.category || record.category_name) {
+        cleanCourseRecord.category = record.category || record.category_name;
+        cleanCourseRecord.category_name = record.category_name || record.category;
+      }
+      if (record.instructor_id || record.instructorId) {
+        cleanCourseRecord.instructor_id = record.instructor_id || record.instructorId;
+      }
       const sess = record.sessions || record.lectures || record.lessons;
       if (sess && Array.isArray(sess)) {
         const norm = sess.map((s, idx) => ({
@@ -465,15 +488,19 @@ export const updateDoc = async (docRef, data) => {
           title: s.title || s.name || '',
           link: s.link || s.url || s.videoUrl || s.video_url || ''
         }));
-        record.lessons = norm;
-        record.lectures = norm;
-        record.sessions = norm;
-        record.lessons_count = norm.length;
+        cleanCourseRecord.lessons = norm;
+        cleanCourseRecord.lectures = norm;
+        cleanCourseRecord.sessions = norm;
+        const currentEntered = Number(record.lessons_count ?? record.lecturesCount) || 0;
+        const safeCount = currentEntered < norm.length ? norm.length : currentEntered;
+        cleanCourseRecord.lessons_count = safeCount;
       }
-      delete record.avatar;
-      delete record.instructorId;
-      delete record.lecturesCount;
-      delete record.imageName;
+      cleanCourseRecord.updated_at = new Date().toISOString();
+
+      const { error: cErr } = await supabase.from('courses').update(cleanCourseRecord).eq('id', id);
+      if (!cErr) return { ok: true };
+      console.warn(`[Supabase Bridge] updateDoc courses warning:`, cErr.message);
+      return { ok: false, error: cErr };
     }
 
     if (id && typeof id === 'string' && id.includes('_')) {

@@ -2,12 +2,14 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabase/client';
 
+import { safeStorage } from '../utils/safeStorage';
+
 const AuthContext = createContext(null);
 const AUTH_STORAGE_KEY = 'pia_auth_session';
 
 const getStoredSession = () => {
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = safeStorage.getItem(AUTH_STORAGE_KEY);
     if (raw) {
       const data = JSON.parse(raw);
       if (data && data.currentUser && data.currentUser.id) {
@@ -23,9 +25,9 @@ const getStoredSession = () => {
 const saveStoredSession = (data) => {
   try {
     if (data && data.currentUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+      safeStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
     } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      safeStorage.removeItem(AUTH_STORAGE_KEY);
     }
   } catch (e) {
     console.warn('Error writing stored session:', e);

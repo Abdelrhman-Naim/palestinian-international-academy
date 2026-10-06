@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
+import { safeStorage } from '../utils/safeStorage';
 
 const defaultCategories = {
   courses: ['برمجة', 'تصميم', 'أمن سيبراني', 'إدارة أعمال'],
@@ -40,8 +41,8 @@ export function CategoriesProvider({ children }) {
           library_en: libCatsEn.length ? Array.from(new Set(libCatsEn)) : prev.library_en
         }));
       } else {
-        // Fallback to localStorage or defaults if DB categories table is empty
-        const saved = localStorage.getItem('app_categories');
+        // Fallback to safeStorage or defaults if DB categories table is empty
+        const saved = safeStorage.getItem('app_categories');
         if (saved) {
           try { setRawCategories(JSON.parse(saved)); } catch (e) {}
         }
@@ -76,7 +77,7 @@ export function CategoriesProvider({ children }) {
   const saveState = (updated) => {
     setRawCategories(updated);
     try {
-      localStorage.setItem('app_categories', JSON.stringify(updated));
+      safeStorage.setItem('app_categories', JSON.stringify(updated));
     } catch (e) {}
   };
 

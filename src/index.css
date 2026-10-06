@@ -51,7 +51,10 @@
 html {
   min-height: 100%;
   min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
   background-color: var(--color-background);
+  -webkit-text-size-adjust: 100%;
 }
 
 html.dark {
@@ -67,9 +70,12 @@ body {
   position: relative;
   min-height: 100%;
   min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
   margin: 0;
   display: flex;
   flex-direction: column;
+  -webkit-overflow-scrolling: touch;
 }
 
 #root {
@@ -307,5 +313,5 @@ div[class*="netlify-badge"] {
 
 /* Safe area inset support */
 .safe-area-bottom {
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

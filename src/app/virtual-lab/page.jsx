@@ -1,10 +1,4 @@
-import dynamic from 'next/dynamic';
-import PageLoader from '@/components/PageLoader';
-
-const VirtualLabClient = dynamic(() => import('@/pages/VirtualLab'), {
-  ssr: false,
-  loading: () => <PageLoader fullScreen={true} />,
-});
+import VirtualLabClient from './VirtualLabClient';
 
 export const metadata = {
   title: 'المختبر الافتراضي الهندسي | أكاديمية فلسطين الدولية',

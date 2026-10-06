@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import './globals.css';
 import { Providers } from './providers';
 
@@ -95,7 +96,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors">
         <Providers>
-          {children}
+          <React.Suspense fallback={null}>
+            {children}
+          </React.Suspense>
         </Providers>
       </body>
     </html>

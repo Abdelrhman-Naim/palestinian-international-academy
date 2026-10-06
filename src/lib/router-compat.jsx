@@ -58,8 +58,14 @@ export function useNavigate() {
 
 export function useLocation() {
   const pathname = usePathname() || '/';
-  const searchParams = useNextSearchParams();
-  const search = searchParams ? `?${searchParams.toString()}` : '';
+  const [search, setSearch] = React.useState('');
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearch(window.location.search || '');
+    }
+  }, [pathname]);
+
   return {
     pathname,
     search,
@@ -103,6 +109,10 @@ export function Navigate({ to, replace }) {
   return null;
 }
 
+export function Outlet({ children }) {
+  return children || null;
+}
+
 export default {
   Link,
   NavLink,
@@ -111,4 +121,5 @@ export default {
   useParams,
   useSearchParams,
   Navigate,
+  Outlet,
 };

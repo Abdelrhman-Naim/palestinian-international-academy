@@ -5,13 +5,15 @@ import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
 import { sanitizeObject } from '../utils/sanitize';
 
+import { safeStorage } from '../utils/safeStorage';
+
 const LibraryContext = createContext(null);
 
 const LOCAL_STORAGE_KEY = 'pia_local_books';
 
 const getStoredLocalBooks = () => {
   try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const saved = safeStorage.getItem(LOCAL_STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   } catch (e) {
     return [];
@@ -20,7 +22,7 @@ const getStoredLocalBooks = () => {
 
 const saveLocalBooks = (booksArr) => {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(booksArr));
+    safeStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(booksArr));
   } catch (e) {}
 };
 

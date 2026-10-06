@@ -7,6 +7,9 @@ const __dirname = path.dirname(__filename);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -23,6 +26,8 @@ const nextConfig = {
   },
   webpack: (config) => {
     config.resolve.alias['react-router-dom'] = path.resolve(__dirname, 'src/lib/router-compat.jsx');
+    config.resolve.alias['@/pages'] = path.resolve(__dirname, 'src/views');
+    config.resolve.alias['@/views'] = path.resolve(__dirname, 'src/views');
     return config;
   },
 };

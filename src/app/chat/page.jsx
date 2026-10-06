@@ -1,10 +1,4 @@
-import dynamic from 'next/dynamic';
-import PageLoader from '@/components/PageLoader';
-
-const ChatPageClient = dynamic(() => import('@/pages/ChatPage'), {
-  ssr: false,
-  loading: () => <PageLoader fullScreen={true} />,
-});
+import ChatClient from './ChatClient';
 
 export const metadata = {
   title: 'المحادثات والرسائل | أكاديمية فلسطين الدولية',
@@ -12,5 +6,5 @@ export const metadata = {
 };
 
 export default function ChatPage() {
-  return <ChatPageClient />;
+  return <ChatClient />;
 }

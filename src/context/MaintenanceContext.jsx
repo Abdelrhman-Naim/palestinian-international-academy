@@ -3,6 +3,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabase/client';
 import { useAuth } from './AuthContext';
 
+import { safeStorage } from '../utils/safeStorage';
+
 const MaintenanceContext = createContext(null);
 const MAINTENANCE_STORAGE_KEY = 'pia_maintenance_settings';
 
@@ -11,7 +13,7 @@ const DEFAULT_MAINTENANCE_MESSAGE =
 
 const getInitialMaintenance = () => {
   try {
-    const raw = localStorage.getItem(MAINTENANCE_STORAGE_KEY);
+    const raw = safeStorage.getItem(MAINTENANCE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
@@ -67,7 +69,7 @@ export function MaintenanceProvider({ children }) {
       };
 
       setMaintenanceData(nextData);
-      localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(nextData));
+      safeStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(nextData));
 
       // Log action to activity_logs table in Supabase
       try {

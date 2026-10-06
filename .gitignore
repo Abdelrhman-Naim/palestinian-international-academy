@@ -27,4 +27,6 @@ dist-ssr
 serviceAccountKey.json
 .next
 .superpowers
+__pycache__/
+playwright-report/
 
