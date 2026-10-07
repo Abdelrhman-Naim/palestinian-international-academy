@@ -138,10 +138,7 @@ const AdminLogin = () => {
         </button>
       </div>
 
-      {/* Background glow effect */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-primary/15 rounded-full blur-[120px] pointer-events-none opacity-60 hidden dark:block"></div>
-
-      <main className="w-full max-w-md relative z-10">
+      <main className="w-full max-w-md relative z-10 bg-transparent">
         {/* Header */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-block group mb-5">

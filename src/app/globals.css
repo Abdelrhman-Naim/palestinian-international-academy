@@ -109,7 +109,7 @@ body::before {
 
 .dark body,
 html.dark #root,
-html.dark main {
+html.dark body > main {
   background-color: #12100e;
   color: #f5f5f4;
 }
