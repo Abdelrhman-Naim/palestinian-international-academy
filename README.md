@@ -259,6 +259,8 @@ Project/
   * ضبط الحالة المبدئية في `useDarkMode.js` و `LanguageContext.jsx` لتتطابق تماماً بين السيرفر والعميل، وتأجيل قراءة تفضيلات المتصفح إلى ما بعد الـ Mount في `useEffect`، مع إضافة `suppressHydrationWarning`.
 * **منع أخطاء 404:**
   * توفير نسخة `public/manifest.json` لمنع أخطاء طلبات المتصفحات وإضافاتها.
+* **صفحة تسجيل دخول الأدمن (`AdminLogin.jsx`):**
+  * إزالة وهج الخلفية (`glow effect`) المتموضع خلف الـ `main`، وجعل حاوية `main` شفافة بالكامل (`bg-transparent`)، وحصر قاعدة الـ background في `globals.css` على `body > main` لمنع ظهور أي صناديق أو إطارات داكنة غير مرغوبة خلف نموذج الدخول.
 
 ---
 
