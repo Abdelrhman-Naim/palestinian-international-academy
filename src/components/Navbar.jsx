@@ -84,15 +84,16 @@ const Navbar = () => {
             return (
               <Link key={link.path} to={link.path} className={`relative px-4 py-2 font-label-caps text-sm tracking-wider font-bold transition-all duration-300 group ${isActive ? 'text-primary' : 'text-stone-800 dark:text-gray-100 hover:text-primary'}`}>
                 {t(link.label)}
-                <span className={`absolute bottom-0 inset-s-1/2 -translate-x-1/2 rtl:translate-x-1/2 h-0.5 bg-primary transition-all duration-300 rounded-t-md ${isActive ? 'w-1/2 opacity-100' : 'w-0 opacity-0 group-hover:w-1/3 group-hover:opacity-50'}`}></span>
+                <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 bg-primary transition-all duration-300 rounded-t-md ${isActive ? 'w-3/5 opacity-100' : 'w-0 opacity-0 group-hover:w-2/5 group-hover:opacity-50'}`}></span>
               </Link>
             );
           })}
           
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 my-auto mx-2"></div>
           
-          <Link to="/partnerships" className="relative px-3 py-2 font-label-caps text-sm tracking-wider font-bold text-stone-800 dark:text-gray-200 hover:text-primary transition-all duration-300 group">
+          <Link to="/partnerships" className={`relative px-3 py-2 font-label-caps text-sm tracking-wider font-bold transition-all duration-300 group ${location.pathname.startsWith('/partnerships') ? 'text-primary' : 'text-stone-800 dark:text-gray-200 hover:text-primary'}`}>
             {lang === 'ar' ? 'الشراكات والمؤسسات' : 'Partnerships & Orgs'}
+            <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 bg-primary transition-all duration-300 rounded-t-md ${location.pathname.startsWith('/partnerships') ? 'w-3/5 opacity-100' : 'w-0 opacity-0 group-hover:w-2/5 group-hover:opacity-50'}`}></span>
           </Link>
         </nav>
       </div>
@@ -116,11 +117,12 @@ const Navbar = () => {
           <button 
             type="button"
             onClick={toggleDarkMode}
+            suppressHydrationWarning
             aria-label={isDarkMode ? (lang === 'ar' ? 'تفعيل الوضع الفاتح' : 'Switch to Light Mode') : (lang === 'ar' ? 'تفعيل الوضع الداكن' : 'Switch to Dark Mode')}
             title={isDarkMode ? (lang === 'ar' ? 'الوضع الفاتح' : 'Light Mode') : (lang === 'ar' ? 'الوضع الداكن' : 'Dark Mode')}
             className="w-10 h-10 sm:w-11 sm:h-11 min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center cursor-pointer hover:text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-xl"
           >
-            <span className="material-symbols-outlined text-[18px] sm:text-[20px]">
+            <span className="material-symbols-outlined text-[18px] sm:text-[20px]" suppressHydrationWarning>
               {isDarkMode ? 'light_mode' : 'dark_mode'}
             </span>
           </button>

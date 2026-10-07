@@ -89,11 +89,11 @@ test.describe('Image Loading & WebP Optimization Suite', () => {
   });
 
   test('Admin, Instructor, and Student Dashboards have resilient avatars and no broken images', async ({ page }) => {
-    await page.goto('http://localhost:3000/login');
+    await page.goto('http://localhost:3000/login', { waitUntil: 'domcontentloaded' });
     await page.fill('input[type="email"]', 'abood12.e.m@gmail.com');
     await page.fill('input[type="password"]', '123123');
     await page.click('button[type="submit"]');
-    await page.waitForURL('**/dashboard**', { timeout: 15000 });
+    await page.waitForURL('**/dashboard**', { waitUntil: 'commit', timeout: 15000 });
 
     const brokenImages = await page.$$eval('img', imgs =>
       imgs.filter(img => img.src.includes('[object') || (img.complete && img.naturalWidth === 0)).map(img => img.src)

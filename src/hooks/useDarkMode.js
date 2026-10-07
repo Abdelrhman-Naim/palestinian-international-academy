@@ -75,11 +75,12 @@ if (typeof window !== 'undefined') {
 }
 
 export function useDarkMode() {
-  const [isDarkMode, setIsDarkMode] = useState(globalDarkMode);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    setIsDarkMode(globalDarkMode);
-    applyTheme(globalDarkMode);
+    const current = resolveCurrentTheme();
+    setIsDarkMode(current);
+    applyTheme(current);
 
     listeners.add(setIsDarkMode);
     return () => {

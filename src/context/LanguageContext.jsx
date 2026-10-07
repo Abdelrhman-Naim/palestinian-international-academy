@@ -8,12 +8,14 @@ const translations = { ar, en };
 const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return safeStorage.getItem('lang') || 'ar';
+  const [lang, setLang] = useState('ar');
+
+  useEffect(() => {
+    const saved = safeStorage.getItem('lang');
+    if (saved && (saved === 'ar' || saved === 'en')) {
+      setLang(saved);
     }
-    return 'ar';
-  });
+  }, []);
 
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
 

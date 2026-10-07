@@ -102,10 +102,10 @@ const Register = () => {
           : 'Create your free account at Palestinian International Academy to access courses, digital library, and cloud labs.'}
         canonical="/register"
       />
-      <main className="w-full max-w-250 bg-white border border-[#E8E2D5] dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row transition-colors">
+      <div className="w-full max-w-5xl bg-white border border-[#E8E2D5] dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row transition-colors">
         
         {/* Left Side */}
-        <div className="hidden lg:flex w-1/2 text-dark dark:text-white p-12 flex-col justify-center items-center text-center relative overflow-hidden bg-gradient-to-br from-[#FAF7F2] via-[#F3EFE6] to-[#E8E2D5] dark:from-black dark:via-gray-900 dark:to-[#4a3820] border-e border-[#E8E2D5] dark:border-gray-700">
+        <div className="hidden lg:flex lg:w-1/2 text-dark dark:text-white p-10 flex-col justify-center items-center text-center relative overflow-hidden bg-gradient-to-br from-[#FAF7F2] via-[#F3EFE6] to-[#E8E2D5] dark:from-black dark:via-gray-900 dark:to-[#4a3820] border-e border-[#E8E2D5] dark:border-gray-700">
           <div className="relative z-10 flex flex-col items-center w-full max-w-lg mx-auto">
             <div className="flex-1 flex items-center justify-center w-full mb-12">
               <img src={logo?.src || logo} alt="Logo" className="w-full max-w-sm lg:max-w-md h-auto object-contain drop-shadow-2xl transition-transform duration-500 hover:scale-105" />
@@ -319,7 +319,7 @@ const Register = () => {
             </p>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 };

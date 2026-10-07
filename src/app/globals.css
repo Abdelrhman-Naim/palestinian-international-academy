@@ -48,43 +48,45 @@
   100% { transform: translateX(-50%); }
 }
 
-html {
-  min-height: 100%;
-  min-height: 100dvh;
-  max-width: 100%;
-  overflow-x: hidden;
-  background-color: var(--color-background);
-  -webkit-text-size-adjust: 100%;
-}
+@layer base {
+  html {
+    min-height: 100%;
+    min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
+    background-color: var(--color-background);
+    -webkit-text-size-adjust: 100%;
+  }
 
-html.dark {
-  background-color: #12100e;
-}
+  html.dark {
+    background-color: #12100e;
+  }
 
-body {
-  font-family: var(--font-alexandria);
-  background-color: var(--color-background);
-  color: var(--color-dark);
-  direction: rtl;
-  scroll-behavior: smooth;
-  position: relative;
-  min-height: 100%;
-  min-height: 100dvh;
-  max-width: 100%;
-  overflow-x: hidden;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  -webkit-overflow-scrolling: touch;
-}
+  body {
+    font-family: var(--font-alexandria);
+    background-color: var(--color-background);
+    color: var(--color-dark);
+    direction: rtl;
+    scroll-behavior: smooth;
+    position: relative;
+    min-height: 100%;
+    min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    -webkit-overflow-scrolling: touch;
+  }
 
-#root, main {
-  min-height: 100%;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0%;
-  width: 100%;
+  #root, body > main {
+    min-height: 100%;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0%;
+    width: 100%;
+  }
 }
 
 *:focus-visible {
@@ -239,33 +241,6 @@ html.dark,
   overflow: hidden;
   user-select: none;
   text-indent: 0;
-}
-
-html:not(.fonts-loaded) .material-symbols-outlined {
-  font-size: 0 !important;
-  line-height: 0 !important;
-  color: transparent !important;
-  text-shadow: none !important;
-  user-select: none !important;
-  position: relative;
-  width: 1.25em !important;
-  height: 1.25em !important;
-}
-
-html:not(.fonts-loaded) .material-symbols-outlined::after {
-  content: '';
-  position: absolute;
-  inset: 12%;
-  border-radius: 4px;
-  background-color: #d4af37;
-  opacity: 0.22;
-  animation: icon-skeleton-pulse 1.2s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.dark html:not(.fonts-loaded) .material-symbols-outlined::after,
-html.dark:not(.fonts-loaded) .material-symbols-outlined::after {
-  opacity: 0.35;
 }
 
 @keyframes icon-skeleton-pulse {

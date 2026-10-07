@@ -90,8 +90,31 @@ export default function RootLayout({ children }) {
           href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&family=Cairo:wght@300;400;600;700&display=swap"
         />
         <link
+          rel="preload"
+          href="/fonts/material-symbols-outlined.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (typeof document !== 'undefined') {
+                  if ('fonts' in document) {
+                    document.fonts.ready.then(function() { document.documentElement.classList.add('fonts-loaded'); });
+                    setTimeout(function() { document.documentElement.classList.add('fonts-loaded'); }, 150);
+                  } else {
+                    document.documentElement.classList.add('fonts-loaded');
+                  }
+                }
+              } catch(e) {}
+            `,
+          }}
         />
       </head>
       <body className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors">
