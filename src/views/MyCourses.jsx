@@ -97,7 +97,7 @@ export default function MyCourses() {
                   <div className="flex items-center gap-4 text-xs font-bold text-gray-600 dark:text-gray-300 mt-2 flex-wrap">
                     <span className="flex items-center gap-1">
                       <i className="fa-solid fa-user-group text-gray-400"></i>
-                      {course.students || 0} {t('common.students')}
+                      {Number(course.students_count ?? course.students) || 0} {t('common.students')}
                     </span>
                     {!course.draft && (
                       <>

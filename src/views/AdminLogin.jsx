@@ -60,16 +60,23 @@ const AdminLogin = () => {
 
     setLoading(true);
     try {
-      await login(username.trim(), password, "admin");
+      const cleanUsername = username.trim();
+      const resolvedEmail = cleanUsername.toLowerCase() === "admin" ? "admin@gmail.com" : cleanUsername;
+      await login(resolvedEmail, password, "admin");
       navigate("/admin-dashboard", { replace: true });
     } catch (err) {
-      console.warn("Admin login error:", err);
-      const errMsg = err?.message || "";
+      const errMsg = String(err?.message || "");
       if (errMsg.includes("Email not confirmed")) {
         setError(
           dir === "rtl"
             ? "يرجى تفعيل حسابك من خلال رابط التفعيل المرسل إلى بريدك الإلكتروني."
             : "Please confirm your email via the link sent to your inbox."
+        );
+      } else if (errMsg === "admin_unauthorized") {
+        setError(
+          dir === "rtl"
+            ? "هذا الحساب لا يملك صلاحيات وصول لوحة الإدارة."
+            : "This account does not have administrator privileges."
         );
       } else {
         setError(
@@ -126,7 +133,9 @@ const AdminLogin = () => {
       />
 
       {/* Language Switcher Button */}
-      <div className="absolute top-4 sm:top-6 inset-e-4 sm:inset-e-6 z-20">
+      <div
+        className={`absolute top-4 sm:top-6 z-20 ${lang === "ar" ? "left-4 sm:left-6" : "right-4 sm:right-6"}`}
+      >
         <button
           type="button"
           onClick={toggleLang}
@@ -198,7 +207,7 @@ const AdminLogin = () => {
                 id="admin-user"
                 required
                 type="text"
-                placeholder="admin@example.com"
+                placeholder={dir === "rtl" ? "admin@gmail.com أو admin" : "admin@gmail.com or admin"}
                 value={username}
                 onChange={e => {
                   setUsername(e.target.value);
@@ -228,7 +237,8 @@ const AdminLogin = () => {
                   type="button"
                   onClick={() => {
                     setShowForgotModal(true);
-                    setForgotEmail(username.includes("@") ? username : "");
+                    const cleanUser = username.trim();
+                    setForgotEmail(cleanUser.includes("@") ? cleanUser : (cleanUser.toLowerCase() === "admin" ? "admin@gmail.com" : ""));
                     setForgotSuccess("");
                     setForgotError("");
                   }}
@@ -240,7 +250,13 @@ const AdminLogin = () => {
 
               <div className="relative">
                 <input
-                  className={`w-full bg-[#FAF7F2] dark:bg-gray-800 border ${passwordError ? "border-red-500 ring-2 ring-red-500/20 focus:ring-red-500" : "border-[#E8E2D5] dark:border-gray-700 focus:ring-primary"} text-dark dark:text-white rounded-xl py-3 px-4 pe-11 focus:outline-none focus:border-transparent transition-all placeholder-gray-400 text-sm`}
+                  className={`w-full bg-[#FAF7F2] dark:bg-gray-800 border ${
+                    passwordError
+                      ? "border-red-500 ring-2 ring-red-500/20 focus:ring-red-500"
+                      : "border-[#E8E2D5] dark:border-gray-700 focus:ring-primary"
+                  } text-dark dark:text-white rounded-xl py-3 ${
+                    lang === "ar" ? "pl-11 pr-4" : "pr-11 pl-4"
+                  } focus:outline-none focus:border-transparent transition-all placeholder-gray-400 text-sm`}
                   id="admin-pass"
                   required
                   type={showPassword ? "text" : "password"}
@@ -255,7 +271,9 @@ const AdminLogin = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(prev => !prev)}
-                  className="absolute inset-e-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex items-center justify-center cursor-pointer"
+                  className={`absolute top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex items-center justify-center cursor-pointer ${
+                    lang === "ar" ? "left-3" : "right-3"
+                  }`}
                   aria-label={
                     showPassword
                       ? t("adminLogin.hidePassword")

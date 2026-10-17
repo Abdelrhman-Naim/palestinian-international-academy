@@ -55,18 +55,28 @@ const AdminDashboard = ({ children }) => {
     async function fetchPendingCount() {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       try {
-        const { data, error } = await supabase.from('profiles').select('id, role, status, is_approved');
-        if (!error && data) {
-          const pending = data.filter(u => 
+        const [{ data: profs, error: profErr }, { data: reqs, error: reqErr }] = await Promise.all([
+          supabase.from('profiles').select('id, role, status, is_approved'),
+          supabase.from('course_requests').select('id, status')
+        ]);
+        let total = 0;
+        if (!profErr && profs) {
+          const pendingInst = profs.filter(u => 
             u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
           );
-          setPendingCount(pending.length);
+          total += pendingInst.length;
         }
+        if (!reqErr && reqs) {
+          const pendingReq = reqs.filter(r => r.status === 'pending');
+          total += pendingReq.length;
+        }
+        setPendingCount(total);
       } catch (err) {
         // Silently handle offline notice
       }
     }
 
+    let debounceTimer = null;
     fetchPendingCount();
 
     const channel = supabase
@@ -75,7 +85,16 @@ const AdminDashboard = ({ children }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'profiles' },
         () => {
-          fetchPendingCount();
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(fetchPendingCount, 800);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'course_requests' },
+        () => {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(fetchPendingCount, 800);
         }
       )
       .subscribe();
@@ -87,7 +106,7 @@ const AdminDashboard = ({ children }) => {
       supabase.removeChannel(channel);
       window.removeEventListener('online', onOnline);
     };
-  }, [location.pathname]);
+  }, []);
 
   const toggleMenu = (menu) => {
 
@@ -276,15 +295,15 @@ const AdminDashboard = ({ children }) => {
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="space-y-1 pr-2 border-r-2 border-[#E8E2D5] dark:border-gray-700 mr-2 mt-1 overflow-hidden"
                 >
-                  <NavLink to="/admin-dashboard/courses" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <NavLink to="/admin-dashboard/courses" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <span className="material-symbols-outlined ml-3 text-base">school</span>
                     {t('adminDashboard.coursesList')}
                   </NavLink>
-                  <NavLink to="/admin-dashboard/course-categories" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <NavLink to="/admin-dashboard/course-categories" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <span className="material-symbols-outlined ml-3 text-base">category</span>
                     {t('adminCategories.title')}
                   </NavLink>
-                  <NavLink to="/admin-dashboard/add-course" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <NavLink to="/admin-dashboard/add-course" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <span className="material-symbols-outlined ml-3 text-base">add_circle</span>
                     {t('adminDashboard.addNewCourse')}
                   </NavLink>
@@ -318,15 +337,15 @@ const AdminDashboard = ({ children }) => {
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="space-y-1 pr-2 border-r-2 border-[#E8E2D5] dark:border-gray-700 mr-2 mt-1 overflow-hidden"
                 >
-                  <NavLink to="/admin-dashboard/library" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <NavLink to="/admin-dashboard/library" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <span className="material-symbols-outlined ml-3 text-base">auto_stories</span>
                     {t('adminDashboard.libraryContent')}
                   </NavLink>
-                  <NavLink to="/admin-dashboard/library-categories" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <NavLink to="/admin-dashboard/library-categories" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <span className="material-symbols-outlined ml-3 text-base">category</span>
                     {t('adminDashboard.libraryCategories')}
                   </NavLink>
-                  <NavLink to="/admin-dashboard/add-book" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                  <NavLink to="/admin-dashboard/add-book" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
                     <span className="material-symbols-outlined ml-3 text-base">add_box</span>
                     {t('adminDashboard.addBook')}
                   </NavLink>

@@ -52,7 +52,7 @@ const StudentMyCourses = () => {
           if (e.course_id) enrollMap.set(String(e.course_id), e);
         });
 
-        const list = (reqs || []).map(d => {
+        const list = (reqs || []).filter(d => d.status !== 'rejected').map(d => {
           const courseId = String(d.course_id || d.courseId || '');
           const enrollInfo = enrollMap.get(courseId);
           const completedLessons = Array.isArray(enrollInfo?.completed_lessons)
@@ -246,7 +246,7 @@ const StudentMyCourses = () => {
           <div className="space-y-4">
             {enrollments.map((enroll) => {
               const matchingCourse = courses.find(c => c.id === enroll.courseId);
-              const totalLecs = matchingCourse?.lectures?.length || matchingCourse?.lessons?.length || 0;
+              const totalLecs = matchingCourse?.lectures?.length || matchingCourse?.lessons?.length || Number(matchingCourse?.lessons_count || matchingCourse?.lecturesCount) || 0;
               const completedList = Array.isArray(enroll.completedLessons) ? enroll.completedLessons : [];
               const liveProgress = totalLecs > 0 
                 ? Math.min(100, Math.round((completedList.length / totalLecs) * 100))

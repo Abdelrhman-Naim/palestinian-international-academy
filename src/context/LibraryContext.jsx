@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
@@ -67,9 +67,12 @@ export function LibraryProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const { lang } = useLanguage();
+  const hasPrunedRef = useRef(false);
 
-  const fetchBooks = async () => {
-    setLoading(true);
+  const fetchBooks = async (isSilent = false) => {
+    if (!isSilent) {
+      setLoading(true);
+    }
     setFetchError(null);
     let isFinished = false;
 
@@ -82,7 +85,7 @@ export function LibraryProvider({ children }) {
           setRawBooks(local);
         }
       }
-    }, 4000);
+    }, 10000);
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setLoading(false);
@@ -94,11 +97,91 @@ export function LibraryProvider({ children }) {
     }
 
     try {
+      const fetchChunkWithRetry = async (from, to, maxRetries = 2) => {
+        let lastErr = null;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            const { data, error } = await supabase
+              .from('books')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .range(from, to);
+
+            if (error) {
+              lastErr = error;
+              if (attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
+                continue;
+              }
+              return { data: [], error };
+            }
+            return { data: data || [], error: null };
+          } catch (err) {
+            lastErr = err;
+            if (attempt < maxRetries) {
+              await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
+              continue;
+            }
+            return { data: [], error: err };
+          }
+        }
+        return { data: [], error: lastErr };
+      };
+
+      const fetchAllRemoteBooks = async () => {
+        const chunkSize = 500;
+        let all = [];
+        let lastError = null;
+
+        try {
+          const { count, error: countErr } = await supabase
+            .from('books')
+            .select('*', { count: 'exact', head: true });
+
+          if (count !== null && count !== undefined && !countErr && count > 0) {
+            const chunkPromises = [];
+            for (let from = 0; from < count; from += chunkSize) {
+              const to = Math.min(from + chunkSize - 1, count - 1);
+              chunkPromises.push(fetchChunkWithRetry(from, to, 2));
+            }
+            const results = await Promise.all(chunkPromises);
+            results.forEach((res, idx) => {
+              if (res.error) {
+                console.warn(`Warning fetching books chunk ${idx * chunkSize}:`, res.error.message || res.error);
+                lastError = res.error;
+              }
+              if (res.data && res.data.length > 0) {
+                all.push(...res.data);
+              }
+            });
+          } else {
+            // Graceful fallback: loop until a page has fewer than 500 items
+            let from = 0;
+            while (true) {
+              const { data, error } = await fetchChunkWithRetry(from, from + chunkSize - 1, 2);
+              if (error) {
+                lastError = error;
+                break;
+              }
+              if (data && data.length > 0) {
+                all.push(...data);
+                if (data.length < chunkSize) break;
+                from += chunkSize;
+              } else {
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          lastError = err;
+        }
+
+        // Always process all fetched books, even if one chunk had a non-fatal warning
+        return { data: all, error: all.length > 0 ? null : lastError };
+      };
+
       const [{ data, error }, { data: reviewRows }] = await Promise.all([
-        supabase
-          .from('books')
-          .select('*')
-          .order('created_at', { ascending: false }),
+        fetchAllRemoteBooks(),
         supabase
           .from('reviews')
           .select('target_id, rating')
@@ -119,7 +202,7 @@ export function LibraryProvider({ children }) {
       const localBooks = getStoredLocalBooks();
       let remoteBooks = [];
 
-      if (error) {
+      if (error && (!data || data.length === 0)) {
         if (typeof navigator === 'undefined' || navigator.onLine) {
           console.warn('Error fetching books from Supabase:', error.message);
         }
@@ -128,8 +211,16 @@ export function LibraryProvider({ children }) {
           const stats = reviewStatsMap.get(item.id);
           const rCount = stats ? stats.count : 0;
           const rAvg = rCount > 0 ? Number((stats.sum / rCount).toFixed(1)) : (Number(item.rating) || 5.0);
+          const resolvedCategory = item.category_name || item.category || '';
           return sanitizeObject({
             ...item,
+            category: resolvedCategory,
+            category_name: resolvedCategory,
+            downloads: item.downloads_count !== undefined ? Number(item.downloads_count) : (Number(item.downloads) || 0),
+            downloads_count: item.downloads_count !== undefined ? Number(item.downloads_count) : (Number(item.downloads) || 0),
+            link: item.link || item.pdf_url || '',
+            driveUrl: item.driveUrl || item.pdf_url || item.link || '',
+            pdf_url: item.pdf_url || item.driveUrl || item.link || '',
             ratingCount: rCount,
             rating_count: rCount,
             ratingAverage: rAvg,
@@ -186,15 +277,16 @@ export function LibraryProvider({ children }) {
         setFetchError(error.message);
       }
 
-      // Clean up remote duplicate rows if found
-      if (duplicateRemoteIdsToDelete.length > 0) {
+      // Clean up remote duplicate rows if found (only once)
+      if (duplicateRemoteIdsToDelete.length > 0 && !hasPrunedRef.current) {
+        hasPrunedRef.current = true;
         supabase.from('books').delete().in('id', duplicateRemoteIdsToDelete).then(() => {
           console.log(`Pruned ${duplicateRemoteIdsToDelete.length} duplicate books from remote.`);
         }).catch(err => console.warn('Could not auto-prune duplicate books:', err));
       }
     } catch (err) {
-      console.warn('Books fetch error:', err.message);
-      setFetchError(err.message || 'Fetch failed');
+      console.warn('Books fetch notice:', err?.message || err);
+      setFetchError(err?.message || 'Fetch failed');
     } finally {
       isFinished = true;
       clearTimeout(timer);
@@ -205,27 +297,30 @@ export function LibraryProvider({ children }) {
   useEffect(() => {
     fetchBooks();
 
+    let debounceTimer = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchBooks(true), 1200);
+    };
+
     const channel = supabase
       .channel('books_and_reviews_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, () => {
-        fetchBooks();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
-        fetchBooks();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, debouncedFetch)
       .subscribe();
 
     const onOnline = () => fetchBooks();
     window.addEventListener('online', onOnline);
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
       window.removeEventListener('online', onOnline);
     };
   }, []);
 
   const books = rawBooks.map(book => {
-    const bookCategory = book.category || book.category_name || '';
+    const bookCategory = book.category_name || book.category || '';
     const bookCategoryEn = book.category_en || bookCategory;
     const bookLink = book.link || book.pdf_url || book.driveUrl || '';
 
@@ -243,8 +338,8 @@ export function LibraryProvider({ children }) {
       coverUrl: book.coverUrl || book.cover_url || '',
       cover_url: book.cover_url || book.coverUrl || '',
       pages: Number(book.pages) || 120,
-      downloads: book.downloads !== undefined ? book.downloads : (book.downloads_count || 0),
-      downloads_count: book.downloads_count !== undefined ? book.downloads_count : (book.downloads || 0),
+      downloads: book.downloads_count !== undefined ? Number(book.downloads_count) : (Number(book.downloads) || 0),
+      downloads_count: book.downloads_count !== undefined ? Number(book.downloads_count) : (Number(book.downloads) || 0),
       year: book.year || (book.created_at ? new Date(book.created_at).getFullYear().toString() : new Date().getFullYear().toString()),
       rating: book.rating || 5.0,
       ratingCount: book.ratingCount || 0,
@@ -433,8 +528,64 @@ export function LibraryProvider({ children }) {
     }
   };
 
+  const incrementDownload = async (bookId) => {
+    if (!bookId) return;
+    try {
+      // Optimistically update in state immediately
+      setRawBooks(prev => prev.map(b => {
+        if (b.id === bookId) {
+          const nextCount = (Number(b.downloads_count ?? b.downloads) || 0) + 1;
+          return {
+            ...b,
+            downloads: nextCount,
+            downloads_count: nextCount
+          };
+        }
+        return b;
+      }));
+
+      // Update cached local storage
+      const locals = getStoredLocalBooks();
+      const updatedLocals = locals.map(b => {
+        if (b.id === bookId) {
+          const nextCount = (Number(b.downloads_count ?? b.downloads) || 0) + 1;
+          return {
+            ...b,
+            downloads: nextCount,
+            downloads_count: nextCount
+          };
+        }
+        return b;
+      });
+      saveLocalBooks(updatedLocals);
+
+      // Persist to Supabase
+      if (isValidUUID(bookId)) {
+        const { data: curBook } = await supabase
+          .from('books')
+          .select('downloads_count')
+          .eq('id', bookId)
+          .maybeSingle();
+
+        const currentDownloads = Number(curBook?.downloads_count || 0);
+        const nextDownloads = currentDownloads + 1;
+
+        const { error } = await supabase
+          .from('books')
+          .update({ downloads_count: nextDownloads })
+          .eq('id', bookId);
+
+        if (error) {
+          console.warn('[incrementDownload] Notice:', error.message);
+        }
+      }
+    } catch (err) {
+      console.warn('[incrementDownload] Error:', err);
+    }
+  };
+
   return (
-    <LibraryContext.Provider value={{ books, rawBooks, loading, error: fetchError, addBook, removeBook, updateBook, fetchBooks, retryFetchBooks: fetchBooks }}>
+    <LibraryContext.Provider value={{ books, rawBooks, loading, error: fetchError, addBook, removeBook, updateBook, incrementDownload, fetchBooks, retryFetchBooks: fetchBooks }}>
       {children}
     </LibraryContext.Provider>
   );

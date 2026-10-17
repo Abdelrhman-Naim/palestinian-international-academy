@@ -251,6 +251,7 @@ export function subscribeToUserNotifications(userId, callback) {
 
   fetchNotifs();
 
+  let debounceTimer = null;
   const channel = supabase
     .channel(`notifs_${userId}`)
     .on('postgres_changes', {
@@ -259,11 +260,13 @@ export function subscribeToUserNotifications(userId, callback) {
       table: 'notifications',
       filter: `recipient_id=eq.${userId}`
     }, () => {
-      fetchNotifs();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fetchNotifs, 600);
     })
     .subscribe();
 
   return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
     supabase.removeChannel(channel);
   };
 }

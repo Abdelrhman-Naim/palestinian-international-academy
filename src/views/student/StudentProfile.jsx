@@ -17,9 +17,41 @@ export default function StudentProfile() {
   const { savedList } = useSavedBooks();
   const fileInputRef = useRef(null);
 
-  // Enrolled courses count
-  const enrolledCount = (userData?.enrolledCourses || []).length;
-  const savedBooksCount = savedList.length || (userData?.savedBooks || []).length;
+  // Dynamic student stats
+  const [enrolledCount, setEnrolledCount] = useState(0);
+  const [savedBooksCount, setSavedBooksCount] = useState(savedList.length || 0);
+
+  useEffect(() => {
+    const uid = currentUser?.uid || currentUser?.id || userData?.id;
+    if (!uid) return;
+
+    async function fetchStudentMetrics() {
+      try {
+        const [reqRes, enrRes] = await Promise.allSettled([
+          supabase.from('course_requests').select('course_id, status').eq('student_id', uid),
+          supabase.from('enrollments').select('course_id').eq('student_id', uid)
+        ]);
+
+        const reqs = reqRes.status === 'fulfilled' && reqRes.value.data ? reqRes.value.data : [];
+        const enrs = enrRes.status === 'fulfilled' && enrRes.value.data ? enrRes.value.data : [];
+
+        const uniqueCourseIds = new Set([
+          ...reqs.filter(r => r.status !== 'rejected').map(r => String(r.course_id || '')),
+          ...enrs.map(e => String(e.course_id || ''))
+        ]);
+        uniqueCourseIds.delete('');
+
+        setEnrolledCount(uniqueCourseIds.size);
+      } catch (e) {
+        console.warn('Error fetching student enrolled count:', e);
+      }
+    }
+    fetchStudentMetrics();
+  }, [currentUser, userData]);
+
+  useEffect(() => {
+    setSavedBooksCount(savedList.length || (userData?.savedBooks || []).length);
+  }, [savedList, userData]);
 
   // Personal info form state
   const [formData, setFormData] = useState({
@@ -240,6 +272,9 @@ export default function StudentProfile() {
       setInfoError(isRtl ? 'فشل رفع الصورة.' : 'Failed to upload photo.');
     } finally {
       setPhotoUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -301,14 +336,20 @@ export default function StudentProfile() {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8 min-h-full font-alexandria" dir={dir}>
       {/* Header Banner Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#E8E2D5] bg-gradient-to-br from-white via-[#FAF7F2] to-[#F3EFE6] p-6 sm:p-8 shadow-sm dark:border-gray-800 dark:from-gray-900 dark:via-gray-850 dark:to-gray-800">
+      <div className="relative overflow-hidden rounded-3xl border border-[#E8E2D5] dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-8 shadow-sm transition-colors">
+        <div className="absolute top-0 end-0 w-80 h-80 bg-primary/10 dark:bg-amber-400/5 rounded-full blur-3xl pointer-events-none"></div>
+
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
           <div className="relative group shrink-0">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden bg-primary text-white flex items-center justify-center text-3xl font-black">
-              {formData.photoURL ? (
-                <img src={formData.photoURL} alt={displayName} className="w-full h-full object-cover" />
-              ) : (
-                <span>{initials || 'ST'}</span>
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center text-3xl font-black relative">
+              <span className="select-none">{initials || 'ST'}</span>
+              {formData.photoURL && (
+                <img 
+                  src={formData.photoURL} 
+                  alt={displayName} 
+                  className="absolute inset-0 w-full h-full object-cover" 
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
               )}
             </div>
 
@@ -362,13 +403,13 @@ export default function StudentProfile() {
 
             {/* Quick Metrics */}
             <div className="pt-3 flex flex-wrap justify-center sm:justify-start gap-4">
-              <div className="flex items-center gap-2 rounded-xl bg-white/80 dark:bg-gray-800/80 px-3.5 py-1.5 border border-[#E8E2D5] dark:border-gray-700">
+              <div className="flex items-center gap-2 rounded-xl bg-[#FAF7F2] dark:bg-gray-900 px-3.5 py-1.5 border border-[#E8E2D5] dark:border-gray-700">
                 <span className="material-symbols-outlined text-primary dark:text-amber-400 text-lg">menu_book</span>
                 <span className="text-xs font-bold text-dark dark:text-white">
                   {enrolledCount} {isRtl ? 'دورات مسجلة' : 'Enrolled Courses'}
                 </span>
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-white/80 dark:bg-gray-800/80 px-3.5 py-1.5 border border-[#E8E2D5] dark:border-gray-700">
+              <div className="flex items-center gap-2 rounded-xl bg-[#FAF7F2] dark:bg-gray-900 px-3.5 py-1.5 border border-[#E8E2D5] dark:border-gray-700">
                 <span className="material-symbols-outlined text-primary dark:text-amber-400 text-lg">bookmark</span>
                 <span className="text-xs font-bold text-dark dark:text-white">
                   {savedBooksCount} {isRtl ? 'كتب محفوظة' : 'Saved Books'}

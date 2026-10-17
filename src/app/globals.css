@@ -220,12 +220,13 @@ html.dark,
   font-weight: normal;
   font-style: normal;
   font-size: 24px;
-  line-height: 1;
+  line-height: 1 !important;
   letter-spacing: normal;
   text-transform: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
   vertical-align: middle;
   white-space: nowrap;
   word-wrap: normal;
@@ -234,13 +235,24 @@ html.dark,
   font-feature-settings: 'liga';
   font-variant-ligatures: normal;
   -webkit-font-smoothing: antialiased;
-  width: 1.25em;
-  height: 1.25em;
-  min-width: 1.25em;
-  max-width: 1.25em;
+  width: 1em !important;
+  height: 1em !important;
+  min-width: 1em !important;
+  max-width: 1em !important;
   overflow: hidden;
   user-select: none;
   text-indent: 0;
+  box-sizing: content-box;
+}
+
+/* Global FontAwesome Centering & Alignment Normalization */
+.fa, .fas, .far, .fal, .fad, .fab, .fa-solid, .fa-regular, .fa-brands {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  line-height: 1 !important;
+  vertical-align: middle;
 }
 
 @keyframes icon-skeleton-pulse {

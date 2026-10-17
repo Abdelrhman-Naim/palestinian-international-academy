@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useLibrary } from '../context/LibraryContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -9,10 +10,31 @@ const TopBooks = () => {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
 
-  // Sort by downloads descending, take top 4
-  const topBooks = [...books]
-    .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
-    .slice(0, 4);
+  // Sort by real activity:
+  // 1. Real downloads count descending
+  // 2. If downloads are 0 or equal, sort by real review count & rating
+  // 3. If still equal, sort by newest additions (created_at)
+  const topBooks = useMemo(() => {
+    return [...(books || [])]
+      .sort((a, b) => {
+        const dlA = Number(a.downloads ?? a.downloads_count ?? 0);
+        const dlB = Number(b.downloads ?? b.downloads_count ?? 0);
+        if (dlB !== dlA) return dlB - dlA;
+
+        const rcA = Number(a.ratingCount ?? a.rating_count ?? 0);
+        const rcB = Number(b.ratingCount ?? b.rating_count ?? 0);
+        if (rcB !== rcA) return rcB - rcA;
+
+        const rateA = Number(a.ratingAverage ?? a.rating ?? 0);
+        const rateB = Number(b.ratingAverage ?? b.rating ?? 0);
+        if (rateB !== rateA) return rateB - rateA;
+
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 4);
+  }, [books]);
 
   const skeletons = [1, 2, 3, 4];
 

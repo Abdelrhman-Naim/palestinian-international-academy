@@ -6,7 +6,7 @@ import logo from '../assets/logo.webp';
 import SEO from '../components/SEO';
 import { useLanguage } from '../context/LanguageContext';
 
-const Login = () => {
+const Login = ({ defaultRole }) => {
   const { t, dir, toggleLang, lang } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,18 +26,20 @@ const Login = () => {
 
   const { login, currentUser, userRole, resetPassword } = useAuth();
 
-  // Determine role based on URL path
-  const role = location.pathname === '/login-trainer' ? 'instructor' : 'student';
+  // Determine role based on defaultRole prop or URL path
+  const role = defaultRole || (location.pathname?.startsWith('/login-trainer') ? 'instructor' : 'student');
 
   useEffect(() => {
     if (currentUser && userRole) {
-      if (role === 'student' && userRole === 'student') {
-        navigate('/dashboard', { replace: true });
-      } else if (role === 'instructor' && userRole === 'instructor') {
+      if (userRole === 'admin') {
+        navigate('/admin-dashboard', { replace: true });
+      } else if (userRole === 'instructor') {
         navigate('/instructor-dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
       }
     }
-  }, [currentUser, userRole, role, navigate]);
+  }, [currentUser, userRole, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -69,17 +71,22 @@ const Login = () => {
     if (hasError) return;
 
     try {
-      await login(trimmedEmail, password, role);
-      if (role === 'student') {
-        navigate('/dashboard', { replace: true });
-      } else {
+      const res = await login(trimmedEmail, password);
+      const actualRole = res?.role || userRole || role;
+      if (actualRole === 'admin') {
+        navigate('/admin-dashboard', { replace: true });
+      } else if (actualRole === 'instructor') {
         navigate('/instructor-dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       console.error("Login error:", err);
       const errMsg = err?.message || '';
       if (errMsg.includes('Email not confirmed')) {
         setError(dir === 'rtl' ? 'يرجى تفعيل حسابك من خلال رابط التفعيل المرسل إلى بريدك الإلكتروني.' : 'Please confirm your email via the link sent to your inbox.');
+      } else if (errMsg === 'admin_unauthorized') {
+        setError(dir === 'rtl' ? 'هذا الحساب مخصص للمسؤولين. يرجى الدخول من صفحة تسجيل دخول الإدارة.' : 'This account has administrator privileges. Please login from the admin portal.');
       } else {
         setError(dir === 'rtl' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
       }

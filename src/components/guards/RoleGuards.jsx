@@ -21,10 +21,15 @@ export const UnauthorizedPage = ({ redirectTo, redirectLabel }) => {
 };
 
 export function StudentGuard({ children }) {
+  const [mounted, setMounted] = useState(false);
   const { userRole, currentUser, loading } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
   const [safetyTimedOut, setSafetyTimedOut] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (loading || (currentUser && !userRole)) {
@@ -34,11 +39,12 @@ export function StudentGuard({ children }) {
   }, [loading, currentUser, userRole]);
 
   useEffect(() => {
-    if (!loading && !currentUser && safetyTimedOut) {
+    if (mounted && !loading && !currentUser && safetyTimedOut) {
       router.replace('/login');
     }
-  }, [loading, currentUser, safetyTimedOut, router]);
+  }, [mounted, loading, currentUser, safetyTimedOut, router]);
 
+  if (!mounted) return <PageLoader fullScreen={true} />;
   if ((loading || (currentUser && !userRole)) && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <PageLoader fullScreen={true} />;
   if (!userRole) return <PageLoader fullScreen={true} />;
@@ -49,10 +55,15 @@ export function StudentGuard({ children }) {
 }
 
 export function InstructorGuard({ children }) {
+  const [mounted, setMounted] = useState(false);
   const { userStatus, userRole, currentUser, loading } = useAuth();
   const { t, dir } = useLanguage();
   const router = useRouter();
   const [safetyTimedOut, setSafetyTimedOut] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (loading || (currentUser && !userRole)) {
@@ -62,11 +73,12 @@ export function InstructorGuard({ children }) {
   }, [loading, currentUser, userRole]);
 
   useEffect(() => {
-    if (!loading && !currentUser && safetyTimedOut) {
+    if (mounted && !loading && !currentUser && safetyTimedOut) {
       router.replace('/login-trainer');
     }
-  }, [loading, currentUser, safetyTimedOut, router]);
+  }, [mounted, loading, currentUser, safetyTimedOut, router]);
 
+  if (!mounted) return <PageLoader fullScreen={true} />;
   if ((loading || (currentUser && !userRole)) && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <PageLoader fullScreen={true} />;
   if (!userRole) return <PageLoader fullScreen={true} />;
@@ -89,10 +101,15 @@ export function InstructorGuard({ children }) {
 }
 
 export function AdminGuard({ children }) {
+  const [mounted, setMounted] = useState(false);
   const { userRole, currentUser, loading } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
   const [safetyTimedOut, setSafetyTimedOut] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (loading || (currentUser && !userRole)) {
@@ -102,11 +119,12 @@ export function AdminGuard({ children }) {
   }, [loading, currentUser, userRole]);
 
   useEffect(() => {
-    if (!loading && !currentUser && safetyTimedOut) {
+    if (mounted && !loading && !currentUser && safetyTimedOut) {
       router.replace('/login-admin');
     }
-  }, [loading, currentUser, safetyTimedOut, router]);
+  }, [mounted, loading, currentUser, safetyTimedOut, router]);
 
+  if (!mounted) return <PageLoader fullScreen={true} />;
   if ((loading || (currentUser && !userRole)) && !safetyTimedOut) return <PageLoader fullScreen={true} />;
   if (!currentUser) return <PageLoader fullScreen={true} />;
   if (!userRole) return <PageLoader fullScreen={true} />;

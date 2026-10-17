@@ -60,7 +60,7 @@ const StudentAssignments = () => {
         const enrolls = enrollRes.status === 'fulfilled' && enrollRes.value.data ? enrollRes.value.data : [];
 
         const mergedIds = new Set([
-          ...reqs.map(r => r.course_id),
+          ...reqs.filter(r => r.status !== 'rejected').map(r => r.course_id),
           ...enrolls.map(e => e.course_id)
         ]);
 

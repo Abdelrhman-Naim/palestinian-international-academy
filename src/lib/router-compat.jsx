@@ -30,7 +30,7 @@ export function NavLink({ to, href, className, children, end, ...props }) {
   const target = href || to || '#';
   const isActive = end
     ? pathname === target
-    : (pathname === target || (target !== '/' && pathname.startsWith(target)));
+    : (pathname === target || (target !== '/' && (pathname.startsWith(target + '/') || pathname.startsWith(target + '?'))));
   const resolvedClass = typeof className === 'function' ? className({ isActive }) : className;
   return (
     <NextLink href={target} className={resolvedClass} {...props}>

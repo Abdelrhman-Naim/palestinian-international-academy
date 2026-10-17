@@ -171,7 +171,7 @@ export default function AdminCourses() {
           return (a.title || '').localeCompare(b.title || '');
         }
         if (sortBy === 'students_desc') {
-          return (b.students || 0) - (a.students || 0);
+          return (Number(b.students_count ?? b.students) || 0) - (Number(a.students_count ?? a.students) || 0);
         }
         return 0;
       });
@@ -416,7 +416,7 @@ export default function AdminCourses() {
                           group
                         </span>
                         <span className="underline decoration-dotted underline-offset-4 decoration-gray-400 group-hover/students:decoration-primary dark:group-hover/students:decoration-amber-400 font-semibold">
-                          {course.students || 0} {t('common.students')}
+                          {Number(course.students_count ?? course.students) || 0} {t('common.students')}
                         </span>
                         <span className="material-symbols-outlined text-[14px] opacity-70 group-hover/students:opacity-100 group-hover/students:translate-x-0.5 transition-all">
                           {isRtl ? 'arrow_back' : 'arrow_forward'}

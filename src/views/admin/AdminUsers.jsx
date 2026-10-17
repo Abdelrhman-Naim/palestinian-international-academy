@@ -104,17 +104,18 @@ export default function AdminUsers() {
   }, [debouncedSearch, selectedCourse, sortBy]);
 
   const handleStartChat = async (student) => {
-    if (!currentUser?.uid) return;
+    const currentUid = currentUser?.id || currentUser?.uid;
+    if (!currentUid) return;
     setStartingChatId(student.id);
     try {
       const adminUser = {
-        uid: currentUser.uid,
+        uid: currentUid,
         name: userData?.name || userData?.fullName || (isRtl ? 'مسؤول' : 'Admin'),
         role: 'admin'
       };
       const studentUser = {
         uid: student.id,
-        name: student.name || student.fullName || (isRtl ? 'طالب' : 'Student'),
+        name: student.full_name || student.name || student.fullName || (isRtl ? 'طالب' : 'Student'),
         role: 'student'
       };
       const chatId = await getOrCreateDirectChat(adminUser, studentUser);
@@ -158,10 +159,11 @@ export default function AdminUsers() {
     return students
       .map(student => {
         const studentEnrollments = enrollments.filter(e => 
-          e.uid === student.id || 
-          e.student_id === student.id || 
-          e.studentId === student.id || 
-          e.studentEmail === student.email
+          (e.status === 'approved' || !e.status) &&
+          (e.uid === student.id || 
+           e.student_id === student.id || 
+           e.studentId === student.id || 
+           (student.email && e.studentEmail === student.email))
         );
         const coursesCount = studentEnrollments.length;
         const enrolledCourseIds = studentEnrollments.map(e => e.courseId || e.course_id);
@@ -179,6 +181,7 @@ export default function AdminUsers() {
         const query = debouncedSearch.trim().toLowerCase();
         const matchSearch =
           !query ||
+          student.full_name?.toLowerCase().includes(query) ||
           student.name?.toLowerCase().includes(query) ||
           student.fullName?.toLowerCase().includes(query) ||
           student.email?.toLowerCase().includes(query) ||
@@ -211,8 +214,8 @@ export default function AdminUsers() {
           return dateA - dateB;
         }
         // default name_asc
-        const nameA = a.name || a.fullName || '';
-        const nameB = b.name || b.fullName || '';
+        const nameA = a.full_name || a.name || a.fullName || '';
+        const nameB = b.full_name || b.name || b.fullName || '';
         return nameA.localeCompare(nameB);
       });
   }, [students, enrollments, courses, debouncedSearch, selectedCourse, sortBy]);

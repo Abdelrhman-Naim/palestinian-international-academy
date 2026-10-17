@@ -18,7 +18,7 @@ export default function InstructorProfile() {
 
   // Instructor's courses
   const myCourses = courses.filter(c => isCourseOwnedByInstructor(c, currentUser, userData));
-  const totalStudents = myCourses.reduce((acc, c) => acc + (c.students || 0), 0);
+  const totalStudents = myCourses.reduce((acc, c) => acc + (Number(c.students_count ?? c.students) || 0), 0);
   const avgRating = myCourses.length > 0 
     ? (myCourses.reduce((acc, c) => acc + (Number(c.ratingAverage ?? c.rating) || 0), 0) / myCourses.length).toFixed(1)
     : '0.0';
@@ -153,6 +153,9 @@ export default function InstructorProfile() {
       });
     } finally {
       setUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -426,15 +429,15 @@ export default function InstructorProfile() {
             
             {/* Avatar with edit trigger */}
             <div className="relative group shrink-0">
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-primary to-orange-600 text-white flex items-center justify-center text-3xl md:text-4xl font-extrabold shadow-lg overflow-hidden border-4 border-white dark:border-gray-800">
-                {formData.photoURL ? (
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-primary to-orange-600 text-white flex items-center justify-center text-3xl md:text-4xl font-extrabold shadow-lg overflow-hidden border-4 border-white dark:border-gray-800 relative">
+                <span className="select-none">{initials}</span>
+                {formData.photoURL && (
                   <img 
                     src={formData.photoURL} 
                     alt={formData.fullName} 
-                    className="w-full h-full object-cover" 
+                    className="absolute inset-0 w-full h-full object-cover" 
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
-                ) : (
-                  <span>{initials}</span>
                 )}
               </div>
 

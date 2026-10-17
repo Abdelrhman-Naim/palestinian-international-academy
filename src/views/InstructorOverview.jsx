@@ -1,11 +1,12 @@
 "use client";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCourses } from '../context/CoursesContext';
 import { getCourseIcon } from '../components/CourseCard';
 import { useLanguage } from '../context/LanguageContext';
 import { isCourseOwnedByInstructor } from '../utils/courseUtils';
+import { supabase } from '../supabase/client';
 
 export default function InstructorOverview() {
   const { t, dir, lang } = useLanguage();
@@ -15,6 +16,8 @@ export default function InstructorOverview() {
   const { courses } = useCourses();
   
   const [hoveredCourseBar, setHoveredCourseBar] = useState(null);
+  const [liveEnrollmentMap, setLiveEnrollmentMap] = useState({});
+  const [liveReviewStats, setLiveReviewStats] = useState({ count: 0, avg: 0 });
   
   const activeUserData = userData || user;
 
@@ -26,28 +29,103 @@ export default function InstructorOverview() {
     ? (activeUserData?.name_en || activeUserData?.fullName_en || activeUserData?.name || activeUserData?.fullName || currentUser?.displayName || t('instructorOverview.instructor'))
     : (activeUserData?.name || activeUserData?.fullName || currentUser?.displayName || t('instructorOverview.instructor'));
 
-  // Top courses for enrollment distribution chart
+  // Fetch real approved enrollments and real reviews from Supabase
+  useEffect(() => {
+    const courseIds = myCourses.map(c => c.id).filter(Boolean);
+    if (courseIds.length === 0) {
+      setLiveEnrollmentMap({});
+      setLiveReviewStats({ count: 0, avg: 0 });
+      return;
+    }
+
+    let isMounted = true;
+    const fetchLiveStats = async () => {
+      try {
+        const [{ data: reqs }, { data: revs }] = await Promise.all([
+          supabase
+            .from('course_requests')
+            .select('course_id')
+            .eq('status', 'approved')
+            .in('course_id', courseIds),
+          supabase
+            .from('reviews')
+            .select('target_id, rating')
+            .eq('target_type', 'course')
+            .in('target_id', courseIds)
+        ]);
+
+        if (!isMounted) return;
+
+        const counts = {};
+        (reqs || []).forEach(r => {
+          if (r.course_id) {
+            counts[r.course_id] = (counts[r.course_id] || 0) + 1;
+          }
+        });
+        setLiveEnrollmentMap(counts);
+
+        if (revs && revs.length > 0) {
+          const sum = revs.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+          setLiveReviewStats({
+            count: revs.length,
+            avg: Number((sum / revs.length).toFixed(1))
+          });
+        }
+      } catch (err) {
+        console.warn('Instructor stats live query notice:', err);
+      }
+    };
+
+    fetchLiveStats();
+    return () => {
+      isMounted = false;
+    };
+  }, [myCourses.length]);
+
+  // Real total enrollments across all instructor's courses
+  const totalEnrollments = useMemo(() => {
+    return myCourses.reduce((acc, course) => {
+      const explicitCount = Number(course.students_count ?? course.students) || 0;
+      const requestCount = liveEnrollmentMap[course.id] || 0;
+      return acc + Math.max(explicitCount, requestCount);
+    }, 0);
+  }, [myCourses, liveEnrollmentMap]);
+
+  // Top courses for enrollment distribution chart with real live numbers
   const chartCourses = useMemo(() => {
     if (!myCourses || myCourses.length === 0) return [];
     return [...myCourses]
-      .sort((a, b) => (b.students || 0) - (a.students || 0))
+      .map(c => {
+        const explicitCount = Number(c.students_count ?? c.students) || 0;
+        const requestCount = liveEnrollmentMap[c.id] || 0;
+        return {
+          ...c,
+          studentsCount: Math.max(explicitCount, requestCount)
+        };
+      })
+      .sort((a, b) => b.studentsCount - a.studentsCount)
       .slice(0, 5);
-  }, [myCourses]);
+  }, [myCourses, liveEnrollmentMap]);
 
   const maxStudents = useMemo(() => {
-    if (chartCourses.length === 0) return 50;
-    const maxVal = Math.max(...chartCourses.map(c => c.students || 0));
-    return maxVal > 0 ? maxVal : 50;
+    if (chartCourses.length === 0) return 10;
+    const maxVal = Math.max(...chartCourses.map(c => c.studentsCount || 0));
+    return maxVal > 0 ? maxVal : 10;
   }, [chartCourses]);
 
-  // Overall Satisfaction calculation
+  // Overall Satisfaction calculation (0% if no ratings, never fake 80%)
   const avgRatingNum = useMemo(() => {
+    if (liveReviewStats.count > 0) {
+      return liveReviewStats.avg;
+    }
     if (myCourses.length === 0) return 0;
-    const sum = myCourses.reduce((acc, c) => acc + (Number(c.ratingAverage ?? c.rating) || 0), 0);
-    return sum / myCourses.length;
-  }, [myCourses]);
+    const ratedCourses = myCourses.filter(c => Number(c.ratingAverage ?? c.rating) > 0);
+    if (ratedCourses.length === 0) return 0;
+    const sum = ratedCourses.reduce((acc, c) => acc + (Number(c.ratingAverage ?? c.rating) || 0), 0);
+    return sum / ratedCourses.length;
+  }, [myCourses, liveReviewStats]);
 
-  const satisfactionPercentage = Math.min(100, Math.round((avgRatingNum / 5) * 100)) || (myCourses.length > 0 ? 80 : 0);
+  const satisfactionPercentage = avgRatingNum > 0 ? Math.min(100, Math.max(0, Math.round((avgRatingNum / 5) * 100))) : 0;
   const gaugeRadius = 54;
   const gaugeCircumference = 2 * Math.PI * gaugeRadius;
   const gaugeDashoffset = gaugeCircumference - (satisfactionPercentage / 100) * gaugeCircumference;
@@ -85,7 +163,7 @@ export default function InstructorOverview() {
 
           <div className="text-right w-full">
             <h3 className="text-3xl font-extrabold text-dark dark:text-white mb-1">
-              {myCourses.reduce((acc, course) => acc + (course.students || 0), 0)}
+              {totalEnrollments}
             </h3>
             <p className="text-sm font-bold text-text-main dark:text-gray-300">
               {t('adminInstructors.totalEnrollments')}
@@ -140,7 +218,7 @@ export default function InstructorOverview() {
 
             <div className="text-right w-full">
               <h3 className="text-3xl font-extrabold text-dark dark:text-white mb-1">
-                {myCourses.length > 0 ? (myCourses.reduce((acc, course) => acc + (Number(course.ratingAverage ?? course.rating) || 0), 0) / myCourses.length).toFixed(1) : "0.0"}
+                {avgRatingNum.toFixed(1)}
               </h3>
 
               <p className="text-sm font-bold text-text-main dark:text-gray-400">
@@ -198,8 +276,8 @@ export default function InstructorOverview() {
                     const count = chartCourses.length;
                     const spacing = count > 1 ? (440 - barWidth) / (count - 1) : 0;
                     const x = count > 1 ? 40 + idx * spacing : 230;
-                    const studentsCount = course.students || 0;
-                    const barHeight = Math.max(14, (studentsCount / maxStudents) * 95);
+                    const studentsCount = course.studentsCount ?? Number(course.students_count ?? course.students) ?? 0;
+                    const barHeight = studentsCount > 0 ? Math.max(8, (studentsCount / maxStudents) * 95) : 0;
                     const y = 135 - barHeight;
                     const isHovered = hoveredCourseBar === idx;
 
@@ -215,19 +293,21 @@ export default function InstructorOverview() {
                           className="fill-[#F5F1E8] dark:fill-gray-700/40 transition-colors"
                         />
                         {/* Active Bar */}
-                        <rect
-                          x={x}
-                          y={y}
-                          width={barWidth}
-                          height={barHeight}
-                          rx="8"
-                          fill={isHovered ? 'url(#instHoverGrad)' : 'url(#instBarGrad)'}
-                          className="transition-all duration-300"
-                        />
+                        {barHeight > 0 && (
+                          <rect
+                            x={x}
+                            y={y}
+                            width={barWidth}
+                            height={barHeight}
+                            rx="8"
+                            fill={isHovered ? 'url(#instHoverGrad)' : 'url(#instBarGrad)'}
+                            className="transition-all duration-300"
+                          />
+                        )}
                         {/* Value on Top */}
                         <text
                           x={x + barWidth / 2}
-                          y={y - 8}
+                          y={barHeight > 0 ? y - 8 : 125}
                           textAnchor="middle"
                           className="text-[11px] font-bold fill-dark dark:fill-white font-jetbrains"
                         >
@@ -252,7 +332,7 @@ export default function InstructorOverview() {
                   <div className="absolute top-0 right-4 bg-dark dark:bg-gray-900 text-white text-xs py-1.5 px-3 rounded-xl shadow-lg pointer-events-none flex items-center gap-2 border border-gray-700 animate-fadeIn">
                     <span className="font-bold">{chartCourses[hoveredCourseBar].title}</span>
                     <span className="text-primary font-mono font-bold">
-                      {chartCourses[hoveredCourseBar].students || 0} {t('common.students')}
+                      {chartCourses[hoveredCourseBar].studentsCount ?? chartCourses[hoveredCourseBar].students ?? 0} {t('common.students')}
                     </span>
                   </div>
                 )}
@@ -373,7 +453,7 @@ export default function InstructorOverview() {
                   <div className="flex items-center gap-4 text-xs font-bold text-gray-600 dark:text-gray-300 mt-2">
                     <span className="flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px]">group</span>
-                      {course.students || 0} {t('common.students')}
+                      {Math.max(Number(course.students_count ?? course.students) || 0, liveEnrollmentMap[course.id] || 0)} {t('common.students')}
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px] text-orange-400">star</span>

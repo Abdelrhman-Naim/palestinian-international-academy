@@ -5,6 +5,7 @@ const mapTableName = (table) => {
   if (table === 'users') return 'profiles';
   if (table === 'submissions') return 'submitted_assignments';
   if (table === 'exam_attempts') return 'exam_results';
+  if (table === 'library') return 'books';
   return table;
 };
 
@@ -137,7 +138,7 @@ export const where = (field, op, value) => ({ type: 'where', field, op, value })
 export const orderBy = (field, direction) => ({ type: 'orderBy', field, direction });
 export const limit = (count) => ({ type: 'limit', count });
 export const serverTimestamp = () => new Date().toISOString();
-export const increment = (n) => n;
+export const increment = (n) => ({ _increment: typeof n === 'number' ? n : (parseInt(n, 10) || 1) });
 export const arrayUnion = (...items) => items;
 export const arrayRemove = (...items) => items;
 
@@ -495,12 +496,58 @@ export const updateDoc = async (docRef, data) => {
         const safeCount = currentEntered < norm.length ? norm.length : currentEntered;
         cleanCourseRecord.lessons_count = safeCount;
       }
+      if (record.students !== undefined || record.students_count !== undefined) {
+        const val = record.students_count ?? record.students;
+        if (typeof val === 'object' && val?._increment !== undefined) {
+          const { data: cur } = await supabase.from('courses').select('students, students_count').eq('id', id).maybeSingle();
+          const base = Number(cur?.students_count || cur?.students || 0);
+          cleanCourseRecord.students = Math.max(0, base + Number(val._increment));
+          cleanCourseRecord.students_count = cleanCourseRecord.students;
+        } else {
+          cleanCourseRecord.students = parseInt(val, 10) || 0;
+          cleanCourseRecord.students_count = cleanCourseRecord.students;
+        }
+      }
       cleanCourseRecord.updated_at = new Date().toISOString();
 
       const { error: cErr } = await supabase.from('courses').update(cleanCourseRecord).eq('id', id);
       if (!cErr) return { ok: true };
       console.warn(`[Supabase Bridge] updateDoc courses warning:`, cErr.message);
       return { ok: false, error: cErr };
+    }
+
+    if (table === 'books') {
+      const cleanBookRecord = {};
+      if (record.title !== undefined) cleanBookRecord.title = record.title;
+      if (record.description !== undefined) cleanBookRecord.description = record.description;
+      if (record.author !== undefined) cleanBookRecord.author = record.author;
+      if (record.category !== undefined || record.category_name !== undefined) {
+        cleanBookRecord.category_name = record.category_name || record.category;
+      }
+      if (record.pdf_url !== undefined || record.link !== undefined) {
+        cleanBookRecord.pdf_url = record.pdf_url || record.link;
+      }
+      if (record.cover_url !== undefined || record.coverUrl !== undefined) {
+        cleanBookRecord.cover_url = record.cover_url || record.coverUrl;
+      }
+      if (record.pages !== undefined) cleanBookRecord.pages = parseInt(record.pages, 10) || 0;
+      if (record.rating !== undefined) cleanBookRecord.rating = Number(record.rating) || 5.0;
+
+      if (record.downloads !== undefined || record.downloads_count !== undefined) {
+        const val = record.downloads_count ?? record.downloads;
+        if (typeof val === 'object' && val?._increment !== undefined) {
+          const { data: cur } = await supabase.from('books').select('downloads_count').eq('id', id).maybeSingle();
+          const base = Number(cur?.downloads_count || 0);
+          cleanBookRecord.downloads_count = Math.max(0, base + Number(val._increment));
+        } else {
+          cleanBookRecord.downloads_count = parseInt(val, 10) || 0;
+        }
+      }
+
+      const { error: bErr } = await supabase.from('books').update(cleanBookRecord).eq('id', id);
+      if (!bErr) return { ok: true };
+      console.warn(`[Supabase Bridge] updateDoc books warning:`, bErr.message);
+      return { ok: false, error: bErr };
     }
 
     if (id && typeof id === 'string' && id.includes('_')) {

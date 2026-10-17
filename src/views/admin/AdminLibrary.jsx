@@ -272,17 +272,22 @@ export default function AdminLibrary() {
               {paginatedBooks.map((book) => (
                 <div
                   key={book.id}
-                  className="hover-lift rounded-2xl border border-[#E8E2D5] bg-white p-5 shadow-sm hover:border-[#D4AF37] dark:border-gray-700 dark:bg-gray-800"
+                  className="hover-lift rounded-2xl border border-[#E8E2D5] bg-white p-5 shadow-sm hover:border-[#D4AF37] dark:border-gray-700 dark:bg-gray-800 overflow-hidden min-w-0"
                 >
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-1.5">
+                  <div className="mb-3 flex items-start justify-between gap-3 min-w-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {book.category && (
                         <span className="rounded-full bg-[#FAF7F2] border border-[#E8E2D5] px-2.5 py-0.5 text-[10px] font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
                           {book.category}
                         </span>
                       )}
                     </div>
-                    <h3 className="flex-1 text-right font-bold text-dark dark:text-white">{book.title}</h3>
+                    <h3 
+                      className="flex-1 text-right font-bold text-dark dark:text-white break-words [overflow-wrap:anywhere] line-clamp-2 min-w-0"
+                      title={(book.title || '').replace(/_/g, ' ')}
+                    >
+                      {(book.title || '').replace(/_/g, ' ')}
+                    </h3>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {book.author} · {book.year}

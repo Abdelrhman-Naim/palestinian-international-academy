@@ -100,10 +100,39 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
         />
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
+                if (typeof window !== 'undefined') {
+                  if (document.cookie && document.cookie.length > 2048) {
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                      var c = cookies[i].trim();
+                      var eqPos = c.indexOf('=');
+                      var name = eqPos > -1 ? c.substring(0, eqPos) : c;
+                      if (name && (name.indexOf('sb-') === 0 || name.indexOf('token') !== -1 || c.length > 1024)) {
+                        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                      }
+                    }
+                  }
+                  window.addEventListener('error', function(e) {
+                    var msg = (e && (e.message || (e.error && e.error.message))) || '';
+                    if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Loading chunk') !== -1) {
+                      var key = 'chunk_reload_' + window.location.pathname;
+                      if (!sessionStorage.getItem(key)) {
+                        sessionStorage.setItem(key, '1');
+                        window.location.reload();
+                      }
+                    }
+                  });
+                }
                 if (typeof document !== 'undefined') {
                   if ('fonts' in document) {
                     document.fonts.ready.then(function() { document.documentElement.classList.add('fonts-loaded'); });

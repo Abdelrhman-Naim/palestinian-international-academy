@@ -19,7 +19,7 @@ export default function BookDetail() {
   const isRtl = dir === 'rtl';
   const { id } = useParams();
   const navigate = useNavigate();
-  const { books, loading } = useLibrary();
+  const { books, loading, incrementDownload } = useLibrary();
   const { currentUser } = useAuth();
   const { isSaved, toggleSave } = useSavedBooks();
   const [downloading, setDownloading] = useState(false);
@@ -90,8 +90,8 @@ export default function BookDetail() {
     );
   }
 
-  // 1.  
-  const rawUrl = book.driveUrl || book.link;
+  // 1. رابط ملف الكتاب
+  const rawUrl = book.driveUrl || book.link || book.pdf_url;
 
   // 2.  Google Drive  {t('bookDetail.download')} 
   const getDirectDownloadUrl = (url) => {
@@ -157,14 +157,22 @@ export default function BookDetail() {
         }
       }
 
-      // 3. Increment download counter in Firestore ONLY after verified server response & download start
+      // 3. Increment download counter in Supabase ONLY after verified server response & download start
       if (downloadStarted) {
         try {
-          await updateDoc(doc(db, 'library', id), { downloads: increment(1) });
+          if (typeof incrementDownload === 'function') {
+            await incrementDownload(id);
+          } else {
+            await updateDoc(doc(db, 'library', id), { downloads: increment(1) });
+          }
           // Update local state display immediately
-          book.downloads = (book.downloads || 0) + 1;
+          if (book) {
+            const nextCount = (Number(book.downloads ?? book.downloads_count) || 0) + 1;
+            book.downloads = nextCount;
+            book.downloads_count = nextCount;
+          }
         } catch (dbErr) {
-          console.error('Firestore download count update error:', dbErr);
+          console.error('Download count update error:', dbErr);
         }
       }
     } catch (err) {
@@ -175,15 +183,30 @@ export default function BookDetail() {
     }
   };
 
+  const cleanTitle = (book?.title || '')
+    .replace(/\.pdf$/i, '')
+    .replace(/_+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const cleanAuthor = (book?.author || '')
+    .replace(/_+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const cleanSubtitle = book?.subtitle
+    ? book.subtitle.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim()
+    : cleanAuthor;
+
   const bookSchema = book ? {
     '@context': 'https://schema.org',
     '@type': 'Book',
-    'name': book.title,
+    'name': cleanTitle,
     'author': {
       '@type': 'Person',
-      'name': book.author || (isRtl ? 'مؤلف أكاديمي' : 'Academic Author')
+      'name': cleanAuthor || (isRtl ? 'مؤلف أكاديمي' : 'Academic Author')
     },
-    'description': book.description || book.title,
+    'description': book.description || cleanTitle,
     'image': book.coverImage || 'https://palestine-international-academy.netlify.app/logo-wep.png',
     ...(book.pages ? { 'numberOfPages': Number(book.pages) } : {}),
     ...(reviewStats.count > 0 ? {
@@ -198,15 +221,15 @@ export default function BookDetail() {
   return (
     <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 transition-colors" dir={dir}>
       <SEO
-        title={book ? `${book.title} | ${isRtl ? 'المكتبة الرقمية' : 'Digital Library'}` : undefined}
-        description={book ? (book.description?.slice(0, 160) || `${book.title} - ${book.author || ''}`) : undefined}
+        title={book ? `${cleanTitle} | ${isRtl ? 'المكتبة الرقمية' : 'Digital Library'}` : undefined}
+        description={book ? (book.description?.slice(0, 160) || `${cleanTitle} - ${cleanAuthor}`) : undefined}
         ogImage={book?.coverImage}
         canonical={`/library/${id}`}
         ogType="book"
         breadcrumbs={[
           { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
           { name: isRtl ? 'المكتبة' : 'Library', item: '/library' },
-          { name: book?.title || (isRtl ? 'تفاصيل الكتاب' : 'Book Details'), item: `/library/${id}` }
+          { name: cleanTitle || (isRtl ? 'تفاصيل الكتاب' : 'Book Details'), item: `/library/${id}` }
         ]}
         schema={bookSchema}
       />
@@ -236,8 +259,8 @@ export default function BookDetail() {
             )}
             
             <span className="material-symbols-outlined text-xs rtl:rotate-180 shrink-0 text-gray-400">chevron_right</span>
-            <span className="font-bold text-dark dark:text-white truncate max-w-xs sm:max-w-md">
-              {book.title}
+            <span className="font-bold text-dark dark:text-white truncate max-w-xs sm:max-w-md inline-block" title={cleanTitle}>
+              {cleanTitle}
             </span>
           </div>
         </nav>
@@ -246,30 +269,36 @@ export default function BookDetail() {
         <section className="bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white py-12 px-4 border-b border-[#E8E2D5] dark:border-gray-800 transition-colors">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10">
             {/* Book Cover */}
-            <div className="relative w-48 sm:w-56 h-72 shrink-0 rounded-2xl shadow-md border border-amber-300/60 dark:border-[#3A322B] bg-[#F5F0E6] dark:bg-[#27221D] flex flex-col items-center justify-center p-6 text-center group">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400 shadow-sm group-hover:scale-110 transition-transform duration-300">
+            <div className="relative w-48 sm:w-56 h-72 shrink-0 rounded-2xl shadow-md border border-amber-300/60 dark:border-[#3A322B] bg-[#F5F0E6] dark:bg-[#27221D] flex flex-col items-center justify-center p-6 text-center group overflow-hidden max-w-full">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400 shadow-sm group-hover:scale-110 transition-transform duration-300 shrink-0">
                 <span className="material-symbols-outlined text-4xl">auto_stories</span>
               </div>
-              <h3 className="text-dark dark:text-white font-bold text-base leading-snug line-clamp-3 mb-2 font-headline-md">
-                {book.title}
+              <h3 
+                className="text-dark dark:text-white font-bold text-base leading-snug line-clamp-3 mb-2 font-headline-md w-full max-w-full break-words [overflow-wrap:anywhere] overflow-hidden"
+                title={cleanTitle}
+              >
+                {cleanTitle}
               </h3>
-              <p className="text-gray-500 dark:text-stone-400 text-xs line-clamp-1 font-body-md">
-                {book.author || book.subtitle || ''}
+              <p 
+                className="text-gray-500 dark:text-stone-400 text-xs line-clamp-1 font-body-md w-full max-w-full break-words [overflow-wrap:anywhere] overflow-hidden"
+                title={cleanSubtitle}
+              >
+                {cleanSubtitle}
               </p>
             </div>
 
             {/* Info */}
-            <div className="flex-1 text-start">
+            <div className="flex-1 text-start min-w-0 max-w-full">
               <div className="flex flex-wrap gap-2 mb-3">
                 <span className="bg-primary/20 text-primary text-xs px-3 py-1 rounded-full font-bold">{getLocalizedCategory(book.category, lang)}</span>
               </div>
 
-              <h1 className="text-3xl md:text-4xl font-extrabold mb-3 leading-snug text-dark dark:text-white">{book.title}</h1>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-3 leading-snug text-dark dark:text-white break-words [overflow-wrap:anywhere]">{cleanTitle}</h1>
 
               <div className="flex flex-wrap items-center gap-5 text-sm text-gray-600 dark:text-gray-400 mb-6">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 break-words [overflow-wrap:anywhere]">
                   <span className="material-symbols-outlined text-[16px]">person</span>
-                  {book.author}
+                  {cleanAuthor}
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px]">calendar_today</span>

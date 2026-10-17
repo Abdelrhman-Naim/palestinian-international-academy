@@ -33,69 +33,201 @@ export default function AdminOverview() {
     }
   });
 
+  const [dbCoursesCount, setDbCoursesCount] = useState(courses.length || 0);
+  const [dbBooksCount, setDbBooksCount] = useState(books.length || 0);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+
   // Optimized parallel fetch from Supabase
   const fetchAllData = async () => {
     try {
-      const [profilesRes, enrollmentsRes] = await Promise.all([
-        supabase.from('profiles').select('id, email, role, status, is_approved'),
-        supabase.from('course_requests').select('id, status')
+      const [
+        profilesRes,
+        requestsRes,
+        coursesCountRes,
+        booksCountRes,
+        logsRes,
+        recentCoursesRes,
+        recentProfilesRes,
+        recentBooksRes
+      ] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email, role, status, is_approved, created_at'),
+        supabase.from('course_requests').select('id, student_name, student_email, course_title, status, created_at').order('created_at', { ascending: false }),
+        supabase.from('courses').select('id, title, instructor_name, instructor, students_count, created_at', { count: 'exact' }),
+        supabase.from('books').select('id, title, author, created_at', { count: 'exact' }),
+        supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(6),
+        supabase.from('courses').select('id, title, instructor_name, instructor, created_at').order('created_at', { ascending: false }).limit(4),
+        supabase.from('profiles').select('id, full_name, email, role, created_at').order('created_at', { ascending: false }).limit(4),
+        supabase.from('books').select('id, title, author, created_at').order('created_at', { ascending: false }).limit(4)
       ]);
 
       const profiles = profilesRes.data || [];
+      const requests = requestsRes.data || [];
 
       let stu = 0;
       let inst = 0;
-      let pend = 0;
+      let pendInst = 0;
 
       profiles.forEach(u => {
         const role = u.role;
         const status = u.status;
         const isApproved = u.is_approved;
 
-        if (role === 'student') {
+        if (role === 'student' || (!role && role !== 'admin' && role !== 'instructor')) {
           stu++;
         } else if (role === 'instructor') {
           if (status === 'pending' || isApproved === false || isApproved === null) {
-            pend++;
+            pendInst++;
           } else {
             inst++;
           }
         }
       });
 
-      const newUsersInfo = { students: stu, instructors: inst, pending: pend };
+      const pendRequests = requests.filter(r => r.status === 'pending').length;
+      const totalPending = pendInst + pendRequests;
+
+      const newUsersInfo = { students: stu, instructors: inst, pending: totalPending, pendingInstructors: pendInst, pendingRequests: pendRequests };
       setUsersInfo(newUsersInfo);
       try { sessionStorage.setItem('admin_overview_users_info', JSON.stringify(newUsersInfo)); } catch (e) {}
 
-      const courseStudentSum = (courses || []).reduce((acc, curr) => acc + (curr.students || 0), 0);
-      const approvedEnrollments = (enrollmentsRes.data || []).filter(e => e.status === 'approved').length;
-      const newEnrollments = Math.max(approvedEnrollments, enrollmentsRes.data?.length || 0, courseStudentSum);
+      // Calculate exact real enrollments
+      const approvedRequestsCount = requests.filter(e => e.status === 'approved').length;
+      const courseStudentSum = (coursesCountRes.data || []).reduce((acc, curr) => acc + (Number(curr.students_count) || 0), 0);
+      const newEnrollments = Math.max(approvedRequestsCount, courseStudentSum);
       setEnrollmentsCount(newEnrollments);
       try { sessionStorage.setItem('admin_overview_enrollments', JSON.stringify(newEnrollments)); } catch (e) {}
 
+      if (coursesCountRes.count !== null && coursesCountRes.count !== undefined) {
+        setDbCoursesCount(coursesCountRes.count);
+      }
+      if (booksCountRes.count !== null && booksCountRes.count !== undefined) {
+        setDbBooksCount(booksCountRes.count);
+      }
+
+      // Compile real recent activities across all tables
+      const toEpoch = (d) => {
+        if (!d) return 0;
+        const ms = new Date(d).getTime();
+        return isNaN(ms) ? 0 : ms;
+      };
+
+      const acts = [];
+
+      (logsRes.data || []).forEach(l => {
+        acts.push({
+          id: `log-${l.id}`,
+          title: l.action || (isRtl ? 'إجراء إداري' : 'Admin Action'),
+          user: l.user_name || (isRtl ? 'مدير النظام' : 'Administrator'),
+          category: isRtl ? 'نشاط النظام' : 'System Activity',
+          icon: 'admin_panel_settings',
+          tone: 'rose',
+          rawDate: l.created_at
+        });
+      });
+
+      requests.slice(0, 4).forEach(r => {
+        const isApproved = r.status === 'approved';
+        acts.push({
+          id: `req-${r.id}`,
+          title: r.course_title ? (isRtl ? `تسجيل: ${r.course_title}` : `Enroll: ${r.course_title}`) : (isRtl ? 'طلب تسجيل دورة' : 'Course Request'),
+          user: r.student_name || r.student_email || (isRtl ? 'طالب' : 'Student'),
+          category: isApproved 
+            ? (isRtl ? 'تسجيل معتمد' : 'Approved Enrollment')
+            : (isRtl ? 'طلب تسجيل دورة' : 'Pending Request'),
+          icon: isApproved ? 'how_to_reg' : 'pending_actions',
+          tone: isApproved ? 'green' : 'primary',
+          rawDate: r.created_at
+        });
+      });
+
+      (recentCoursesRes.data || []).forEach(c => {
+        acts.push({
+          id: `course-${c.id}`,
+          title: c.title || (isRtl ? 'دورة تدريبية جديدة' : 'New Course'),
+          user: c.instructor_name || c.instructor || (isRtl ? 'مدرب' : 'Instructor'),
+          category: isRtl ? 'نشر دورة' : 'New Course',
+          icon: 'school',
+          tone: 'primary',
+          rawDate: c.created_at
+        });
+      });
+
+      (recentProfilesRes.data || []).forEach(p => {
+        const isInst = p.role === 'instructor';
+        acts.push({
+          id: `profile-${p.id}`,
+          title: p.full_name || p.email || (isRtl ? 'مستخدم جديد' : 'New User'),
+          user: p.email || '',
+          category: isInst ? (isRtl ? 'طلب انضمام مدرب' : 'New Instructor') : (isRtl ? 'حساب طالب جديد' : 'New Student'),
+          icon: isInst ? 'badge' : 'person_add',
+          tone: isInst ? 'rose' : 'green',
+          rawDate: p.created_at
+        });
+      });
+
+      (recentBooksRes.data || []).forEach(b => {
+        acts.push({
+          id: `book-${b.id}`,
+          title: b.title || (isRtl ? 'مرجع رقمي جديد' : 'New Book'),
+          user: b.author || (isRtl ? 'المكتبة' : 'Library'),
+          category: isRtl ? 'إضافة للمكتبة' : 'Library Book',
+          icon: 'menu_book',
+          tone: 'blue',
+          rawDate: b.created_at
+        });
+      });
+
+      acts.sort((a, b) => toEpoch(b.rawDate) - toEpoch(a.rawDate));
+      // Deduplicate by ID
+      const seen = new Set();
+      const uniqueActs = [];
+      for (const a of acts) {
+        if (!seen.has(a.id)) {
+          seen.add(a.id);
+          uniqueActs.push(a);
+        }
+      }
+
+      setRecentActivities(uniqueActs.slice(0, 5));
+      setLoadingActivities(false);
+
     } catch (err) {
-      console.warn('Fast fetch overview error:', err);
+      console.warn('Fast fetch overview notice:', err?.message || err);
+      setLoadingActivities(false);
     }
   };
 
   useEffect(() => {
     fetchAllData();
 
-    // Realtime listener
-    const channel = supabase
-      .channel('admin-overview-fast-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+    // Debounced realtime handler
+    let debounceTimer = null;
+    const handleRealtimeChange = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
         fetchAllData();
-      })
+      }, 600);
+    };
+
+    // Realtime listeners across key platform tables
+    const channel = supabase
+      .channel('admin-overview-multitable-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'course_requests' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, handleRealtimeChange)
       .subscribe();
 
-    const interval = setInterval(fetchAllData, 8000);
+    const interval = setInterval(fetchAllData, 30000);
 
     return () => {
+      clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [courses]);
+  }, []);
 
   const stats = [
     {
@@ -117,7 +249,7 @@ export default function AdminOverview() {
     },
     { 
       label: t('adminOverview.publishedCourses'), 
-      value: courses.length.toString(), 
+      value: (dbCoursesCount || courses.length).toString(), 
       subtitle: isRtl ? 'الدورات المتاحة للطلاب' : 'Courses available for students',
       icon: 'school', 
       tone: 'green', 
@@ -125,7 +257,7 @@ export default function AdminOverview() {
     },
     { 
       label: t('adminOverview.libraryBooks'), 
-      value: books.length.toString(), 
+      value: (dbBooksCount || books.length).toString(), 
       subtitle: isRtl ? 'المراجع والكتب الرقمية' : 'Digital reference books',
       icon: 'library_books', 
       tone: 'blue', 
@@ -204,7 +336,11 @@ export default function AdminOverview() {
 
             <p className="mb-6 text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">
               {usersInfo.pending > 0 
-                ? `${usersInfo.pending} ${t('adminOverview.pendingInstructors')}` 
+                ? (usersInfo.pendingRequests > 0 && usersInfo.pendingInstructors > 0
+                    ? (isRtl ? `${usersInfo.pendingInstructors} طلبات مدربين و ${usersInfo.pendingRequests} طلبات تسجيل دورات` : `${usersInfo.pendingInstructors} instructors & ${usersInfo.pendingRequests} course requests`)
+                    : (usersInfo.pendingInstructors > 0 
+                        ? `${usersInfo.pendingInstructors} ${t('adminOverview.pendingInstructors')}`
+                        : (isRtl ? `${usersInfo.pendingRequests} طلبات تسجيل دورات قيد الانتظار` : `${usersInfo.pendingRequests} pending course requests`)))
                 : t('adminOverview.noPendingRequests')}
             </p>
           </div>
@@ -231,45 +367,58 @@ export default function AdminOverview() {
           </div>
 
           <div className="space-y-4">
-            {courses.slice(0, 4).map((item) => {
-              const rawDate = item.created_at || item.createdAt || item.updated_at || item.updatedAt || item.date || item.timestamp || (item.year ? `${item.year}-01-01` : new Date());
-              const formattedTime = formatCustomDateTime(rawDate, dir);
-              return (
-                <div
-                  key={item.id}
-                  className="group flex items-center justify-between gap-4 rounded-2xl border border-transparent p-3.5 transition-all hover:border-[#E8E2D5] hover:bg-[#FAF7F2] dark:hover:border-gray-700 dark:hover:bg-gray-700/60"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/30 shrink-0">
-                      <span className="material-symbols-outlined text-xl">publish</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-dark dark:text-white group-hover:text-primary dark:group-hover:text-amber-400 transition-colors truncate">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {t('adminOverview.by')} <span className="font-semibold text-gray-700 dark:text-gray-300">{item.instructor || item.instructor_name || (dir === 'rtl' ? 'مدرب' : 'Instructor')}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="rounded-lg bg-[#F3EFE6] px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                      {t('adminOverview.newCourse')}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500">
-                      <span className="material-symbols-outlined text-[12px]">schedule</span>
-                      <span>{formattedTime}</span>
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {courses.length === 0 && (
+            {loadingActivities ? (
+              <div className="py-8 text-center text-sm font-medium text-gray-400">
+                {t('common.loading')}
+              </div>
+            ) : recentActivities.length === 0 ? (
               <div className="py-8 text-center text-sm font-medium text-gray-400 dark:text-gray-500">
                 {t('adminOverview.noActivities')}
               </div>
+            ) : (
+              recentActivities.map((item) => {
+                const formattedTime = formatCustomDateTime(item.rawDate, dir);
+                return (
+                  <div
+                    key={item.id}
+                    className="group flex items-center justify-between gap-4 rounded-2xl border border-transparent p-3.5 transition-all hover:border-[#E8E2D5] hover:bg-[#FAF7F2] dark:hover:border-gray-700 dark:hover:bg-gray-700/60"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-xl shrink-0 ${
+                        item.tone === 'rose'
+                          ? 'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40'
+                          : item.tone === 'green'
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40'
+                            : item.tone === 'blue'
+                              ? 'bg-sky-50 text-sky-600 border border-sky-100 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/40'
+                              : 'bg-primary/10 text-primary border border-primary/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/30'
+                      }`}>
+                        <span className="material-symbols-outlined text-xl">{item.icon}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-dark dark:text-white group-hover:text-primary dark:group-hover:text-amber-400 transition-colors truncate">
+                          {item.title}
+                        </p>
+                        {item.user && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {t('adminOverview.by')} <span className="font-semibold text-gray-700 dark:text-gray-300">{item.user}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="rounded-lg bg-[#F3EFE6] px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {item.category}
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                        <span className="material-symbols-outlined text-[12px]">schedule</span>
+                        <span>{formattedTime}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

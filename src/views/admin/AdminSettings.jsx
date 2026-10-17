@@ -125,9 +125,6 @@ export default function AdminSettings() {
     const res = await updateFeaturedCourse({
       isAuto: isAutoFeatured,
       courseId: selectedCourseId,
-      progress: calculatedProgress,
-      completedLessons: numCompleted,
-      totalLessons: numTotal,
       customLabel: customLabel.trim()
     });
 

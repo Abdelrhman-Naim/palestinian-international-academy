@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabase/client';
 import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
@@ -48,25 +48,23 @@ export function CoursesProvider({ children }) {
   const [rawCourses, setRawCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
+  const hasSyncedRef = useRef(false);
 
   const [featuredCourseConfig, setFeaturedCourseConfig] = useState(() => {
     try {
       const saved = safeStorage.getItem('hero_featured_course');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const total = Math.max(1, Number(parsed.totalLessons) || 10);
-        const completed = Math.max(0, Math.min(total, Number(parsed.completedLessons ?? 8)));
-        const progress = Math.min(100, Math.max(0, Math.round((completed / total) * 100)));
         return {
-          ...parsed,
-          totalLessons: total,
-          completedLessons: completed,
-          progress: parsed.progress !== undefined ? Math.min(100, Number(parsed.progress)) : progress
+          isAuto: parsed.isAuto !== undefined ? Boolean(parsed.isAuto) : true,
+          courseId: parsed.courseId || '',
+          customLabel: parsed.customLabel || '',
+          ...parsed
         };
       }
-      return { courseId: '', progress: 80, completedLessons: 8, totalLessons: 10, customLabel: '' };
+      return { isAuto: true, courseId: '', customLabel: '' };
     } catch (e) {
-      return { courseId: '', progress: 80, completedLessons: 8, totalLessons: 10, customLabel: '' };
+      return { isAuto: true, courseId: '', customLabel: '' };
     }
   });
 
@@ -155,8 +153,9 @@ export function CoursesProvider({ children }) {
 
       setRawCourses(Array.from(mergedMap.values()));
 
-      // Auto-sync unsynced local courses to Supabase in background
-      if (unsyncedCourses.length > 0) {
+      // Auto-sync unsynced local courses to Supabase in background (only once)
+      if (unsyncedCourses.length > 0 && !hasSyncedRef.current) {
+        hasSyncedRef.current = true;
         (async () => {
           for (const c of unsyncedCourses) {
             try {
@@ -178,13 +177,13 @@ export function CoursesProvider({ children }) {
               };
               await supabase.from('courses').insert([payload]);
             } catch (syncErr) {
-              console.warn('Auto-sync course error:', syncErr);
+              console.warn('Auto-sync course notice:', syncErr?.message || syncErr);
             }
           }
         })();
       }
     } catch (err) {
-      console.warn('Courses fetch error:', err.message);
+      console.warn('Courses fetch notice:', err?.message || err);
     } finally {
       setLoading(false);
     }
@@ -198,18 +197,21 @@ export function CoursesProvider({ children }) {
     };
     window.addEventListener('online', handleOnline);
 
+    let debounceTimer = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fetchCourses, 800);
+    };
+
     // Set up real-time subscription for courses and reviews table
     const channel = supabase
       .channel('courses_and_reviews_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => {
-        fetchCourses();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
-        fetchCourses();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, debouncedFetch)
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       window.removeEventListener('online', handleOnline);
       supabase.removeChannel(channel);
     };
@@ -218,15 +220,10 @@ export function CoursesProvider({ children }) {
   const updateFeaturedCourse = async (config) => {
     try {
       setFeaturedCourseConfig(prev => {
-        const merged = { ...prev, ...config };
-        const total = Math.max(1, Number(merged.totalLessons) || 10);
-        const completed = Math.max(0, Math.min(total, Number(merged.completedLessons ?? 8)));
-        const progress = Math.min(100, Math.max(0, Math.round((completed / total) * 100)));
         const safeConfig = {
-          ...merged,
-          totalLessons: total,
-          completedLessons: completed,
-          progress: config.progress !== undefined ? Math.min(100, Number(config.progress)) : progress
+          ...prev,
+          ...config,
+          isAuto: config.isAuto !== undefined ? Boolean(config.isAuto) : prev?.isAuto ?? true
         };
         try {
           safeStorage.setItem('hero_featured_course', JSON.stringify(safeConfig));
@@ -312,6 +309,8 @@ export function CoursesProvider({ children }) {
       ratingCount: course.ratingCount || 0,
       rating_count: course.rating_count || 0,
       ratingAverage: (course.ratingCount > 0 || course.rating_count > 0) ? (course.ratingAverage || course.rating || 0) : 0,
+      students: Number(course.students_count ?? course.students ?? 0),
+      students_count: Number(course.students_count ?? course.students ?? 0),
       originalData: course
     };
     return mapped;

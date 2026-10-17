@@ -5,50 +5,116 @@ import { useLanguage } from './LanguageContext';
 import { translateText } from '../utils/translate';
 import { safeStorage } from '../utils/safeStorage';
 
+import { getLocalizedCategory } from '../utils/categoryUtils';
+
+const defaultLibraryCategories = [
+  'الأدب العربي',
+  'الأدب العالمي',
+  'علوم إسلامية',
+  'كتب دينية',
+  'إقتصاد وأعمال',
+  'كتب منوعة',
+  'كتب سياسية',
+  'قضايا فكرية',
+  'تاريخ وجغرافيا',
+  'العلوم والطبيعة',
+  'علم النفس',
+  'صحافة وإعلام',
+  'كتب الفلسفة',
+  'كتب التنمية البشرية',
+  'بيوغرافيا ومذكرات',
+  'علوم إجتماعية',
+  'كتب تعليم لغات',
+  'كتب علوم الهندسة',
+  'كتب تعليمية',
+  'فنون',
+  'صحة وطب',
+  'قانون',
+  'كتب الخيال العلمي',
+  'مراجع',
+  'علوم عسكرية',
+  'رياضة وتسالي',
+  'غرائب وأساطير',
+  'طبخ وطعام',
+  'كتب أطفال',
+  'علوم الحيوان',
+  'المرأة والعائلة',
+  'كتب طرائف و نوادر',
+  'سفر ورحلات',
+  'سلاسل وموسوعات'
+];
+
+const defaultCourseCategories = ['برمجة', 'أمن سيبراني', 'إدارة أعمال'];
+
 const defaultCategories = {
-  courses: ['برمجة', 'تصميم', 'أمن سيبراني', 'إدارة أعمال'],
-  library: ['كتب برمجية', 'تصميم', 'شبكات'],
-  courses_en: ['Programming', 'Design', 'Cybersecurity', 'Business'],
-  library_en: ['Programming Books', 'Design', 'Networking']
+  courses: defaultCourseCategories,
+  library: defaultLibraryCategories,
+  courses_en: defaultCourseCategories.map(c => getLocalizedCategory(c, 'en')),
+  library_en: defaultLibraryCategories.map(c => getLocalizedCategory(c, 'en'))
 };
 
 const CategoriesContext = createContext(null);
 
 export function CategoriesProvider({ children }) {
-  const [rawCategories, setRawCategories] = useState(defaultCategories);
+  const [rawCategories, setRawCategories] = useState(() => {
+    try {
+      const saved = safeStorage.getItem('app_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.library?.length > 10) return parsed;
+      }
+    } catch (_) {}
+    return defaultCategories;
+  });
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
 
   const fetchCategories = async () => {
+    let lastErr = null;
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*');
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from('categories')
+            .select('*');
 
-      if (!error && data && data.length > 0) {
-        const courseItems = data.filter(c => c.slug === 'courses' || c.slug === 'course' || (!c.slug && c.name !== 'كتب برمجية' && c.name !== 'شبكات'));
-        const libItems = data.filter(c => c.slug === 'library' || (!c.slug && (c.name === 'كتب برمجية' || c.name === 'شبكات')));
+          if (error) {
+            lastErr = error;
+            await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
+            continue;
+          }
 
-        const courseCats = courseItems.map(c => c.name);
-        const courseCatsEn = courseItems.map(c => c.description || c.name);
-        const libCats = libItems.map(c => c.name);
-        const libCatsEn = libItems.map(c => c.description || c.name);
+          if (data && data.length > 0) {
+            const courseItems = data.filter(c => c.slug === 'courses' || c.slug === 'course');
+            const libItems = data.filter(c => c.slug === 'library' || !c.slug);
 
-        setRawCategories(prev => ({
-          courses: courseCats.length ? Array.from(new Set(courseCats)) : prev.courses,
-          courses_en: courseCatsEn.length ? Array.from(new Set(courseCatsEn)) : prev.courses_en,
-          library: libCats.length ? Array.from(new Set(libCats)) : prev.library,
-          library_en: libCatsEn.length ? Array.from(new Set(libCatsEn)) : prev.library_en
-        }));
-      } else {
-        // Fallback to safeStorage or defaults if DB categories table is empty
-        const saved = safeStorage.getItem('app_categories');
-        if (saved) {
-          try { setRawCategories(JSON.parse(saved)); } catch (e) {}
+            const courseCats = courseItems.map(c => c.name);
+            const courseCatsEn = courseItems.map(c => c.description || getLocalizedCategory(c.name, 'en'));
+            const libCats = libItems.map(c => c.name);
+            const libCatsEn = libItems.map(c => c.description || getLocalizedCategory(c.name, 'en'));
+
+            const updated = {
+              courses: courseCats.length ? Array.from(new Set(courseCats)) : defaultCourseCategories,
+              courses_en: courseCatsEn.length ? Array.from(new Set(courseCatsEn)) : defaultCourseCategories.map(c => getLocalizedCategory(c, 'en')),
+              library: libCats.length ? Array.from(new Set(libCats)) : defaultLibraryCategories,
+              library_en: libCatsEn.length ? Array.from(new Set(libCatsEn)) : defaultLibraryCategories.map(c => getLocalizedCategory(c, 'en'))
+            };
+
+            setRawCategories(updated);
+            try {
+              safeStorage.setItem('app_categories', JSON.stringify(updated));
+            } catch (_) {}
+            return;
+          }
+        } catch (err) {
+          lastErr = err;
+          await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
         }
       }
-    } catch (err) {
-      console.warn('Categories fetch error:', err.message);
+
+      if (lastErr) {
+        console.warn('Categories fetch notice:', lastErr.message || lastErr);
+      }
     } finally {
       setLoading(false);
     }

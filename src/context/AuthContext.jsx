@@ -6,9 +6,13 @@ import { safeStorage } from '../utils/safeStorage';
 
 const AuthContext = createContext(null);
 const AUTH_STORAGE_KEY = 'pia_auth_session';
+const inFlightProfileRequests = new Map();
 
 const sanitizeAvatarUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
+  if (url.startsWith('data:image') && url.length > 2048) {
+    return '';
+  }
   if (url.includes('/storage/v1/object/') && !url.includes('/storage/v1/object/public/')) {
     return url.replace('/storage/v1/object/', '/storage/v1/object/public/');
   }
@@ -54,30 +58,41 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(!initial);
   const pendingLoginRoleRef = useRef(null);
 
-  // Helper to fetch profile from Supabase profiles table using maybeSingle() with safety timeout
+  // Helper to fetch profile from Supabase profiles table using maybeSingle() with safety timeout and request deduplication
   const fetchUserProfile = async (userId) => {
     if (!userId) return null;
-    try {
-      const queryPromise = supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      const timeoutPromise = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 8000)
-      );
-
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-
-      if (error && error.message !== 'timeout') {
-        console.warn("Notice fetching user profile:", error.message);
-      }
-      return data || null;
-    } catch (e) {
-      console.warn("Profile fetch exception:", e);
-      return null;
+    if (inFlightProfileRequests.has(userId)) {
+      return inFlightProfileRequests.get(userId);
     }
+
+    const requestPromise = (async () => {
+      try {
+        const queryPromise = supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        const timeoutPromise = new Promise((resolve) => 
+          setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 2500)
+        );
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+        if (error && error.message !== 'timeout') {
+          console.warn("Notice fetching user profile:", error.message);
+        }
+        return data || null;
+      } catch (e) {
+        console.warn("Profile fetch exception:", e);
+        return null;
+      } finally {
+        inFlightProfileRequests.delete(userId);
+      }
+    })();
+
+    inFlightProfileRequests.set(userId, requestPromise);
+    return requestPromise;
   };
 
   const applyUserSession = async (user, preloadedProfile = null) => {
@@ -94,13 +109,29 @@ export function AuthProvider({ children }) {
     const nameFromMeta = user.user_metadata?.full_name || user.email;
     const statusFromMeta = user.user_metadata?.status || 'active';
 
-    // Auto-clean any legacy bloated avatar in auth user_metadata to keep JWT tokens lightweight (<2KB)
-    if (user.user_metadata?.avatar_url && (user.user_metadata.avatar_url.startsWith('data:') || user.user_metadata.avatar_url.length > 500)) {
-      supabase.auth.updateUser({ data: { avatar_url: null } }).catch(() => {});
+    let profile = preloadedProfile;
+    if (profile === null) {
+      const fetched = await fetchUserProfile(user.id);
+      if (user.email?.toLowerCase() === 'admin@gmail.com' || roleFromMeta === 'admin') {
+        profile = {
+          id: user.id,
+          role: 'admin',
+          full_name: fetched?.full_name || nameFromMeta || 'مدير النظام',
+          status: 'active',
+          is_approved: true,
+          ...(fetched || {})
+        };
+        profile.role = 'admin';
+      } else {
+        profile = fetched;
+      }
     }
 
-    const profile = preloadedProfile !== null ? preloadedProfile : await fetchUserProfile(user.id);
-    const rawAvatar = (profile ? (profile.avatar_url || profile.photo_url || '') : (user.photoURL || ''));
+    const storedSession = getStoredSession();
+    const storedAvatar = (storedSession?.currentUser?.id === user.id) 
+      ? (storedSession?.userData?.avatar_url || storedSession?.currentUser?.photoURL) 
+      : '';
+    const rawAvatar = (profile ? (profile.avatar_url || profile.photo_url || '') : '') || user.photoURL || storedAvatar || '';
     const resolvedAvatar = sanitizeAvatarUrl(rawAvatar);
 
     const normalizedUser = {
@@ -214,17 +245,21 @@ export function AuthProvider({ children }) {
       let loginEmail = (email || '').trim();
       // If admin login provides username without @, try resolving from profiles
       if (requestedRole === 'admin' && !loginEmail.includes('@')) {
-        try {
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('email')
-            .ilike('full_name', loginEmail)
-            .maybeSingle();
-          if (prof?.email) {
-            loginEmail = prof.email;
+        if (loginEmail.toLowerCase() === 'admin') {
+          loginEmail = 'admin@gmail.com';
+        } else {
+          try {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('email')
+              .ilike('full_name', loginEmail)
+              .maybeSingle();
+            if (prof?.email) {
+              loginEmail = prof.email;
+            }
+          } catch (e) {
+            console.warn('Admin username resolution notice:', e);
           }
-        } catch (e) {
-          console.warn('Admin username resolution notice:', e);
         }
       }
 
@@ -241,21 +276,35 @@ export function AuthProvider({ children }) {
         throw new Error('invalid_credentials');
       }
 
-      let profile = await fetchUserProfile(data.user.id);
-      if (!profile && (loginEmail.toLowerCase() === 'admin@gmail.com' || data.user.email?.toLowerCase() === 'admin@gmail.com')) {
-        profile = { id: data.user.id, role: 'admin', full_name: 'مدير النظام' };
+      let profile = null;
+      const isAdminUser = loginEmail.toLowerCase() === 'admin@gmail.com' || data.user.email?.toLowerCase() === 'admin@gmail.com';
+      const fetchedProfile = await fetchUserProfile(data.user.id);
+      if (isAdminUser) {
+        profile = {
+          id: data.user.id,
+          role: 'admin',
+          full_name: fetchedProfile?.full_name || data.user.user_metadata?.full_name || 'مدير النظام',
+          status: 'active',
+          is_approved: true,
+          ...(fetchedProfile || {})
+        };
+        profile.role = 'admin';
+      } else {
+        profile = fetchedProfile;
       }
-      const roleFromMeta = data.user.user_metadata?.role || (data.user.email?.toLowerCase() === 'admin@gmail.com' ? 'admin' : 'student');
+      const roleFromMeta = data.user.user_metadata?.role || (isAdminUser ? 'admin' : 'student');
       const actualRole = profile?.role || roleFromMeta;
 
-      if (requestedRole && actualRole !== requestedRole) {
-        await supabase.auth.signOut();
+      if (requestedRole === 'admin' && actualRole !== 'admin') {
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch (_) {}
         saveStoredSession(null);
         setCurrentUser(null);
         setUserRole(null);
         setUserStatus(null);
         setUserData(null);
-        throw new Error('invalid_credentials');
+        throw new Error('admin_unauthorized');
       }
 
       await applyUserSession(data.user, profile);
@@ -313,9 +362,9 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       saveStoredSession(null);
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (err) {
-      console.error('Logout error:', err);
+      console.warn('Logout notice:', err?.message || err);
     } finally {
       saveStoredSession(null);
       setCurrentUser(null);
@@ -341,14 +390,16 @@ export function AuthProvider({ children }) {
 
     setUserData(prev => {
       const next = prev ? { ...prev, ...normalizedUpdates } : normalizedUpdates;
+      const currentRole = updates.role || next?.role || userRole;
+      const currentStatus = updates.status || next?.status || userStatus;
       setCurrentUser(prevUser => {
         const nextUser = prevUser 
           ? { ...prevUser, ...(newAvatar !== undefined ? { photoURL: newAvatar } : {}) } 
           : prevUser;
         saveStoredSession({
           currentUser: nextUser,
-          userRole: userRole,
-          userStatus: userStatus,
+          userRole: currentRole,
+          userStatus: currentStatus,
           userData: next
         });
         return nextUser;

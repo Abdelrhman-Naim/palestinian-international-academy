@@ -1,121 +1,181 @@
 "use client";
 import { useState, useEffect } from 'react';
 import AdminPageShell from './AdminPageShell';
-import { collection, onSnapshot, query, limit, db } from '../../supabase/db';
+import { supabase } from '../../supabase/client';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDateTime } from '../../utils/formatDate';
 
 export default function AdminActivityLogs() {
   const { t, dir } = useLanguage();
+  const isRtl = dir === 'rtl';
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
 
-  useEffect(() => {
-    let coursesData = [];
-    let usersData = [];
-    let booksData = [];
+  const fetchActivities = async () => {
+    try {
+      const [
+        logsRes,
+        reqsRes,
+        coursesRes,
+        profilesRes,
+        booksRes
+      ] = await Promise.all([
+        supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(60),
+        supabase.from('course_requests').select('*').order('created_at', { ascending: false }).limit(40),
+        supabase.from('courses').select('id, title, instructor, instructor_name, category, category_name, created_at').order('created_at', { ascending: false }).limit(40),
+        supabase.from('profiles').select('id, full_name, email, role, status, is_approved, created_at').order('created_at', { ascending: false }).limit(40),
+        supabase.from('books').select('id, title, author, category, category_name, created_at').order('created_at', { ascending: false }).limit(40)
+      ]);
 
-    const toEpoch = (d) => {
-      if (!d) return 0;
-      if (typeof d === 'number') return d;
-      if (d.seconds) return d.seconds * 1000;
-      if (typeof d.toDate === 'function') return d.toDate().getTime();
-      const ms = new Date(d).getTime();
-      return isNaN(ms) ? 0 : ms;
-    };
+      const toEpoch = (d) => {
+        if (!d) return 0;
+        if (typeof d === 'number') return d;
+        if (d.seconds) return d.seconds * 1000;
+        if (typeof d.toDate === 'function') return d.toDate().getTime();
+        const ms = new Date(d).getTime();
+        return isNaN(ms) ? 0 : ms;
+      };
 
-    const updateAll = () => {
-      const combined = [
-        ...coursesData,
-        ...usersData,
-        ...booksData
-      ].sort((a, b) => toEpoch(b.rawDate) - toEpoch(a.rawDate));
+      const combined = [];
 
-      setActivities(combined);
-      setLoading(false);
-    };
+      // 1. Real activity_logs from Supabase table
+      (logsRes.data || []).forEach(log => {
+        combined.push({
+          id: `log-${log.id}`,
+          title: log.action || (isRtl ? 'إجراء نظام مسجل' : 'System Action'),
+          user: log.user_name || log.user_role || (isRtl ? 'مدير النظام' : 'Admin'),
+          type: 'system',
+          typeLabel: isRtl ? 'نشاط النظام' : 'System Log',
+          icon: 'admin_panel_settings',
+          badgeColor: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800/40',
+          rawDate: log.created_at,
+          details: log.details || (isRtl ? 'إجراء في لوحة التحكم' : 'Administrative action logged')
+        });
+      });
 
-    // 1. Fetch recent courses
-    const coursesQ = query(collection(db, 'courses'), limit(20));
-    const unsubCourses = onSnapshot(coursesQ, (snap) => {
-      coursesData = snap.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: `course-${doc.id}`,
-          title: data.title || 'دورة جديدة',
-          user: data.instructor_name || data.instructor || 'مدرب',
+      // 2. Real Course requests & enrollments from Supabase
+      (reqsRes.data || []).forEach(req => {
+        const isApproved = req.status === 'approved';
+        combined.push({
+          id: `req-${req.id}`,
+          title: req.course_title ? (isRtl ? `طلب تسجيل دورة: ${req.course_title}` : `Course Request: ${req.course_title}`) : (isRtl ? 'طلب تسجيل دورة' : 'Course Enrollment Request'),
+          user: req.student_name || req.student_email || (isRtl ? 'طالب' : 'Student'),
+          type: 'request',
+          typeLabel: isRtl ? 'طلبات التسجيل' : 'Enrollment Requests',
+          icon: isApproved ? 'how_to_reg' : 'pending_actions',
+          badgeColor: isApproved
+            ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/40'
+            : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/40',
+          rawDate: req.created_at,
+          details: isApproved
+            ? (isRtl ? 'تم اعتماد التسجيل بنجاح' : 'Enrollment approved')
+            : (isRtl ? 'طلب تسجيل دورة قيد المراجعة' : 'Enrollment pending review')
+        });
+      });
+
+      // 3. Real Courses
+      (coursesRes.data || []).forEach(c => {
+        combined.push({
+          id: `course-${c.id}`,
+          title: c.title || (isRtl ? 'دورة جديدة' : 'New Course'),
+          user: c.instructor_name || c.instructor || (isRtl ? 'مدرب' : 'Instructor'),
           type: 'course',
-          typeLabel: t('adminOverview.typeCourse') || 'دورة تدريبية',
+          typeLabel: t('adminOverview.typeCourse') || (isRtl ? 'دورة تدريبية' : 'Course'),
           icon: 'school',
           badgeColor: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/40',
-          rawDate: data.created_at || data.createdAt || data.date || { seconds: Date.now() / 1000 },
-          details: data.category ? `التصنيف: ${data.category}` : 'تم نشر دورة جديدة'
-        };
+          rawDate: c.created_at,
+          details: (c.category || c.category_name) ? `${isRtl ? 'التصنيف' : 'Category'}: ${c.category || c.category_name}` : (isRtl ? 'تم نشر دورة جديدة' : 'New course published')
+        });
       });
-      updateAll();
-    }, () => updateAll());
 
-    // 2. Fetch users
-    const usersQ = query(collection(db, 'users'), limit(20));
-    const unsubUsers = onSnapshot(usersQ, (snap) => {
-      usersData = snap.docs.map(doc => {
-        const data = doc.data();
-        const isPending = data.status === 'pending';
-        return {
-          id: `user-${doc.id}`,
-          title: isPending ? `طلب انضمام: ${data.name || 'مستخدم'}` : `انضمام مستخدم: ${data.name || 'مستخدم'}`,
-          user: data.email || data.name || 'مستخدم',
+      // 4. Real Profiles (Users & Instructors)
+      (profilesRes.data || []).forEach(p => {
+        const isPending = p.status === 'pending' || p.is_approved === false;
+        const isInst = p.role === 'instructor';
+        const name = p.full_name || p.email || (isRtl ? 'مستخدم' : 'User');
+        combined.push({
+          id: `user-${p.id}`,
+          title: isPending
+            ? (isRtl ? `طلب انضمام مدرب: ${name}` : `Instructor Application: ${name}`)
+            : (isRtl ? `انضمام مستخدم: ${name}` : `User Joined: ${name}`),
+          user: p.email || name,
           type: 'user',
-          typeLabel: t('adminOverview.typeUser') || 'مستخدمين',
+          typeLabel: t('adminOverview.typeUser') || (isRtl ? 'مستخدمين' : 'Users'),
           icon: isPending ? 'person_add' : 'group',
-          badgeColor: isPending 
-            ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/40' 
-            : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/40',
-          rawDate: data.created_at || data.createdAt || { seconds: Date.now() / 1000 },
-          details: data.role ? `الدور: ${data.role === 'instructor' ? 'مدرب' : 'طالب'}` : 'حساب جديد'
-        };
+          badgeColor: isPending
+            ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/40'
+            : 'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800/40',
+          rawDate: p.created_at,
+          details: p.role ? `${isRtl ? 'الدور' : 'Role'}: ${isInst ? (isRtl ? 'مدرب' : 'Instructor') : (p.role === 'admin' ? (isRtl ? 'مدير' : 'Admin') : (isRtl ? 'طالب' : 'Student'))}` : (isRtl ? 'حساب جديد' : 'New account')
+        });
       });
-      updateAll();
-    }, () => updateAll());
 
-    // 3. Fetch books
-    const booksQ = query(collection(db, 'books'), limit(20));
-    const unsubBooks = onSnapshot(booksQ, (snap) => {
-      booksData = snap.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: `book-${doc.id}`,
-          title: data.title || 'كتاب جديد',
-          user: data.author || 'المكتبة',
+      // 5. Real Books
+      (booksRes.data || []).forEach(b => {
+        combined.push({
+          id: `book-${b.id}`,
+          title: b.title || (isRtl ? 'كتاب جديد' : 'New Book'),
+          user: b.author || (isRtl ? 'المكتبة' : 'Library'),
           type: 'book',
-          typeLabel: t('adminOverview.typeBook') || 'كتب ومراجع',
+          typeLabel: t('adminOverview.typeBook') || (isRtl ? 'كتب ومراجع' : 'Books'),
           icon: 'menu_book',
           badgeColor: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800/40',
-          rawDate: data.created_at || data.createdAt || { seconds: Date.now() / 1000 },
-          details: data.category ? `قسم: ${data.category}` : 'إضافة إلى المكتبة الرقمية'
-        };
+          rawDate: b.created_at,
+          details: (b.category || b.category_name) ? `${isRtl ? 'القسم' : 'Category'}: ${b.category || b.category_name}` : (isRtl ? 'إضافة إلى المكتبة الرقمية' : 'Added to Digital Library')
+        });
       });
-      updateAll();
-    }, () => updateAll());
+
+      combined.sort((a, b) => toEpoch(b.rawDate) - toEpoch(a.rawDate));
+      setActivities(combined);
+      setLoading(false);
+    } catch (err) {
+      console.warn('Error fetching real activity logs:', err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActivities();
+
+    let debounceTimer = null;
+    const handleRealtimeChange = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchActivities();
+      }, 700);
+    };
+
+    const channel = supabase
+      .channel('admin-activity-logs-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'course_requests' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, handleRealtimeChange)
+      .subscribe();
+
+    const interval = setInterval(fetchActivities, 30000);
 
     return () => {
-      unsubCourses();
-      unsubUsers();
-      unsubBooks();
+      clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [t]);
+  }, []);
 
   const formatDate = (rawDate) => {
     return formatCustomDateTime(rawDate, dir);
   };
 
   const filteredActivities = activities.filter(act => {
+    const query = searchQuery.toLowerCase().trim();
     const matchesSearch = 
-      act.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      act.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      act.details.toLowerCase().includes(searchQuery.toLowerCase());
+      !query ||
+      act.title.toLowerCase().includes(query) ||
+      act.user.toLowerCase().includes(query) ||
+      act.details.toLowerCase().includes(query);
 
     const matchesType = filterType === 'all' || act.type === filterType;
 
@@ -124,9 +184,9 @@ export default function AdminActivityLogs() {
 
   return (
     <AdminPageShell
-      parent={t('adminOverview.activityLogsParent') || 'لوحة التحكم'}
-      title={t('adminOverview.activityLogsTitle') || 'سجل أنشطة المنصة'}
-      subtitle={t('adminOverview.activityLogsSubtitle') || 'تتبع جميع الأحداث والإجراءات على المنصة بالتاريخ والتوقيت والتفاصيل'}
+      parent={t('adminOverview.activityLogsParent') || (isRtl ? 'لوحة التحكم' : 'Dashboard')}
+      title={t('adminOverview.activityLogsTitle') || (isRtl ? 'سجل أنشطة المنصة' : 'Activity Logs')}
+      subtitle={t('adminOverview.activityLogsSubtitle') || (isRtl ? 'تتبع جميع الأحداث والإجراءات على المنصة بالتاريخ والتوقيت والتفاصيل' : 'Track all platform events, requests, and updates in real time')}
       icon="history"
     >
       {/* Controls & Search */}
@@ -138,10 +198,10 @@ export default function AdminActivityLogs() {
           </span>
           <input
             type="text"
-            aria-label={t('adminOverview.searchPlaceholder') || 'البحث في الأنشطة...'}
+            aria-label={t('adminOverview.searchPlaceholder') || (isRtl ? 'البحث في الأنشطة...' : 'Search activities...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('adminOverview.searchPlaceholder') || 'البحث في الأنشطة...'}
+            placeholder={t('adminOverview.searchPlaceholder') || (isRtl ? 'البحث في الأنشطة...' : 'Search activities...')}
             className="w-full rounded-xl border border-[#E8E2D5] bg-white ps-10 pe-4 py-2.5 text-sm text-dark placeholder:text-gray-400 transition-all focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-amber-400"
           />
         </div>
@@ -149,10 +209,12 @@ export default function AdminActivityLogs() {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { id: 'all', label: t('adminOverview.allTypes') || 'جميع الأنشطة' },
-            { id: 'course', label: t('adminOverview.typeCourse') || 'دورات تدريبية' },
-            { id: 'book', label: t('adminOverview.typeBook') || 'كتب ومراجع' },
-            { id: 'user', label: t('adminOverview.typeUser') || 'مستخدمين' },
+            { id: 'all', label: t('adminOverview.allTypes') || (isRtl ? 'جميع الأنشطة' : 'All Activities') },
+            { id: 'system', label: isRtl ? 'نشاط النظام' : 'System Logs' },
+            { id: 'request', label: isRtl ? 'طلبات التسجيل' : 'Course Requests' },
+            { id: 'course', label: t('adminOverview.typeCourse') || (isRtl ? 'دورات تدريبية' : 'Courses') },
+            { id: 'book', label: t('adminOverview.typeBook') || (isRtl ? 'كتب ومراجع' : 'Books') },
+            { id: 'user', label: t('adminOverview.typeUser') || (isRtl ? 'مستخدمين' : 'Users') },
           ].map((btn) => (
             <button
               key={btn.id}

@@ -4,6 +4,7 @@ import Hero from "../components/Hero";
 import Features from "../components/Features";
 import LearningJourney from "../components/LearningJourney";
 import CloudLab from "../components/CloudLab";
+import Projects from "../components/Projects";
 import PopularCourses from "../components/PopularCourses";
 import TopBooks from "../components/TopBooks";
 import PartnersTrust from "../components/PartnersTrust";
@@ -48,6 +49,7 @@ const Home = () => {
         <Features />
         <LearningJourney />
         <CloudLab />
+        <Projects />
         <PopularCourses />
         <TopBooks />
         <PartnersTrust />

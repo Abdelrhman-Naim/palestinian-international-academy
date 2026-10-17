@@ -90,8 +90,9 @@ const Library = () => {
   const categoryCounts = useMemo(() => {
     const counts = {};
     (booksData || []).forEach((b) => {
-      if (b.category) {
-        const localized = getLocalizedCategory(b.category, lang);
+      const cat = b.category || b.category_name;
+      if (cat) {
+        const localized = getLocalizedCategory(cat, lang);
         counts[localized] = (counts[localized] || 0) + 1;
       }
     });
@@ -100,11 +101,16 @@ const Library = () => {
 
   const categories = useMemo(() => {
     const allOption = { name: '', label: t('library.all') };
-    const availableCategories = Object.keys(categoryCounts)
-      .sort((a, b) => a.localeCompare(b))
+    const setOfCats = new Set([
+      ...Object.keys(categoryCounts),
+      ...(contextCategories?.library || []).map(c => getLocalizedCategory(c, lang))
+    ]);
+    const availableCategories = Array.from(setOfCats)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, lang === 'ar' ? 'ar' : 'en'))
       .map((cat) => ({ name: cat, label: cat }));
     return [allOption, ...availableCategories];
-  }, [t, categoryCounts]);
+  }, [t, categoryCounts, contextCategories, lang]);
 
   const sortOptions = useMemo(() => [
     { value: 'highest', label: isRtl ? 'الأعلى تقييماً' : 'Highest Rated' },
@@ -114,6 +120,7 @@ const Library = () => {
   ], [isRtl]);
 
   const itemsPerPageOptions = [
+    { value: 12, label: `12 ${t('library.perPage') || (isRtl ? 'في الصفحة' : 'per page')}` },
     { value: 24, label: `24 ${t('library.perPage') || (isRtl ? 'في الصفحة' : 'per page')}` },
     { value: 48, label: `48 ${t('library.perPage') || (isRtl ? 'في الصفحة' : 'per page')}` },
     { value: 96, label: `96 ${t('library.perPage') || (isRtl ? 'في الصفحة' : 'per page')}` }

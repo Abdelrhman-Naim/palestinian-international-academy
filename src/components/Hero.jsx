@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import { useCourses } from "../context/CoursesContext";
+import { useAuth } from "../context/AuthContext";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { supabase } from "../supabase/client";
 import { createMedicalRobot } from "../utils/medical-robot.js";
@@ -96,7 +97,7 @@ const Hero = () => {
   const [extraStats, setExtraStats] = useState({
     studentProfiles: 0,
     approvedEnrollments: 0,
-    completionRate: 98,
+    completionRate: 100,
   });
 
   useEffect(() => {
@@ -104,7 +105,7 @@ const Hero = () => {
 
     const loadPlatformStats = async () => {
       try {
-        const [profilesRes, requestsRes, submissionsRes] = await Promise.all([
+        const [profilesRes, requestsRes, submissionsRes, examsRes] = await Promise.all([
           supabase
             .from("profiles")
             .select("id", { count: "exact", head: true })
@@ -114,6 +115,7 @@ const Hero = () => {
             .select("id", { count: "exact", head: true })
             .eq("status", "approved"),
           supabase.from("submitted_assignments").select("id, grade"),
+          supabase.from("exam_results").select("id, score, passed"),
         ]);
 
         if (!isMounted) return;
@@ -121,14 +123,15 @@ const Hero = () => {
         const stCount = profilesRes.count || 0;
         const reqCount = requestsRes.count || 0;
 
-        let compRate = 98;
         const subs = submissionsRes.data || [];
-        if (subs.length > 0) {
-          const passed = subs.filter(s => Number(s.grade || 0) >= 60).length;
-          compRate = Math.min(
-            99,
-            Math.max(88, Math.round((passed / subs.length) * 100))
-          );
+        const exams = examsRes.data || [];
+        const totalItems = subs.length + exams.length;
+
+        let compRate = 100;
+        if (totalItems > 0) {
+          const passedSubs = subs.filter(s => Number(s.grade || 0) >= 60).length;
+          const passedExams = exams.filter(e => e.passed === true || Number(e.score || 0) >= 60).length;
+          compRate = Math.round(((passedSubs + passedExams) / totalItems) * 100);
         }
 
         setExtraStats({
@@ -206,30 +209,68 @@ const Hero = () => {
       const sum = validRatings.reduce((acc, r) => acc + r, 0);
       return Number((sum / validRatings.length).toFixed(1));
     }
-    return 4.9;
+    return 0.0;
   }, [courses]);
 
-  const featuredCourse = featuredCourseConfig?.isAuto
-    ? [...(courses || [])].sort(
-        (a, b) =>
-          Number(b.enrollments || b.students || 0) +
-          Number(b.ratingCount || 0) -
-          (Number(a.enrollments || a.students || 0) +
-            Number(a.ratingCount || 0))
-      )[0] || (courses && courses.length > 0 ? courses[0] : null)
-    : (courses || []).find(c => c.id === featuredCourseConfig?.courseId) ||
-      (courses && courses.length > 0 ? courses[0] : null);
+  const { currentUser } = useAuth();
+  const [userEnrollment, setUserEnrollment] = useState(null);
+
+  const featuredCourse = useMemo(() => {
+    if (!courses || courses.length === 0) return null;
+    if (featuredCourseConfig?.courseId && !featuredCourseConfig?.isAuto) {
+      const found = courses.find(c => c.id === featuredCourseConfig.courseId);
+      if (found) return found;
+    }
+    return [...courses].sort(
+      (a, b) =>
+        (Number(b.enrollments || b.students || b.students_count || 0) + Number(b.ratingCount || 0)) -
+        (Number(a.enrollments || a.students || a.students_count || 0) + Number(a.ratingCount || 0))
+    )[0] || courses[0];
+  }, [courses, featuredCourseConfig]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentUser?.id || !featuredCourse?.id) {
+      setUserEnrollment(null);
+      return;
+    }
+
+    const checkEnrollment = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("enrollments")
+          .select("*")
+          .eq("student_id", currentUser.id)
+          .eq("course_id", featuredCourse.id)
+          .maybeSingle();
+
+        if (isMounted) {
+          if (!error && data) {
+            setUserEnrollment(data);
+          } else {
+            setUserEnrollment(null);
+          }
+        }
+      } catch (e) {
+        if (isMounted) setUserEnrollment(null);
+      }
+    };
+
+    checkEnrollment();
+    return () => { isMounted = false; };
+  }, [currentUser?.id, featuredCourse?.id]);
 
   const featuredLabel =
     featuredCourseConfig?.label ||
     featuredCourseConfig?.customLabel ||
     featuredCourse?.category ||
     (isRtl ? "الكورس المميز" : "Featured Course");
+
   const featuredTitle =
     featuredCourse?.title ||
-    (isRtl ? "دورة الهندسة والتصميم التطبيقي" : "Applied Digital Engineering");
+    (isRtl ? "دورة تدريبية متخصصة" : "Specialized Training Course");
 
-  // Always link lesson counts to actual course data (both in auto and manual modes)
+  // Derive lesson counts strictly from the course data
   const actualLecturesCount = (
     featuredCourse?.lectures ||
     featuredCourse?.lessons ||
@@ -238,21 +279,20 @@ const Hero = () => {
   ).length;
   const courseLessonsCount =
     Number(featuredCourse?.lessons_count || featuredCourse?.lecturesCount) || 0;
-  const featuredTotalLessons = Math.max(
-    1,
-    Math.max(courseLessonsCount, actualLecturesCount)
-  );
-  const featuredCompletedLessons =
-    actualLecturesCount > 0
-      ? actualLecturesCount
-      : Math.min(featuredTotalLessons, 1);
-  const featuredProgress = Math.min(
-    100,
-    Math.max(
-      0,
-      Math.round((featuredCompletedLessons / featuredTotalLessons) * 100)
-    )
-  );
+  const featuredTotalLessons = Math.max(courseLessonsCount, actualLecturesCount);
+
+  // If student is enrolled, calculate real completed lessons from their Supabase enrollment record
+  const completedLessonsCount = userEnrollment
+    ? (Array.isArray(userEnrollment.completed_lessons)
+        ? userEnrollment.completed_lessons.length
+        : (Number(userEnrollment.completed_lessons) || 0))
+    : 0;
+
+  const featuredCompletedLessons = Math.min(featuredTotalLessons, completedLessonsCount);
+  const featuredProgress = featuredTotalLessons > 0
+    ? Math.min(100, Math.round((featuredCompletedLessons / featuredTotalLessons) * 100))
+    : 0;
+
   const courseLink = featuredCourse
     ? `/courses/${featuredCourse.id}`
     : "/courses";
@@ -372,16 +412,26 @@ const Hero = () => {
                     check_circle
                   </span>
                   <span>
-                    {isRtl
-                      ? `${featuredCompletedLessons} من ${featuredTotalLessons} درساً مكتملة`
-                      : `${featuredCompletedLessons} of ${featuredTotalLessons} Lessons Done`}
+                    {userEnrollment
+                      ? (isRtl
+                          ? `${featuredCompletedLessons} من ${featuredTotalLessons} درساً مكتملة`
+                          : `${featuredCompletedLessons} of ${featuredTotalLessons} Lessons Done`)
+                      : (isRtl
+                          ? `${featuredTotalLessons} درساً متاحاً بالدورة`
+                          : `${featuredTotalLessons} Lessons in this Course`)
+                    }
                   </span>
                 </span>
                 <Link
                   to={courseLink}
                   className="text-primary hover:text-amber-700 dark:hover:text-amber-300 font-bold flex items-center gap-1 transition-colors"
                 >
-                  <span>{isRtl ? "معاينة الدورة" : "Next Lesson"}</span>
+                  <span>
+                    {userEnrollment
+                      ? (isRtl ? "متابعة التعلم" : "Continue Learning")
+                      : (isRtl ? "معاينة الدورة" : "Explore Course")
+                    }
+                  </span>
                   <span className="material-symbols-outlined text-xs rtl:rotate-180">
                     play_arrow
                   </span>

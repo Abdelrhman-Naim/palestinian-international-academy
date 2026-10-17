@@ -59,29 +59,31 @@ export default function AdminProfile() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [profilesRes, coursesRes, booksRes] = await Promise.all([
+        const [profilesRes, coursesRes, booksRes, requestsRes] = await Promise.all([
           supabase.from('profiles').select('id, email, role, status, is_approved'),
-          supabase.from('courses').select('id'),
-          supabase.from('books').select('id')
+          supabase.from('courses').select('id', { count: 'exact', head: true }),
+          supabase.from('books').select('id', { count: 'exact', head: true }),
+          supabase.from('course_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending')
         ]);
 
         const profiles = profilesRes.data || [];
-        const pending = profiles.filter(u => 
+        const pendingInstructors = profiles.filter(u => 
           u.role === 'instructor' && (u.status === 'pending' || u.is_approved === false || u.is_approved === null)
         ).length;
 
         const studentsCount = profiles.filter(u => u.role === 'student' || (!u.role && u.role !== 'admin' && u.role !== 'instructor')).length;
         const instructorsCount = profiles.filter(u => u.role === 'instructor').length;
         const adminsCount = profiles.filter(u => u.role === 'admin').length;
+        const pendingCourseRequests = requestsRes.count || 0;
 
         const newStats = {
           usersCount: profiles.length,
           studentsCount,
           instructorsCount,
           adminsCount,
-          coursesCount: coursesRes.data?.length || 0,
-          booksCount: booksRes.data?.length || 0,
-          pendingInstructors: pending
+          coursesCount: coursesRes.count ?? (coursesRes.data?.length || 0),
+          booksCount: booksRes.count ?? (booksRes.data?.length || 0),
+          pendingInstructors: pendingInstructors + pendingCourseRequests
         };
 
         setStats(newStats);
@@ -225,6 +227,9 @@ export default function AdminProfile() {
       setInfoError(isRtl ? 'حدث خطأ أثناء حفظ الصورة' : 'Failed to update photo');
     } finally {
       setPhotoUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -342,14 +347,18 @@ export default function AdminProfile() {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-1 text-center sm:text-start">
           {/* Avatar Area */}
           <div className="relative group shrink-0">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden bg-stone-900 text-white flex items-center justify-center text-3xl font-bold shadow-xl border-2 border-primary/40 relative">
-              {formData.photoURL ? (
-                <img src={formData.photoURL} alt={displayName} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl sm:text-3xl font-black text-amber-400">{initials}</span>
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center text-3xl font-black relative">
+              <span className="text-2xl sm:text-3xl font-black text-white select-none">{initials}</span>
+              {formData.photoURL && (
+                <img 
+                  src={formData.photoURL} 
+                  alt={displayName} 
+                  className="absolute inset-0 w-full h-full object-cover" 
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
               )}
               {photoUploading && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
                   <span className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
@@ -359,7 +368,7 @@ export default function AdminProfile() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={photoUploading}
-              className="absolute -bottom-2 -end-2 w-9 h-9 rounded-2xl bg-primary text-dark dark:text-gray-950 flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer border-2 border-white dark:border-gray-800"
+              className="absolute -bottom-1 -end-1 w-9 h-9 rounded-full bg-primary text-dark dark:text-gray-950 flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer border-2 border-white dark:border-gray-800"
               title={isRtl ? 'تغيير الصورة الشخصية' : 'Change Avatar'}
               aria-label={isRtl ? 'تغيير الصورة الشخصية' : 'Change Avatar'}
             >
@@ -370,7 +379,7 @@ export default function AdminProfile() {
                 type="button"
                 onClick={handleRemoveAvatar}
                 disabled={photoUploading}
-                className="absolute -top-2 -end-2 w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer border-2 border-white dark:border-gray-800"
+                className="absolute -top-1 -end-1 w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer border-2 border-white dark:border-gray-800"
                 title={isRtl ? 'إزالة الصورة الشخصية' : 'Remove Avatar'}
                 aria-label={isRtl ? 'إزالة الصورة الشخصية' : 'Remove Avatar'}
               >

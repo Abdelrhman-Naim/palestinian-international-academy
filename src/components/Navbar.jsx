@@ -11,6 +11,7 @@ import logo from '../assets/logo.webp';
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [isDarkMode, toggleDarkMode] = useDarkMode();
   const { currentUser, userRole, userData, logout } = useAuth();
   const { t, toggleLang, lang } = useLanguage();
@@ -18,6 +19,10 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -128,7 +133,7 @@ const Navbar = () => {
           </button>
         </div>
 
-        {currentUser ? (
+        {mounted && currentUser ? (
           /* ============ LOGGED IN STATE ============ */
           <div className="flex items-center gap-1.5 sm:gap-3">
             
@@ -314,7 +319,7 @@ const Navbar = () => {
 
             <div className="w-full h-px bg-gray-200 dark:bg-gray-800 my-2"></div>
 
-            {currentUser ? (
+            {mounted && currentUser ? (
               <>
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#FAF7F2] dark:bg-gray-800/80 border border-[#E8E2D5] dark:border-gray-700 mb-1">
                   <div className="relative w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shadow-xs overflow-hidden shrink-0">

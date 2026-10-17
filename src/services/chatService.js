@@ -829,17 +829,22 @@ export function subscribeToUserChats(userId, callback) {
 
   // Realtime Supabase subscription if available
   let channel = null;
+  let debounceTimer = null;
   try {
     channel = supabase
       .channel(`user_chats_rt_${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => {
-        loadAllChats();
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          if (!isCancelled) loadAllChats();
+        }, 600);
       })
       .subscribe();
   } catch (rtErr) {}
 
   return () => {
     isCancelled = true;
+    if (debounceTimer) clearTimeout(debounceTimer);
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', handleOnlineChats);
     }

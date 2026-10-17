@@ -87,11 +87,12 @@ export default function AdminInstructors() {
   }, [debouncedSearch, selectedField, sortBy]);
 
   const handleStartChat = async (instructor) => {
-    if (!currentUser?.uid) return;
+    const currentUid = currentUser?.id || currentUser?.uid;
+    if (!currentUid) return;
     setStartingChatId(instructor.id);
     try {
       const adminUser = {
-        uid: currentUser.uid,
+        uid: currentUid,
         name: userData?.name || userData?.fullName || t('navbar.admin'),
         role: 'admin'
       };
@@ -145,7 +146,7 @@ export default function AdminInstructors() {
         );
         const coursesCount = instructorCourses.length;
         const studentsCount = instructorCourses.reduce(
-          (acc, curr) => acc + (curr.students || 0),
+          (acc, curr) => acc + (Number(curr.students_count ?? curr.students) || 0),
           0
         );
         return {
