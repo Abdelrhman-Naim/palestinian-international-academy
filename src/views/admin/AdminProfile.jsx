@@ -469,6 +469,7 @@ export default function AdminProfile() {
               </label>
               <input 
                 type="text" 
+                autoComplete="name"
                 value={formData.fullName}
                 onChange={e => setFormData({ ...formData, fullName: e.target.value })}
                 required
@@ -482,6 +483,7 @@ export default function AdminProfile() {
               </label>
               <input 
                 type="text" 
+                autoComplete="name"
                 value={formData.fullName_en}
                 onChange={e => setFormData({ ...formData, fullName_en: e.target.value })}
                 dir="ltr"
@@ -495,6 +497,7 @@ export default function AdminProfile() {
               </label>
               <input 
                 type="tel" 
+                autoComplete="tel"
                 value={formData.phone}
                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+966 50 000 0000"

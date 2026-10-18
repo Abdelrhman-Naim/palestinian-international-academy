@@ -217,6 +217,7 @@ const Login = ({ defaultRole }) => {
                   id="email" 
                   required 
                   type="email"
+                  autoComplete="email"
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setEmailError(''); setError(''); }}
@@ -251,6 +252,7 @@ const Login = ({ defaultRole }) => {
                     id="password" 
                     required 
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setPasswordError(''); setError(''); }}
                   />
@@ -336,6 +338,7 @@ const Login = ({ defaultRole }) => {
                   id="forgot-email"
                   required
                   type="email"
+                  autoComplete="email"
                   placeholder="example@domain.com"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}

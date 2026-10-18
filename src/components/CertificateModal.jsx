@@ -270,10 +270,10 @@ export default function CertificateModal({ certificate, onClose }) {
             display: block !important;
           }
           #certificate-print-area {
-            width: 100vw !important;
-            height: 99.5vh !important;
-            max-width: 100vw !important;
-            max-height: 99.5vh !important;
+            width: 100% !important;
+            height: 99.5% !important;
+            max-width: 100% !important;
+            max-height: 99.5% !important;
             margin: 0 !important;
             padding: 28px 40px !important;
             border: 8px double #d97706 !important;

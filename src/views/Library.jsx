@@ -70,15 +70,27 @@ const Library = () => {
     setCurrentPage(1);
   }, [lang]);
 
-  // Lock body scroll when mobile filters drawer is open
+  // Lock body scroll when mobile filters drawer is open using mobile scroll-restore pattern
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (isMobileFiltersOpen) {
-      document.body.style.overflow = 'hidden';
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
     } else {
-      document.body.style.overflow = '';
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
     };
   }, [isMobileFiltersOpen]);
 
@@ -299,17 +311,19 @@ const Library = () => {
             <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 p-2 rounded-xl flex items-center shadow-sm mb-6 transition-colors">
               <button 
                 onClick={() => setIsMobileFiltersOpen(true)}
-                className="lg:hidden flex items-center justify-center bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white w-11 h-11 rounded-lg ml-2 shrink-0"
+                className="lg:hidden flex items-center justify-center bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white w-11 h-11 rounded-lg ms-2 shrink-0"
               >
                 <span className="material-symbols-outlined text-[20px]">filter_alt</span>
               </button>
               <span className="material-symbols-outlined text-gray-400 px-3 hidden lg:block">search</span>
               <input 
-                type="text" 
+                type="search"
+                inputMode="search"
+                autoComplete="off"
                 placeholder={t('library.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent text-dark dark:text-white outline-none border-none text-sm placeholder-gray-400 py-2 pr-2 lg:pr-0 min-h-[44px]"
+                className="flex-1 bg-transparent text-dark dark:text-white outline-none border-none text-sm placeholder-gray-400 py-2 pe-2 lg:pe-0 min-h-[44px]"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-rose-500 w-11 h-11 flex items-center justify-center transition-colors">

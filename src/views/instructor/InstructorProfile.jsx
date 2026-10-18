@@ -581,6 +581,7 @@ export default function InstructorProfile() {
                     <input
                       type="text"
                       name="fullName"
+                      autoComplete="name"
                       value={formData.fullName}
                       onChange={handleProfileChange}
                       required
@@ -601,6 +602,7 @@ export default function InstructorProfile() {
                     <input
                       type="text"
                       name="fullName_en"
+                      autoComplete="name"
                       value={formData.fullName_en}
                       onChange={handleProfileChange}
                       placeholder="e.g. Eng. Ahmed Mohamed"
@@ -623,6 +625,7 @@ export default function InstructorProfile() {
                     </span>
                     <input
                       type="email"
+                      autoComplete="email"
                       value={currentUser?.email || ''}
                       disabled
                       dir="ltr"
@@ -645,6 +648,7 @@ export default function InstructorProfile() {
                     <input
                       type="tel"
                       name="phone"
+                      autoComplete="tel"
                       value={formData.phone}
                       onChange={handleProfileChange}
                       placeholder={isRtl ? 'مثال: 0591234567' : 'e.g. +970591234567'}

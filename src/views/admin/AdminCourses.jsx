@@ -222,7 +222,9 @@ export default function AdminCourses() {
               search
             </span>
             <input
-              type="text"
+              type="search"
+              inputMode="search"
+              autoComplete="off"
               aria-label={isRtl ? 'ابحث باسم الدورة أو المدرب' : 'Search by course or instructor'}
               placeholder={isRtl ? 'ابحث باسم الدورة أو المدرب...' : 'Search by course or instructor...'}
               value={searchQuery}

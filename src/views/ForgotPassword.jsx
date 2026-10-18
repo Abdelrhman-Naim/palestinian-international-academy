@@ -128,6 +128,7 @@ export default function ForgotPassword() {
             <input
               id="reset-email"
               type="email"
+              autoComplete="email"
               required
               placeholder={t('forgotPasswordPage.emailPlaceholder') || "example@domain.com"}
               value={email}

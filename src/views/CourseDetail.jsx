@@ -1122,6 +1122,8 @@ export default function CourseDetail() {
                       src={embed.url}
                       controls
                       autoPlay
+                      playsInline
+                      muted
                       className="w-full h-full object-contain"
                     />
                   );

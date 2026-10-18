@@ -42,7 +42,7 @@ const BookCard = ({
     : cleanAuthor;
 
   return (
-    <div className="bg-white dark:bg-[#1C1917] border border-[#E8E2D5] dark:border-[#2E2823] rounded-2xl p-5 flex flex-col justify-between shadow-sm dark:shadow-xl hover:shadow-[0_20px_40px_-15px_rgba(212,175,55,0.2)] transition-all duration-300 group text-right rtl:text-right ltr:text-left w-full max-w-full overflow-hidden min-w-0">
+    <div className="bg-white dark:bg-[#1C1917] border border-[#E8E2D5] dark:border-[#2E2823] rounded-2xl p-5 flex flex-col justify-between shadow-sm dark:shadow-xl hover:shadow-[0_20px_40px_-15px_rgba(212,175,55,0.2)] transition-all duration-300 group text-start w-full max-w-full overflow-hidden min-w-0">
       {/* Top Inner Card Box */}
       <div className="bg-[#F5F0E6] dark:bg-[#27221D] border border-[#E8E2D5] dark:border-[#3A322B] rounded-xl p-5 flex flex-col items-center justify-center text-center relative mb-5 min-h-[210px] w-full max-w-full overflow-hidden group-hover:border-amber-500/30 transition-colors">
         {/* Top Badge */}

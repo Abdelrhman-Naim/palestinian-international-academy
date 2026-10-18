@@ -38,7 +38,7 @@ export const ToastProvider = ({ children }) => {
       {/* Floating Toast Notification Container */}
       <div 
         dir={dir}
-        className="fixed bottom-5 end-4 sm:end-5 z-[99999] flex flex-col gap-2.5 max-w-[calc(100vw-2rem)] sm:max-w-sm w-full pointer-events-none"
+        className="fixed bottom-5 end-4 sm:end-5 z-[99999] flex flex-col gap-2.5 max-w-[calc(100dvw-2rem)] sm:max-w-sm w-full pointer-events-none"
       >
         <AnimatePresence mode="sync">
           {toasts.map((t) => {

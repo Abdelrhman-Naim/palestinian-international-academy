@@ -452,16 +452,18 @@ export default function AdminCourseStudents() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {/* Search Input */}
           <div className="relative">
-            <span className="material-symbols-outlined pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
+            <span className="material-symbols-outlined pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
               search
             </span>
             <input
-              type="text"
+              type="search"
+              inputMode="search"
+              autoComplete="off"
               aria-label={isRtl ? 'ابحث باسم الطالب، البريد، أو المعرف' : 'Search student by name, email, or ID'}
               placeholder={isRtl ? 'ابحث باسم الطالب، البريد، أو المعرّف...' : 'Search student by name, email, or ID...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-2.5 pr-10 pl-9 text-sm text-gray-700 outline-none transition focus:border-primary focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:bg-gray-900"
+              className="w-full rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] py-2.5 ps-10 pe-9 text-sm text-gray-700 outline-none transition focus:border-primary focus:bg-white dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:bg-gray-900"
             />
             {searchQuery && (
               <button

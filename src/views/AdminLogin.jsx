@@ -207,6 +207,7 @@ const AdminLogin = () => {
                 id="admin-user"
                 required
                 type="text"
+                autoComplete="username"
                 placeholder={dir === "rtl" ? "admin@gmail.com أو admin" : "admin@gmail.com or admin"}
                 value={username}
                 onChange={e => {
@@ -254,12 +255,11 @@ const AdminLogin = () => {
                     passwordError
                       ? "border-red-500 ring-2 ring-red-500/20 focus:ring-red-500"
                       : "border-[#E8E2D5] dark:border-gray-700 focus:ring-primary"
-                  } text-dark dark:text-white rounded-xl py-3 ${
-                    lang === "ar" ? "pl-11 pr-4" : "pr-11 pl-4"
-                  } focus:outline-none focus:border-transparent transition-all placeholder-gray-400 text-sm`}
+                  } text-dark dark:text-white rounded-xl py-3 ps-4 pe-11 focus:outline-none focus:border-transparent transition-all placeholder-gray-400 text-sm`}
                   id="admin-pass"
                   required
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => {
@@ -271,9 +271,7 @@ const AdminLogin = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(prev => !prev)}
-                  className={`absolute top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex items-center justify-center cursor-pointer ${
-                    lang === "ar" ? "left-3" : "right-3"
-                  }`}
+                  className="absolute top-1/2 -translate-y-1/2 end-3 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex items-center justify-center cursor-pointer"
                   aria-label={
                     showPassword
                       ? t("adminLogin.hidePassword")
@@ -398,6 +396,7 @@ const AdminLogin = () => {
                 <input
                   id="forgot-email"
                   type="email"
+                  autoComplete="email"
                   required
                   placeholder="admin@example.com"
                   value={forgotEmail}

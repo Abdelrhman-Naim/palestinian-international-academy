@@ -10,6 +10,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: 'cover',
 };
 
 export const metadata = {
@@ -20,6 +21,14 @@ export const metadata = {
   },
   description: 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي، ومكتبة رقمية ومختبرات تفاعلية بشهادات موثوقة.',
   applicationName: 'PIA Academy',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'PIA Academy',
+  },
+  formatDetection: {
+    telephone: false,
+  },
   authors: [{ name: 'أكاديمية فلسطين الدولية (PIA)' }],
   generator: 'Next.js',
   keywords: [
@@ -41,7 +50,7 @@ export const metadata = {
       { url: '/icon-512.png?v=3', sizes: '512x512', type: 'image/png' },
     ],
     apple: [
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-192.png?v=3', sizes: '192x192', type: 'image/png' },
     ],
   },
   openGraph: {

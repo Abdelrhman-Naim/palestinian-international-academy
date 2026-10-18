@@ -84,7 +84,7 @@ const Footer = () => {
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 dark:via-amber-400/30 to-transparent pointer-events-none" />
 
       {/* Decorative subtle background radial shimmer (Dark mode only) */}
-      <div className="hidden dark:block absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="hidden dark:block absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] max-w-full h-[300px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto space-y-10 lg:space-y-12">
         {/* ========================================================

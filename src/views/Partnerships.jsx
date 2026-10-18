@@ -262,6 +262,7 @@ ${formData.message}
                         </span>
                         <input
                           type="email"
+                          autoComplete="email"
                           required
                           value={formData.email}
                           onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -281,6 +282,7 @@ ${formData.message}
                         </span>
                         <input
                           type="tel"
+                          autoComplete="tel"
                           required
                           value={formData.phone}
                           onChange={e => setFormData({ ...formData, phone: e.target.value })}

@@ -76,7 +76,7 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 
   #root, body > main {
@@ -86,6 +86,51 @@
     flex-direction: column;
     flex: 1 1 0%;
     width: 100%;
+    max-width: 100%;
+  }
+
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+
+  /* P-110: Prevent double-tap zoom */
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* P-108: Remove tap gray flash on iOS */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* P-101: 16px font on inputs stops iOS Safari auto-zooming on focus */
+  @media (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* P-111: Chrome user-select none, content text */
+  button, nav, [role="button"], header, footer {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  main, article, p, h1, h2, h3, h4, h5, h6, input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* P-102: Map min-h-screen & h-screen to 100dvh with 100vh fallback */
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .h-screen {
+    height: 100vh;
+    height: 100dvh;
   }
 }
 
@@ -98,10 +143,10 @@
 body::before {
   content: "";
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
   z-index: -1;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");

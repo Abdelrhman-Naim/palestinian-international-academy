@@ -182,7 +182,13 @@ export default function ManageAssignments() {
             document.body.removeChild(a);
             URL.revokeObjectURL(bUrl);
         } catch {
-            window.open(url, '_blank');
+            const fallbackLink = document.createElement('a');
+            fallbackLink.href = url;
+            fallbackLink.target = '_blank';
+            fallbackLink.rel = 'noopener noreferrer';
+            document.body.appendChild(fallbackLink);
+            fallbackLink.click();
+            document.body.removeChild(fallbackLink);
         }
     };
 

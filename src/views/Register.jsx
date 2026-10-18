@@ -210,6 +210,7 @@ const Register = () => {
                   id="fullName" 
                   required 
                   type="text"
+                  autoComplete="name"
                   placeholder={t('register.fullNamePlaceholder')}
                   value={fullName}
                   onChange={(e) => { setFullName(e.target.value); setNameError(''); setError(''); }}
@@ -229,6 +230,7 @@ const Register = () => {
                   id="regEmail" 
                   required 
                   type="email"
+                  autoComplete="email"
                   placeholder="example@email.com"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setEmailError(''); setError(''); }}
@@ -252,6 +254,7 @@ const Register = () => {
                   id="regPassword" 
                   required 
                   type="password"
+                  autoComplete="new-password"
                   placeholder={t('register.passwordHint')}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
@@ -277,6 +280,7 @@ const Register = () => {
                   id="confirmPassword" 
                   required 
                   type="password"
+                  autoComplete="new-password"
                   placeholder={t('register.confirmPasswordPlaceholder')}
                   value={confirmPassword}
                   onChange={(e) => {

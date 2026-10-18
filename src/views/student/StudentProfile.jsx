@@ -451,6 +451,7 @@ export default function StudentProfile() {
                 </label>
                 <input
                   type="text"
+                  autoComplete="name"
                   required
                   value={formData.fullName}
                   onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
@@ -464,6 +465,7 @@ export default function StudentProfile() {
                 </label>
                 <input
                   type="text"
+                  autoComplete="name"
                   value={formData.fullName_en}
                   onChange={(e) => setFormData(prev => ({ ...prev, fullName_en: e.target.value }))}
                   className="w-full rounded-xl border border-[#E8E2D5] bg-[#FAF7F2] dark:bg-gray-900 dark:border-gray-700 px-4 py-3 text-sm text-dark dark:text-white focus:border-primary focus:outline-none"
@@ -477,6 +479,7 @@ export default function StudentProfile() {
               </label>
               <input
                 type="tel"
+                autoComplete="tel"
                 placeholder="+966 50 000 0000"
                 value={formData.phone}
                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}

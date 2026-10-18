@@ -238,6 +238,7 @@ const SupportCenter = () => {
                       </label>
                       <input
                         type="text"
+                        autoComplete="name"
                         required
                         value={ticketData.name}
                         onChange={e => setTicketData({ ...ticketData, name: e.target.value })}
@@ -251,6 +252,7 @@ const SupportCenter = () => {
                       </label>
                       <input
                         type="email"
+                        autoComplete="email"
                         required
                         value={ticketData.email}
                         onChange={e => setTicketData({ ...ticketData, email: e.target.value })}

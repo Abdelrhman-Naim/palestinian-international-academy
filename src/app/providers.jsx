@@ -8,9 +8,11 @@ import { LibraryProvider } from '../context/LibraryContext';
 import { CoursesProvider } from '../context/CoursesContext';
 import { CategoriesProvider } from '../context/CategoriesContext';
 import { CallProvider } from '../context/CallContext';
+import { PwaProvider } from '../context/PwaContext';
 import { useDarkMode } from '../hooks/useDarkMode';
 import OfflineBanner from '../components/OfflineBanner';
 import ErrorBoundary from '../components/ErrorBoundary';
+import PwaInstallBanner from '../components/PwaInstallBanner';
 
 function DarkModeInit() {
   useDarkMode();
@@ -27,11 +29,14 @@ export function Providers({ children }) {
               <CoursesProvider>
                 <CategoriesProvider>
                   <CallProvider>
-                    <DarkModeInit />
-                    <OfflineBanner />
-                    <ErrorBoundary>
-                      {children}
-                    </ErrorBoundary>
+                    <PwaProvider>
+                      <DarkModeInit />
+                      <OfflineBanner />
+                      <PwaInstallBanner />
+                      <ErrorBoundary>
+                        {children}
+                      </ErrorBoundary>
+                    </PwaProvider>
                   </CallProvider>
                 </CategoriesProvider>
               </CoursesProvider>

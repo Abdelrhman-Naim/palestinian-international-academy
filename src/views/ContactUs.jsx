@@ -101,6 +101,7 @@ const ContactUs = () => {
                 </label>
                 <input
                   type="text"
+                  autoComplete="name"
                   required
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -115,6 +116,7 @@ const ContactUs = () => {
                 </label>
                 <input
                   type="email"
+                  autoComplete="email"
                   required
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}

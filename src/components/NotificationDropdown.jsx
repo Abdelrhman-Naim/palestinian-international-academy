@@ -443,9 +443,7 @@ export default function NotificationDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
-            className={`absolute top-full mt-2.5 z-50 ${
-              dir === 'rtl' ? 'right-0' : 'left-0'
-            } w-[calc(100vw-1.5rem)] sm:w-[380px] max-w-[380px] rounded-2xl bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col text-start`}
+            className="absolute top-full mt-2.5 z-50 start-0 w-[calc(100dvw-1.5rem)] sm:w-[380px] max-w-[380px] rounded-2xl bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 shadow-2xl overflow-hidden flex flex-col text-start"
           >
             {/* Header */}
             <div className="p-3.5 sm:p-4 border-b border-[#E8E2D5] dark:border-gray-700 bg-[#FAF7F2] dark:bg-gray-900/60 flex items-center justify-between gap-2">
