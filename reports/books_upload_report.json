@@ -1,0 +1,531 @@
+{
+  "timestamp": "2026-10-07T13:28:50.158Z",
+  "totalDriveFiles": 1405,
+  "totalUploaded": 1340,
+  "totalRejected": 51,
+  "totalDuplicatesSkipped": 14,
+  "rejectedBooks": [
+    {
+      "title": "إزالة الشبهات عن معاني المصطلحات",
+      "category": "علوم إسلامية",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "15RB8smzkt-06f3XfeVGr3hZktuZcljQf",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "المصطلحات_الأدبية_الحديثة",
+      "category": "علوم إسلامية",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "15tfYlYf4AjNA4z9Be_LoT-gxRuWlcJVC",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "حكم وأمثال بالانجليزي وما يقبلها با العربي",
+      "category": "تاريخ وجغرافيا",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1r-DFd5Nl95DlByEtJ_oH7m_toqjnYpfH",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "نوادر_الأدباء",
+      "category": "الأدب العربي",
+      "author": "كتب تراثية",
+      "pages": 0,
+      "fileId": "1YJulv7kur0BKmRpeVhpIJYasRURZb6dr",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"كتب تراثية\")"
+    },
+    {
+      "title": "غريب في زمن الفتن",
+      "category": "كتب منوعة",
+      "author": "مجموعة من المؤلفين",
+      "pages": 0,
+      "fileId": "11gx5KhSN0jdjznET5WLC51BwdLsxMJjx",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"مجموعة من المؤلفين\")"
+    },
+    {
+      "title": "شجرة الزيتون تحكي",
+      "category": "كتب منوعة",
+      "author": "مجموعة من المؤلفين",
+      "pages": 0,
+      "fileId": "1GLFjux7J34K5FEQUKiw69udEIu_BkS-8",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"مجموعة من المؤلفين\")"
+    },
+    {
+      "title": "موسوعة المصطلحات",
+      "category": "كتب منوعة",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "15FjydwytOm16tAMsJktspMZcVEdToa6Z",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "البناء والجدران",
+      "category": "كتب منوعة",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1vXUFdRDjJzxAeS1809o9UO9SkhkaNOY3",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "مصطلحات واختصارات",
+      "category": "كتب منوعة",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1uSehJgG1VKhAaZZdKGrj2L3L63sh94Ru",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "بعض التعابير الامريكية العامية",
+      "category": "كتب منوعة",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1_Ahm0wee0TH8rf3FSoyPs0xNKKnlgHmg",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "بعض التعابير في الامريكية",
+      "category": "كتب منوعة",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "13hHk8fmFIG7AL1l35WZkh4r3ps0JPmAM",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "عناصر منداليف المتوقعة",
+      "category": "كتب منوعة",
+      "author": "كتب علمية",
+      "pages": 0,
+      "fileId": "1OaW-Fa9qY62PiDn8uHZgUwMRWOlPS5Tm",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"كتب علمية\")"
+    },
+    {
+      "title": "عناصر منداليف المتوقعة (2)",
+      "category": "كتب منوعة",
+      "author": "كتب علمية",
+      "pages": 0,
+      "fileId": "1iEhwVbtcxpIyutMNFaC-qQSirskuyVlJ",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"كتب علمية\")"
+    },
+    {
+      "title": "عناصر منداليف المتوقعة (1)",
+      "category": "كتب منوعة",
+      "author": "كتب علمية",
+      "pages": 0,
+      "fileId": "1kl26klww9Oc-1xREldfNbwxx3s2dwGPg",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"كتب علمية\")"
+    },
+    {
+      "title": "ملحمة_جلجاميش",
+      "category": "كتب منوعة",
+      "author": "كتب تراثية",
+      "pages": 0,
+      "fileId": "1h1t-p_FrgikWxBiLVxg2_HES4E-h8SiR",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"كتب تراثية\")"
+    },
+    {
+      "title": "نوادر_الخلفاء",
+      "category": "كتب منوعة",
+      "author": "كتب تراثية",
+      "pages": 0,
+      "fileId": "11_WfClgxe-CYwMnPUmBzQJ37IOAqJgIC",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"كتب تراثية\")"
+    },
+    {
+      "title": "Doc111",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "136DEU_8KiyGNzOleRpcAzGtqJeV-3fvP",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "Short stories",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "17Tm3kHk8eLH-S6NmmboU8Q5BHxLAmb4Z",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "عبارات تحفيزية",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1C-qJi1NmKlpVFSxQOl0JafTpNj3WjXpF",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "Ferrari has its first electric car",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1Wnu_wXcqkAXlkhET3-JHYplNpzxNUTa9",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "Doc2",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1ucYgdmY9aA4msrMNX9erRHOq_tr9L_Nr",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "Doc1111",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1_irqFIdXRzQiCd138Qr6saAph3uuNomD",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "Doc11",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1yhvstkSlyO_ziCEH1vLaai2i8dUSko2U",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "أكيد",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1IdG-YhzLE_4o0DhO-1r4RYXbrG69oISW",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "Doc1",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1AVQALIUoq9Lc1rV2jWoNdQULZL66x4LA",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "جميع قواعد النطق الإنجليزية",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1aBdP9orkwiH2aZ-DdU36tkLMpXTT7cGs",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "القاموس إنكليزي عربي",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1DsX_G7ddAhcjPlngB_FFBAVrJfr5iQSj",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "هام",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1N_8_zg4f1hQDA35uzazi5HxHesTaP3vx",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "موسوعة المصطلحات 3",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1g3kQdjxhSkfnHR4j-PfqIlZ1TYYKrprQ",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "موسوعة المصطلحات 2",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1G4jgPhfaDSnd-xEGF2qmt75tTn0PtSCi",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "موسوعة المصطلحات",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1UyGyZQqS6zj9yAWId50Yo3fvJL-kIYuO",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كلمات  تستخدم يوميا",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "11-KJlGhBMLdaCsY6c2O0YnAuHjX8rVkr",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كلمات انجليزية تستخدم يوميا",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1wKmfscSOZgopxSsSZIBkGOu4beLpKNHl",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "بعض المجاملات باللغة الانجليزية",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1pKcOvyDcDTtvew5zf_ItBao8PepNuyk1",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "(نماذج الانشاء بالانجليزية)",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1-wcNhwG4Yz_UVa6jKbXwdEKaxS7lce99",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كلمات للحفظ",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "10_deKX0uVKYsAjgIf7zbxi9QGBpQYPON",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كلمات و معناها بالعربي",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1QLZYQHtO3WYCL5ziC0b60RSIlgUxhBGw",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "حصن المسلم",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "12yljSSNU5pDke9Pz1twjMe7Jpzxbp_yk",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "البناء والجدران",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1lca9vVEDydpM7zWW2CylJB5IP3Ewmrnw",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كلمات متشابهه في النطق مختلفة كليا في المعنى",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1Wrsq2GQJa0dT2CHKAmhQOItInCCqxJvD",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "التسوق",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1GsjQ-TU3DFWNn5kMTuAqOvza6T9XSAd5",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "مترادفات إنجليزية- معانيها واستخداماتها",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "14FbjhCh5nIgiC1W7R3Jh3UBt45Iakt_u",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "حكم وأمثال بالانجليزي وما يقبلها با العربي",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1EaeYYQwFBV1aIgj2xMnqON1eql1rmqmW",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "مصطلحات واختصارات",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "11-GOTWlVrhTR4TnaPkl-QOELQfQyjxUn",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "بعض التعابير الامريكية العامية",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1fk52lEAEVKbCTBw2kys0f_js59NFdnus",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "بعض التعابير في الامريكية",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1ULl5z6YE-8Vi7nHBmu0l3XGH9FuajCb4",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "جمل يومية",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1sDnTZ5LqqbqjlBBbuZGJidc0Xtk3zyu1",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "الافعال الشاذة",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1Z5EOB7LN15LoG97Iaovq-j5RZAc1Ew_Y",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "500 كلمة من أكثر المفردات الإنجليزية شيوعاً واستخداماً",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1Yx06bI7l1GbEeQpNbi994tWARAoSZjCd",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كلمات لغة انجليزية هامة",
+      "category": "كتب تعليم لغات",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1HwAIx0Pl8VWnKopn18jS_6NxCuLLQohw",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    },
+    {
+      "title": "كتاب الحديقة مجموعة أدب بارع وحكمة بليغة",
+      "category": "كتب سياسية",
+      "author": "غير معروف",
+      "pages": 0,
+      "fileId": "1VlY_HekMPnyH_RzrvNknovI7NaJsPf0k",
+      "reason": "المؤلف غير معروف أو غير محدد باسم كاتب صريح (\"غير معروف\")"
+    }
+  ],
+  "duplicateSkipped": [
+    {
+      "title": "طوق_الحمامة_في_الأُلفَةِ_والأُلَّاف",
+      "category": "علوم إسلامية",
+      "author": "ابن حزم",
+      "pages": 86,
+      "fileId": "1S0NMoRM8l14l2J0ra8TUiUmN7oNTnuIL",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "جوامع_الكلم",
+      "category": "تاريخ وجغرافيا",
+      "author": "غوستاف لوبون",
+      "pages": 224,
+      "fileId": "1wb1mcswP97X6I-UgBfL0eFklsgWPYD01",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "أسْوَاقُ_الذَّهَبِ",
+      "category": "الأدب العربي",
+      "author": "أحمد شوقي",
+      "pages": 150,
+      "fileId": "1UtNjjLe3m64iVzCvvyIBwujs-OmgZlvS",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "عذراء_الهند",
+      "category": "الأدب العربي",
+      "author": "أحمد شوقي",
+      "pages": 24,
+      "fileId": "1xtFiYhWGZzaQBt2hYw4s4bnJWOtlr4ap",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "حديث_القمر",
+      "category": "الأدب العربي",
+      "author": "الرافعي",
+      "pages": 367,
+      "fileId": "1hiwaYd8bh3zCJKOx-qwpokxN-uewjSu6",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "كتاب_المساكين",
+      "category": "الأدب العربي",
+      "author": "الرافعي",
+      "pages": 387,
+      "fileId": "14yE3ZIDrYXlJdAlgNNFvfi-tB54vohCP",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "تحت_راية_القرآن",
+      "category": "الأدب العربي",
+      "author": "الرافعي",
+      "pages": 303,
+      "fileId": "14An37Mhb1mfp9Chxzt-JdYf4XIGIjXRQ",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "الحنين_إلى_الأوطان",
+      "category": "الأدب العربي",
+      "author": "الجاحظ",
+      "pages": 24,
+      "fileId": "1mO4fYnG7y_H6qFfroNCuTzXR_5d3hwmi",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "كليلة_ودِمنة",
+      "category": "الأدب العربي",
+      "author": "ابن المقفع",
+      "pages": 484,
+      "fileId": "1FEunVD37xM9LKj7NumHmdAeEq3OkFToW",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "حِكَم_النَّبي_مُحَمَّد",
+      "category": "الأدب العالمي",
+      "author": "تولستوي",
+      "pages": 477,
+      "fileId": "1aqenB9McR_8Ccj8WO9HKwbiH1UQNbenX",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "محنة ثقافة مزورة",
+      "category": "كتب منوعة",
+      "author": "الصادق النيهوم",
+      "pages": 152,
+      "fileId": "15fs43EYwe6VrP4r1K7wIKH0k1obB6c-9",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "نقاش",
+      "category": "كتب منوعة",
+      "author": "الصادق النيهوم",
+      "pages": 31,
+      "fileId": "1Dm5o_4cdgb1_ISTJS0BgtLBDKVe9NOu6",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "تحية طيبة وبعد",
+      "category": "كتب منوعة",
+      "author": "الصادق النيهوم",
+      "pages": 56,
+      "fileId": "1Mz7zfELkt6wCkVJgaayM80Du99QmoaDJ",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    },
+    {
+      "title": "الكلمة والصورة",
+      "category": "كتب منوعة",
+      "author": "مصطفى محمود",
+      "pages": 39,
+      "fileId": "19i1w9jalz_YwUt81aPICSdc-KA0cYFxI",
+      "reason": "الكتاب موجود مسبقاً في قاعدة البيانات (تم تجنب التكرار)"
+    }
+  ]
+}

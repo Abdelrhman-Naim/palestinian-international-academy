@@ -59,4 +59,27 @@ test.describe('Admin Full E2E & Debug Audit', () => {
       await expect(pageHeading).toBeVisible({ timeout: 10000 });
     }
   });
+
+  test('Sidebar highlights only one item when navigating to library categories', async ({ page }) => {
+    // 1. Login
+    await page.goto('/login-admin', { waitUntil: 'commit', timeout: 45000 });
+    const usernameInput = page.locator('#admin-user, input[type="text"]');
+    const passwordInput = page.locator('#admin-pass, input[type="password"]');
+    await expect(usernameInput).toBeVisible({ timeout: 15000 });
+    await usernameInput.fill('admin@gmail.com');
+    await passwordInput.fill('Admin@2005');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/admin-dashboard/, { timeout: 35000 });
+
+    // 2. Go to Library Categories
+    await page.goto('/admin-dashboard/library-categories', { waitUntil: 'commit', timeout: 30000 });
+    await page.waitForTimeout(1000);
+
+    const libContentLink = page.locator('aside a[href="/admin-dashboard/library"]');
+    const libCatsLink = page.locator('aside a[href="/admin-dashboard/library-categories"]');
+
+    // Only libCatsLink must have bg-primary, libContentLink must NOT have bg-primary
+    await expect(libCatsLink).toHaveClass(/bg-primary/);
+    await expect(libContentLink).not.toHaveClass(/bg-primary/);
+  });
 });
