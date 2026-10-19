@@ -403,10 +403,10 @@ export default function CertificateModal({ certificate, onClose }) {
           </div>
 
           {/* Decorative Corner Filigrees */}
-          <div className="absolute top-2 left-2 w-12 h-12 border-t-2 border-l-2 border-amber-600/60 pointer-events-none" />
-          <div className="absolute top-2 right-2 w-12 h-12 border-t-2 border-r-2 border-amber-600/60 pointer-events-none" />
-          <div className="absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 border-amber-600/60 pointer-events-none" />
-          <div className="absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 border-amber-600/60 pointer-events-none" />
+          <div className="absolute top-2 start-2 w-12 h-12 border-t-2 border-s-2 border-amber-600/60 pointer-events-none" />
+          <div className="absolute top-2 end-2 w-12 h-12 border-t-2 border-e-2 border-amber-600/60 pointer-events-none" />
+          <div className="absolute bottom-2 start-2 w-12 h-12 border-b-2 border-s-2 border-amber-600/60 pointer-events-none" />
+          <div className="absolute bottom-2 end-2 w-12 h-12 border-b-2 border-e-2 border-amber-600/60 pointer-events-none" />
 
           {/* Certificate Header */}
           <div className="relative z-10 flex items-center justify-between border-b border-amber-500/20 pb-4">
@@ -418,7 +418,7 @@ export default function CertificateModal({ certificate, onClose }) {
               </div>
             </div>
 
-            <div className="text-left font-mono text-[10px] text-stone-500 dark:text-stone-400 cert-print-text-muted">
+            <div className="text-end font-mono text-[10px] text-stone-500 dark:text-stone-400 cert-print-text-muted">
               <div>كود الاعتماد: <span className="font-bold text-amber-600 dark:text-amber-400 cert-print-gold">{certCode}</span></div>
               <div>تاريخ الإصدار: {formattedDate}</div>
             </div>

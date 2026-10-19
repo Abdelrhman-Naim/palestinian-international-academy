@@ -401,7 +401,7 @@ const StudentOverview = () => {
           {/* Weekly Activity SVG Bar Chart (2 Cols) */}
           <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-[#E8E2D5] dark:border-gray-700 shadow-sm transition-colors">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6">
-              <div className="text-right">
+              <div className="text-start">
                 <h3 className="text-lg font-bold text-dark dark:text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-xl">monitoring</span>
                   <span>{isRtl ? 'نشاط التعلم الأسبوعي' : 'Weekly Study Activity'}</span>
@@ -512,7 +512,7 @@ const StudentOverview = () => {
 
           {/* Radial Track Progress Gauge (1 Col) */}
           <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-[#E8E2D5] dark:border-gray-700 shadow-sm flex flex-col justify-between transition-colors">
-            <div className="text-right">
+            <div className="text-start">
               <h3 className="text-lg font-bold text-dark dark:text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-xl">pie_chart</span>
                 <span>{isRtl ? 'إنجاز المسار الدراسي' : 'Curriculum Progress'}</span>
@@ -577,7 +577,7 @@ const StudentOverview = () => {
           
           {/* Continue Learning Dynamic Card (2 Cols) */}
           <div className="lg:col-span-2">
-            <h2 className="text-xl font-bold text-dark dark:text-white mb-6 text-right transition-colors">
+            <h2 className="text-xl font-bold text-dark dark:text-white mb-6 text-start transition-colors">
               {t('studentOverview.continueLearning')}
             </h2>
             
@@ -588,7 +588,7 @@ const StudentOverview = () => {
                     <div className="w-12 h-12 rounded-xl bg-primary/10 dark:bg-amber-400/10 text-primary dark:text-amber-400 flex items-center justify-center font-bold text-xl shrink-0">
                       <span className="material-symbols-outlined text-2xl">school</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-start">
                       {currentActiveCourse.category && (
                         <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 mb-1">
                           {currentActiveCourse.category}
@@ -604,7 +604,7 @@ const StudentOverview = () => {
                       )}
                     </div>
                   </div>
-                  <div className="text-right sm:text-left shrink-0">
+                  <div className="text-start sm:text-end shrink-0">
                     <span className="text-xl font-black font-jetbrains text-primary dark:text-amber-400">
                       {currentActiveCourse.progress}%
                     </span>
@@ -665,9 +665,9 @@ const StudentOverview = () => {
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-[#E8E2D5] dark:border-gray-700 shadow-sm flex flex-col justify-between transition-colors min-h-75">
               <div className="flex items-center justify-between mb-4">
                 <Link to="/dashboard/certificates" className="text-xs font-semibold text-primary dark:text-amber-400 hover:underline flex items-center">
-                  <i className="fa-solid fa-arrow-left ml-1 text-[10px] rtl:rotate-0 rotate-180"></i> {isRtl ? 'الشهادات' : 'Certificates'}
+                  <i className="fa-solid fa-arrow-left ms-1 text-[10px] rtl:rotate-0 rotate-180"></i> {isRtl ? 'الشهادات' : 'Certificates'}
                 </Link>
-                <div className="text-right">
+                <div className="text-start">
                   <h2 className="text-base font-bold text-dark dark:text-white">{t('studentOverview.recentBadges')}</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {unlockedBadges.length} {t('common.of')} {badgesList.length} {t('studentOverview.badgesUnlocked')}
@@ -693,7 +693,7 @@ const StudentOverview = () => {
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shadow-2xs ${badge.color}`}>
                           <span className="material-symbols-outlined text-base">{badge.icon}</span>
                         </div>
-                        <div className="text-right">
+                        <div className="text-start">
                           <h4 className="text-xs font-bold text-dark dark:text-white">{badge.title}</h4>
                           <p className="text-[10px] text-gray-500 dark:text-gray-400">{badge.desc}</p>
                         </div>
