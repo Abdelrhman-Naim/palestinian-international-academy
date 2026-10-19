@@ -322,7 +322,7 @@ const Hero = () => {
         <div className="max-w-7xl mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10 items-center">
           {/* Text Area */}
           <div className="space-y-8">
-            <h1 className="font-display-lg text-4xl sm:text-5xl md:text-6xl md:leading-[1.4] font-black tracking-tight text-gray-900 dark:text-white">
+            <h1 className="font-display-lg text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.25] sm:leading-[1.3] md:leading-[1.35] lg:leading-[1.4] font-black tracking-tight text-gray-900 dark:text-white">
               {t("hero.title1")} <br />
               <span className="bg-linear-to-r from-[#e5be53] via-primary to-[#b38b22] bg-clip-text text-transparent">
                 {t("hero.title2")}
@@ -440,10 +440,10 @@ const Hero = () => {
             </div>
           </div>
         </div>
-        <section className="flex items-center justify-center py-8 sm:py-12 relative transition-colors">
-          <div className="w-[94%] sm:w-4/5 max-w-7xl bg-white/95 dark:bg-[#151311] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm dark:shadow-2xl mx-auto px-2 sm:px-6 md:px-8 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-            <div className="text-center px-2 sm:px-4 md:border-e md:border-[#E8E2D5] dark:md:border-gray-700">
-              <h3 className="text-2xl sm:text-3xl md:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+        <section className="flex items-center justify-center py-6 sm:py-10 lg:py-12 relative transition-colors">
+          <div className="w-[94%] sm:w-11/12 max-w-7xl bg-white/95 dark:bg-[#151311] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl md:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-sm dark:shadow-2xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-y-6 sm:gap-y-8 lg:gap-y-0 gap-x-2 sm:gap-x-4 lg:gap-x-6">
+            <div className="text-center px-2 sm:px-4 border-e border-[#E8E2D5] dark:border-gray-700">
+              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter value={coursesCount} suffix="+" />
               </h3>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">
@@ -451,8 +451,8 @@ const Hero = () => {
               </p>
             </div>
 
-            <div className="text-center px-2 sm:px-4 md:border-e md:border-[#E8E2D5] dark:md:border-gray-700">
-              <h3 className="text-2xl sm:text-3xl md:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+            <div className="text-center px-2 sm:px-4 lg:border-e border-[#E8E2D5] dark:border-gray-700">
+              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter
                   value={traineesValue}
                   decimals={traineesDecimals}
@@ -464,8 +464,8 @@ const Hero = () => {
               </p>
             </div>
 
-            <div className="text-center px-2 sm:px-4 md:border-e md:border-[#E8E2D5] dark:md:border-gray-700">
-              <h3 className="text-2xl sm:text-3xl md:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+            <div className="text-center px-2 sm:px-4 border-e border-[#E8E2D5] dark:border-gray-700">
+              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter value={extraStats.completionRate} suffix="%" />
               </h3>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">
@@ -474,7 +474,7 @@ const Hero = () => {
             </div>
 
             <div className="text-center px-2 sm:px-4">
-              <h3 className="text-2xl sm:text-3xl md:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter value={avgRating} decimals={1} suffix=" ★" />
               </h3>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">

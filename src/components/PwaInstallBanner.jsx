@@ -8,27 +8,45 @@ export default function PwaInstallBanner() {
   const { isInstallable, isInstalled, isIos, isInAppBrowser, updateAvailable, promptInstall, applyUpdate } = usePwa() || {};
   const { dir } = useLanguage() || { dir: 'rtl' };
   const [showIosSheet, setShowIosSheet] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('pia_pwa_dismissed') === 'true';
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('pia_pwa_dismissed', 'true');
+      } catch (e) {}
+    }
+  };
 
   // If already installed or user dismissed, don't show install banner (still show update if available)
   if (updateAvailable) {
     return (
       <div 
         role="alert" 
-        className="fixed bottom-4 start-4 end-4 md:start-auto md:end-6 md:w-96 z-[999] bg-stone-900 text-white rounded-2xl p-4 shadow-2xl border border-amber-500/30 flex items-center justify-between gap-3 animate-fade-in"
+        className="fixed bottom-4 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-md z-[999] bg-stone-900 text-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-amber-500/30 flex items-center justify-between gap-3 animate-fade-in"
         style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </div>
-          <div>
-            <p className="text-sm font-bold text-white">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white truncate">
               {dir === 'rtl' ? 'تحديث جديد متاح' : 'New Update Available'}
             </p>
-            <p className="text-xs text-stone-300">
+            <p className="text-xs text-stone-300 truncate">
               {dir === 'rtl' ? 'انقر لتحديث التطبيق فوراً' : 'Click to refresh the app now'}
             </p>
           </div>
@@ -52,21 +70,21 @@ export default function PwaInstallBanner() {
   return (
     <>
       <div 
-        className="fixed bottom-4 start-4 end-4 md:start-auto md:end-6 md:w-96 z-[990] bg-white/95 dark:bg-stone-900/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-stone-200 dark:border-stone-700 flex items-center justify-between gap-3"
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        className="fixed bottom-3 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-sm z-[990] bg-white/95 dark:bg-stone-900/95 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-xl border border-stone-200 dark:border-stone-700 flex items-center justify-between gap-2.5 sm:gap-3"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        <div className="flex items-center gap-3">
-          <img src="/favicon.png?v=3" alt="PIA Logo" className="w-10 h-10 rounded-xl shadow-sm shrink-0" />
-          <div>
-            <p className="text-sm font-bold text-stone-900 dark:text-white">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <img src="/favicon.png?v=3" alt="PIA Logo" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-xs shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white truncate">
               {dir === 'rtl' ? 'تطبيق أكاديمية فلسطين' : 'PIA Mobile App'}
             </p>
-            <p className="text-xs text-stone-500 dark:text-stone-400">
-              {dir === 'rtl' ? 'تصفح أسرع وتجربة تطبيق أصلي' : 'Faster browsing & native app experience'}
+            <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 truncate">
+              {dir === 'rtl' ? 'تصفح أسرع وتجربة تطبيق أصلي' : 'Faster browsing & native app'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => {
               if (isIos) {
@@ -75,14 +93,14 @@ export default function PwaInstallBanner() {
                 promptInstall();
               }
             }}
-            className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs transition-all cursor-pointer"
+            className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-950 font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs transition-all cursor-pointer"
           >
             {dir === 'rtl' ? 'تثبيت' : 'Install'}
           </button>
           <button
-            onClick={() => setDismissed(true)}
+            onClick={handleDismiss}
             aria-label="إغلاق"
-            className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 p-1.5 rounded-lg text-sm"
+            className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 p-1.5 rounded-lg text-sm transition-colors cursor-pointer"
           >
             ✕
           </button>

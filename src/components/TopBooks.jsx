@@ -39,19 +39,19 @@ const TopBooks = () => {
   const skeletons = [1, 2, 3, 4];
 
   return (
-    <section className="w-full bg-[#FAF7F2] dark:bg-gray-900 py-24 px-4 md:px-8 transition-colors border-t border-[#E8E2D5] dark:border-gray-800">
+    <section className="w-full bg-[#FAF7F2] dark:bg-gray-900 py-14 sm:py-24 px-4 md:px-8 transition-colors border-t border-[#E8E2D5] dark:border-gray-800">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12 space-y-3 flex flex-col items-center">
+        <div className="text-center mb-10 sm:mb-12 space-y-2 sm:space-y-3 flex flex-col items-center">
           <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-block font-label-caps">
             {t("topBooks.label") || (isRtl ? 'مكتبة المنصة' : 'Platform Library')}
           </span>
-          <h2 className="font-headline-lg text-3xl md:text-5xl text-dark dark:text-white font-black pt-1">
+          <h2 className="font-headline-lg text-2xl sm:text-3xl md:text-5xl text-dark dark:text-white font-black pt-1">
             {t("topBooks.title1") || (isRtl ? 'الكتب' : 'Most')} <span>{t("topBooks.title2") || (isRtl ? 'الأكثر تنزيلاً' : 'Downloaded Books')}</span>
           </h2>
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {loading
             ? skeletons.map((i) => (
                 <div key={i} className="bg-white dark:bg-gray-800/80 border border-[#E8E2D5] dark:border-gray-700/50 rounded-2xl overflow-hidden animate-pulse">

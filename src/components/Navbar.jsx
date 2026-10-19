@@ -267,7 +267,7 @@ const Navbar = () => {
           </div>
         ) : (
           /* ============ LOGGED OUT STATE (Non-competing Header Link) ============ */
-          <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-3">
             <Link 
               to="/login" 
               className="px-4 py-2.5 rounded-xl border border-[#E8E2D5] dark:border-gray-700 text-stone-800 dark:text-white hover:border-primary hover:text-primary font-bold text-xs transition-all shadow-xs min-h-[44px] flex items-center justify-center uppercase tracking-wider"

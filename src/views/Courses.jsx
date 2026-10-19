@@ -198,7 +198,7 @@ const Courses = ({ embedded = false }) => {
   }, [coursesData, selectedCategory, selectedLevel, selectedPrice, sortBy, categoryPairs]);
 
   return (
-    <div className={`${embedded ? 'min-h-full' : 'min-h-screen'} flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors`} dir={dir}>
+    <div className={`${embedded ? 'min-h-full' : 'min-h-screen'} flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased transition-colors`} dir={dir}>
       <SEO
         title={isRtl ? 'الدورات التدريبية المعتمدة | أكاديمية فلسطين الدولية (PIA)' : 'Accredited Courses | Palestinian International Academy'}
         description={isRtl 

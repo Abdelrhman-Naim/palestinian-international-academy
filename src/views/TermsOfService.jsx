@@ -10,7 +10,7 @@ const TermsOfService = () => {
   const isRtl = dir === 'rtl';
 
   return (
-    <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased overflow-x-hidden transition-colors" dir={dir}>
+    <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-gray-100 antialiased transition-colors" dir={dir}>
       <SEO
         title={isRtl ? 'شروط وسياسة الاستخدام | أكاديمية فلسطين الدولية (PIA)' : 'Terms of Service | Palestinian International Academy'}
         description={isRtl
