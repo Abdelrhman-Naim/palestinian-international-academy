@@ -119,6 +119,16 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{
             __html: `
               try {
+                var savedTheme = localStorage.getItem('theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+
+              try {
                 if (typeof window !== 'undefined') {
                   if (document.cookie && document.cookie.length > 2048) {
                     var cookies = document.cookie.split(';');
@@ -155,7 +165,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 transition-colors">
+      <body className="min-h-screen min-h-[100dvh] flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100">
         <Providers>
           <React.Suspense fallback={null}>
             {children}

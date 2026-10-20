@@ -5,7 +5,6 @@ import { useCourses } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { supabase } from "../supabase/client";
-import { createMedicalRobot } from "../utils/medical-robot.js";
 
 // Fast & smooth animated counter component (counts rapidly from 0 on load/view)
 const AnimatedCounter = ({
@@ -298,18 +297,40 @@ const Hero = () => {
     : "/courses";
 
   useEffect(() => {
-    if (!robotRef.current) return;
-    try {
-      const bot = createMedicalRobot(robotRef.current, {
-        maxPixelRatio: 2,
-        responsiveness: 1,
-        idleAmplitude: 1,
-        trackWindow: true,
+    // Only load and initialize Three.js robot on desktop screens (>= 1024px)
+    if (!robotRef.current || typeof window === "undefined") return;
+
+    const isDesktop = window.innerWidth >= 1024;
+    const prefersReducedMotion =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!isDesktop || prefersReducedMotion) return;
+
+    let bot = null;
+    let isDisposed = false;
+
+    // Dynamically import medical-robot so mobile does NOT download or execute Three.js
+    import("../utils/medical-robot.js")
+      .then(({ createMedicalRobot }) => {
+        if (isDisposed || !robotRef.current) return;
+        bot = createMedicalRobot(robotRef.current, {
+          maxPixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+          responsiveness: 1,
+          idleAmplitude: 1,
+          trackWindow: true,
+        });
+      })
+      .catch((e) => {
+        console.warn("Robot canvas initialization error:", e);
       });
-      return () => bot.dispose();
-    } catch (e) {
-      console.warn("Robot canvas initialization error:", e);
-    }
+
+    return () => {
+      isDisposed = true;
+      if (bot && typeof bot.dispose === "function") {
+        bot.dispose();
+      }
+    };
   }, []);
 
   return (

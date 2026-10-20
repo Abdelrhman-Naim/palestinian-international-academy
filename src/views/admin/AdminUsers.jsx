@@ -319,7 +319,7 @@ export default function AdminUsers() {
           <span className="col-span-3">{isRtl ? 'تاريخ الانضمام' : 'Joined Date'}</span>
           <span className="col-span-2">{isRtl ? 'الدورات' : 'Courses'}</span>
           <span className="col-span-2">{isRtl ? 'الحالة' : 'Status'}</span>
-          <span className="col-span-2 text-left rtl:text-right">{isRtl ? 'الإجراءات' : 'Actions'}</span>
+          <span className="col-span-2 text-end">{isRtl ? 'الإجراءات' : 'Actions'}</span>
         </div>
 
         {loading ? (

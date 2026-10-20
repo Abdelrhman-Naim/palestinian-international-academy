@@ -30,7 +30,7 @@ export default function CustomSelect({ options, value, onChange, placeholder, di
                 className={`flex w-full items-center justify-between rounded-xl border border-[#E8E2D5] bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
             >
                 <span className="block truncate">{selectedOption ? selectedOption.label : defaultPlaceholder}</span>
-                <span className="pointer-events-none flex items-center pr-2">
+                <span className="pointer-events-none flex items-center pe-2">
                     <svg
                         className={`h-4 w-4 text-gray-400 transition-transform duration-200 dark:text-gray-500 ${isOpen ? "rotate-180" : ""}`}
                         viewBox="0 0 20 20"
@@ -60,9 +60,7 @@ export default function CustomSelect({ options, value, onChange, placeholder, di
                                     onChange(option.value);
                                     setIsOpen(false);
                                 }}
-                                className={`relative cursor-pointer select-none py-2.5 text-sm transition-colors ${
-                                    dir === 'rtl' ? 'pl-4 pr-9 text-right' : 'pl-9 pr-4 text-left'
-                                } ${
+                                className={`relative cursor-pointer select-none py-2.5 text-sm transition-colors ps-9 pe-4 text-start ${
                                     value === option.value
                                         ? "bg-orange-50 font-bold text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
                                         : "text-gray-700 hover:bg-[#FAF7F2] dark:text-gray-200 dark:hover:bg-gray-700/50"
@@ -70,7 +68,7 @@ export default function CustomSelect({ options, value, onChange, placeholder, di
                             >
                                 <span className="block truncate">{option.label}</span>
                                 {value === option.value && (
-                                    <span className={`absolute inset-y-0 ${dir === 'rtl' ? 'right-0 pr-2.5' : 'left-0 pl-2.5'} flex items-center text-orange-600 dark:text-orange-400`}>
+                                    <span className="absolute inset-y-0 start-0 ps-2.5 flex items-center text-orange-600 dark:text-orange-400">
                                         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                             <path
                                                 fillRule="evenodd"

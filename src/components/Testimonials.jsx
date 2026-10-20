@@ -68,7 +68,7 @@ const Testimonials = () => {
           {reviews.map((rev, idx) => (
             <div
               key={idx}
-              className="bg-white dark:bg-[#181512] border border-[#E8E2D5] dark:border-[#2E2720] rounded-2xl p-7 sm:p-8 shadow-sm dark:shadow-xl hover:border-amber-500/30 transition-all duration-300 flex flex-col justify-between h-full text-right rtl:text-right ltr:text-left group"
+              className="bg-white dark:bg-[#181512] border border-[#E8E2D5] dark:border-[#2E2720] rounded-2xl p-7 sm:p-8 shadow-sm dark:shadow-xl hover:border-amber-500/30 transition-all duration-300 flex flex-col justify-between h-full text-start group"
             >
               {/* Quote Text */}
               <p className="text-dark dark:text-white font-bold text-sm sm:text-base leading-relaxed mb-8 font-body-md transition-colors">

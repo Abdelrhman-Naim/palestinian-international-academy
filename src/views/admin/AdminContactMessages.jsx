@@ -211,7 +211,7 @@ export default function AdminContactMessages() {
           <span className="col-span-3">{isRtl ? 'المرسل' : 'Sender'}</span>
           <span className="col-span-5">{isRtl ? 'مقتطف من الرسالة' : 'Message Snippet'}</span>
           <span className="col-span-2">{isRtl ? 'تاريخ الاستلام' : 'Received Date'}</span>
-          <span className="col-span-2 text-left rtl:text-right">{isRtl ? 'الإجراءات' : 'Actions'}</span>
+          <span className="col-span-2 text-end">{isRtl ? 'الإجراءات' : 'Actions'}</span>
         </div>
 
         {loading ? (

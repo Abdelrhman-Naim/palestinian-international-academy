@@ -88,8 +88,10 @@ export function PwaProvider({ children }) {
         });
 
       let refreshing = false;
+      const hadControllerOnLoad = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
+        // Only automatically reload if the client was already controlled by a prior service worker
+        if (!refreshing && hadControllerOnLoad) {
           refreshing = true;
           window.location.reload();
         }
@@ -116,6 +118,11 @@ export function PwaProvider({ children }) {
 
   const applyUpdate = () => {
     if (waitingWorker) {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        }, { once: true });
+      }
       waitingWorker.postMessage({ type: 'SKIP_WAITING' });
     }
   };

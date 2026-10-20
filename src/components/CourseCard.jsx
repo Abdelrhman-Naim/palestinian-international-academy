@@ -66,7 +66,7 @@ const CourseCard = ({ course, isEnrolled = false }) => {
   const activeStatusText = isRtl ? 'مشترك بالفعل' : 'Enrolled';
 
   return (
-    <div className="bg-white dark:bg-[#161412] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl overflow-hidden shadow-sm dark:shadow-xl hover:shadow-[0_20px_40px_-15px_rgba(212,175,55,0.25)] transition-all duration-300 group flex flex-col justify-between text-right rtl:text-right ltr:text-left h-full">
+    <div className="bg-white dark:bg-[#161412] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl overflow-hidden shadow-sm dark:shadow-xl hover:shadow-[0_20px_40px_-15px_rgba(212,175,55,0.25)] transition-all duration-300 group flex flex-col justify-between text-start h-full">
       {/* Top Header Box */}
       <div className="bg-[#F5F0E6] dark:bg-[#1D1915] border-b border-[#E8E2D5] dark:border-[#2C2722] p-6 flex flex-col items-center justify-center relative min-h-[220px] w-full group-hover:bg-[#EFE9DC] dark:group-hover:bg-[#221D18] transition-colors">
         {/* Top Level Badge */}

@@ -209,7 +209,7 @@ export default function CustomDatePicker({
     <div ref={containerRef} className={`relative w-full ${className}`}>
       {label && (
         <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
-          {required && <span className="text-rose-500 font-bold ml-1">*</span>}
+          {required && <span className="text-rose-500 font-bold me-1">*</span>}
           {label}
         </label>
       )}
@@ -306,7 +306,7 @@ export default function CustomDatePicker({
                   }`}
                 >
                   {monthNames[viewMonth]}
-                  <i className="fa-solid fa-angle-down mr-1 text-[10px] opacity-70"></i>
+                  <i className="fa-solid fa-angle-down ms-1 text-[10px] opacity-70"></i>
                 </button>
 
                 {/* Year Picker Toggle */}
@@ -320,7 +320,7 @@ export default function CustomDatePicker({
                   }`}
                 >
                   {viewYear}
-                  <i className="fa-solid fa-angle-down mr-1 text-[10px] opacity-70"></i>
+                  <i className="fa-solid fa-angle-down ms-1 text-[10px] opacity-70"></i>
                 </button>
               </div>
 

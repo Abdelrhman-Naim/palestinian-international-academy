@@ -9,26 +9,31 @@ function getSystemDark() {
 }
 
 /**
- * Resolves the theme:
- * 1. If the user explicitly clicked the toggle button, use that manual choice ('dark' | 'light').
- * 2. Otherwise, ALWAYS follow the operating system theme directly.
+ * Resolves current theme:
+ * 1. If user explicitly chose 'dark' or 'light' in localStorage ('theme'), use that.
+ * 2. Otherwise follow system preference.
  */
 function resolveCurrentTheme() {
   if (typeof window === 'undefined') return false;
   try {
-    const manual = localStorage.getItem('theme_manual');
-    if (manual === 'dark') return true;
-    if (manual === 'light') return false;
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
     return getSystemDark();
   } catch {
     return false;
   }
 }
 
-let globalDarkMode = resolveCurrentTheme();
+// Global cached state synced with DOM
+let globalDarkMode = false;
+if (typeof window !== 'undefined') {
+  globalDarkMode = document.documentElement.classList.contains('dark') || resolveCurrentTheme();
+}
+
 const listeners = new Set();
 
-function applyTheme(isDark, isManualClick = false) {
+function applyTheme(isDark, isManual = false) {
   if (typeof window === 'undefined') return;
   globalDarkMode = isDark;
 
@@ -40,28 +45,30 @@ function applyTheme(isDark, isManualClick = false) {
   }
 
   try {
-    if (isManualClick) {
-      localStorage.setItem('theme_manual', isDark ? 'dark' : 'light');
+    if (isManual) {
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
   } catch (e) {}
 
-  listeners.forEach((fn) => fn(isDark));
+  listeners.forEach((fn) => {
+    try {
+      fn(isDark);
+    } catch (e) {}
+  });
 }
 
-// Initialize theme immediately on script evaluation
+// OS Preference change listener (only applies if user has NOT explicitly chosen a theme)
 if (typeof window !== 'undefined') {
-  applyTheme(resolveCurrentTheme());
-
-  // Listen in real-time to OS theme changes (e.g. Windows / macOS settings)
   try {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemThemeChange = (e) => {
-      // When the user changes their system OS theme, clear manual override and follow the OS
       try {
-        localStorage.removeItem('theme_manual');
+        const saved = localStorage.getItem('theme');
+        // Only react to OS changes if user hasn't set an explicit preference
+        if (!saved) {
+          applyTheme(e.matches, false);
+        }
       } catch (err) {}
-      applyTheme(e.matches, false);
     };
 
     if (mediaQuery.addEventListener) {
@@ -75,12 +82,17 @@ if (typeof window !== 'undefined') {
 }
 
 export function useDarkMode() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
 
   useEffect(() => {
-    const current = resolveCurrentTheme();
+    // Sync state in case document class changed before effect ran
+    const current = document.documentElement.classList.contains('dark');
     setIsDarkMode(current);
-    applyTheme(current);
 
     listeners.add(setIsDarkMode);
     return () => {
@@ -89,8 +101,8 @@ export function useDarkMode() {
   }, []);
 
   const toggleDarkMode = () => {
-    const nextVal = !globalDarkMode;
-    applyTheme(nextVal, true); // Mark as explicit user button click
+    const nextVal = !document.documentElement.classList.contains('dark');
+    applyTheme(nextVal, true);
   };
 
   return [isDarkMode, toggleDarkMode];
