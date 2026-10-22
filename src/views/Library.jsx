@@ -217,6 +217,20 @@ const Library = () => {
           { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
           { name: isRtl ? 'المكتبة الرقمية' : 'Library', item: '/library' }
         ]}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          'name': isRtl ? 'المكتبة الرقمية - أكاديمية فلسطين الدولية' : 'Digital Library - Palestinian International Academy',
+          'url': 'https://palestine-international-academy.netlify.app/library',
+          'description': isRtl
+            ? 'مكتبة رقمية مفتوحة تضم أكثر من 1300 كتاب ومصدر تعليمي في مجالات البرمجة والذكاء الاصطناعي والأدب والعلوم والهندسة.'
+            : 'Open digital library hosting over 1,300 academic books and resources.',
+          'provider': {
+            '@type': 'EducationalOrganization',
+            'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
+            'url': 'https://palestine-international-academy.netlify.app/'
+          }
+        }}
       />
       <Navbar />
       

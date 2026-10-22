@@ -75,6 +75,17 @@ export default function CertificateVerificationPage() {
           { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
           { name: isRtl ? 'فحص الشهادة' : 'Verify Certificate', item: '/verify-certificate' }
         ]}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'WebPage',
+          'name': isRtl ? 'نظام التحقق من الشهادات الرقمية - أكاديمية فلسطين الدولية' : 'Digital Certificate Verification - PIA',
+          'url': 'https://palestine-international-academy.netlify.app/verify-certificate',
+          'provider': {
+            '@type': 'EducationalOrganization',
+            'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
+            'url': 'https://palestine-international-academy.netlify.app/'
+          }
+        }}
       />
       <Navbar />
 

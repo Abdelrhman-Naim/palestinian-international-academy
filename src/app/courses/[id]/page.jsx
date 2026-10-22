@@ -15,6 +15,9 @@ export async function generateMetadata({ params }) {
       return {
         title: `${course.title} | أكاديمية فلسطين الدولية (PIA)`,
         description: course.description || 'تفاصيل الدورة التدريبية والشهادة المعتمدة والمحاضرات.',
+        alternates: {
+          canonical: `/courses/${id}`,
+        },
         openGraph: {
           title: `${course.title} | أكاديمية فلسطين الدولية`,
           description: course.description || 'تفاصيل الدورة التدريبية.',

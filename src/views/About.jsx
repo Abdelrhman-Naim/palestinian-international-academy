@@ -24,8 +24,52 @@ const About = () => {
       name: isRtl
         ? "أكاديمية فلسطين الدولية (PIA)"
         : "Palestinian International Academy (PIA)",
+      alternateName: ["PIA", "PIA Academy"],
       url: "https://palestine-international-academy.netlify.app/",
       logo: "https://palestine-international-academy.netlify.app/logo-wep.png",
+      image: "https://palestine-international-academy.netlify.app/screen.webp",
+      foundingLocation: {
+        "@type": "Place",
+        name: isRtl ? "فلسطين" : "Palestine",
+      },
+      areaServed: ["PS", "Middle East", "Worldwide"],
+      knowsAbout: [
+        "Software Engineering",
+        "Artificial Intelligence",
+        "Cybersecurity",
+        "Cloud Computing",
+        "Higher Technical Education",
+      ],
+      member: [
+        {
+          "@type": "Person",
+          name: t("about.mem1Name"),
+          jobTitle: t("about.mem1Role"),
+          description: t("about.mem1Bio"),
+          image: "https://palestine-international-academy.netlify.app/Head of Academic Board.webp",
+        },
+        {
+          "@type": "Person",
+          name: t("about.mem2Name"),
+          jobTitle: t("about.mem2Role"),
+          description: t("about.mem2Bio"),
+          image: "https://palestine-international-academy.netlify.app/Director of Curriculum Development.webp",
+        },
+        {
+          "@type": "Person",
+          name: t("about.mem3Name"),
+          jobTitle: t("about.mem3Role"),
+          description: t("about.mem3Bio"),
+          image: "https://palestine-international-academy.netlify.app/Senior Engineering Consultant.webp",
+        },
+        {
+          "@type": "Person",
+          name: t("about.mem4Name"),
+          jobTitle: t("about.mem4Role"),
+          description: t("about.mem4Bio"),
+          image: "https://palestine-international-academy.netlify.app/Director of Cloud & Practical Labs.webp",
+        },
+      ],
     },
   };
 

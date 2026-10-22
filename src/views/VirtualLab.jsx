@@ -71,6 +71,21 @@ const VirtualLab = () => {
           { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
           { name: isRtl ? 'المعمل الافتراضي' : 'Virtual Lab', item: '/virtual-lab' }
         ]}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          'name': isRtl ? 'المعمل الافتراضي السحابي - أكاديمية فلسطين الدولية' : 'PIA Virtual Cloud Lab',
+          'operatingSystem': 'Any (Web Browser)',
+          'applicationCategory': 'EducationalApplication',
+          'description': isRtl
+            ? 'مختبر سحابي متقدم لمحاكاة التجارب البرمجية والهندسية والذكاء الاصطناعي مباشرة من المتصفح.'
+            : 'Interactive cloud engineering and coding sandbox for real-time simulation and AI models.',
+          'offers': {
+            '@type': 'Offer',
+            'price': '0',
+            'priceCurrency': 'USD'
+          }
+        }}
       />
       <Navbar />
 

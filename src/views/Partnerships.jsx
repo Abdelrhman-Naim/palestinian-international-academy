@@ -97,6 +97,17 @@ ${formData.message}
           { name: isRtl ? 'الرئيسية' : 'Home', item: '/' },
           { name: isRtl ? 'الشراكات' : 'Partnerships', item: '/partnerships' }
         ]}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'WebPage',
+          'name': isRtl ? 'شراكات المؤسسات والشركات - أكاديمية فلسطين الدولية' : 'Enterprise Partnerships - Palestinian International Academy',
+          'url': 'https://palestine-international-academy.netlify.app/partnerships',
+          'publisher': {
+            '@type': 'EducationalOrganization',
+            'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
+            'url': 'https://palestine-international-academy.netlify.app/'
+          }
+        }}
       />
       <Navbar />
 
