@@ -135,11 +135,16 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
           {/* Column 1: Brand Logo & Description & Social Hub */}
           <div className="flex flex-col items-center md:items-start text-center md:text-start space-y-4">
-            <Link to="/" className="inline-flex items-center group">
+            <Link
+              to="/"
+              className="inline-flex items-center group"
+              title={isRtl ? "أكاديمية فلسطين الدولية (PIA)" : "Palestinian International Academy (PIA)"}
+              aria-label={isRtl ? "أكاديمية فلسطين الدولية" : "Palestinian International Academy"}
+            >
               <div className="relative p-1 rounded-2xl bg-white/40 dark:bg-stone-900/60 border border-amber-500/15 shadow-xs">
                 <img
                   src={logo?.src || logo}
-                  alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)"
+                  alt={isRtl ? "أكاديمية فلسطين الدولية (PIA)" : "PALESTINIAN INTERNATIONAL ACADEMY (PIA)"}
                   className="h-20 sm:h-22 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
@@ -539,7 +544,7 @@ const Footer = () => {
             <p>
               © {currentYear}{" "}
               <span className="font-bold text-stone-700 dark:text-stone-300">
-                PALESTINIAN INTERNATIONAL ACADEMY (PIA)
+                {isRtl ? "أكاديمية فلسطين الدولية (PIA) - Palestinian International Academy" : "PALESTINIAN INTERNATIONAL ACADEMY (PIA)"}
               </span>
               . {isRtl ? "جميع الحقوق محفوظة." : "All rights reserved."}
             </p>

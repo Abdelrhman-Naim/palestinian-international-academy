@@ -75,8 +75,17 @@ const Navbar = () => {
       
       {/* Logo + Nav */}
       <div className="flex items-center gap-4 sm:gap-8">
-        <Link className="flex items-center gap-2 group" to="/">
-          <img src={logo?.src || logo} alt="PALESTINIAN INTERNATIONAL ACADEMY (PIA)" className="h-12 md:h-14 w-auto object-contain rounded-lg drop-shadow-sm transition-transform duration-300 group-hover:scale-105" />
+        <Link
+          className="flex items-center gap-2 group"
+          to="/"
+          title={lang === 'ar' ? 'أكاديمية فلسطين الدولية (PIA) - الصفحة الرئيسية' : 'Palestinian International Academy (PIA) - Home'}
+          aria-label={lang === 'ar' ? 'أكاديمية فلسطين الدولية' : 'Palestinian International Academy'}
+        >
+          <img
+            src={logo?.src || logo}
+            alt={lang === 'ar' ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)'}
+            className="h-12 md:h-14 w-auto object-contain rounded-lg drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+          />
         </Link>
         
         <nav className="hidden md:flex gap-1">

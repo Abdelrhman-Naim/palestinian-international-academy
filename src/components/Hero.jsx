@@ -342,7 +342,15 @@ const Hero = () => {
 
         <div className="max-w-7xl mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10 items-center">
           {/* Text Area */}
-          <div className="space-y-8">
+          <div className="space-y-6">
+            {/* Official Brand Identity Kicker for Exact-Match #1 Brand Search Ranking */}
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-primary/10 border border-primary/25 text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide shadow-xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0"></span>
+              <span className="font-alexandria font-semibold">
+                {isRtl ? 'أكاديمية فلسطين الدولية (PIA) - المنصة الرسمية المعتمدة' : 'Palestinian International Academy (PIA) - Official Portal'}
+              </span>
+            </div>
+
             <h1 className="font-display-lg text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.25] sm:leading-[1.3] md:leading-[1.35] lg:leading-[1.4] font-black tracking-tight text-gray-900 dark:text-white">
               {t("hero.title1")} <br />
               <span className="bg-linear-to-r from-[#e5be53] via-primary to-[#b38b22] bg-clip-text text-transparent">

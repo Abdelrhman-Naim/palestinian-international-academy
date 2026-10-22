@@ -125,10 +125,10 @@ const Home = () => {
       dir={dir}
     >
       <SEO
-        title={isAr ? 'الرئيسية | أكاديمية فلسطين الدولية (PIA)' : 'Home | Palestinian International Academy (PIA)'}
+        title={isAr ? 'أكاديمية فلسطين الدولية (PIA) | الموقع الرسمي للدورات والشهادات المعتمدة' : 'Palestinian International Academy (PIA) | Official Platform'}
         description={isAr 
-          ? 'انضم إلى الأكاديمية الفلسطينية الدولية واحصل على أفضل الدورات البرمجية والتقنية بشهادات معتمدة ومختبرات سحابية تفاعلية ومكتبة رقمية شاملة.'
-          : 'Join the Palestinian International Academy for accredited tech and programming courses, interactive cloud labs, and a comprehensive digital library.'}
+          ? 'الموقع الرسمي لأكاديمية فلسطين الدولية (PIA). منصة تدريبية رائدة تقدم مسارات تقنية معتمدة، مختبرات سحابية تفاعلية، ومكتبة رقمية تخصصية.'
+          : 'Official platform of Palestinian International Academy (PIA). Premier educational institution providing accredited certifications, cloud labs, and digital library.'}
         canonical="/"
         schema={homeSchema}
       />
