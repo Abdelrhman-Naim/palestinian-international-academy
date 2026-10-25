@@ -1,7 +1,7 @@
 {
   "id": "palestine-international-academy-pwa",
-  "name": "أكاديمية فلسطين الدولية (PIA) | Palestinian International Academy",
-  "short_name": "PIA Academy",
+  "name": "أكاديمية فلسطين الدولية",
+  "short_name": "أكاديمية فلسطين الدولية",
   "description": "المنصة التعليمية الرائدة للتدريب والتعليم التقني والمهني بشهادات معتمدة ومختبرات سحابية ومكتبة رقمية",
   "start_url": "/?source=pwa",
   "scope": "/",

@@ -28,11 +28,11 @@ export const metadata = {
     template: '%s | أكاديمية فلسطين الدولية (PIA)',
   },
   description: 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي، ومكتبة رقمية ومختبرات تفاعلية بشهادات موثوقة.',
-  applicationName: 'PIA Academy',
+  applicationName: 'أكاديمية فلسطين الدولية (PIA)',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'PIA Academy',
+    title: 'أكاديمية فلسطين الدولية (PIA)',
   },
   formatDetection: {
     telephone: false,
@@ -66,7 +66,7 @@ export const metadata = {
     locale: 'ar_AR',
     alternateLocale: ['en_US'],
     url: `${currentSiteUrl}/`,
-    siteName: 'أكاديمية فلسطين الدولية | PIA',
+    siteName: 'أكاديمية فلسطين الدولية (PIA)',
     title: 'أكاديمية فلسطين الدولية (PIA) - المنصة التعليمية الرائدة',
     description: 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي، ومكتبة رقمية ومختبرات تفاعلية بشهادات موثوقة.',
     images: [
@@ -85,10 +85,12 @@ export const metadata = {
     images: ['/screen.webp'],
   },
   other: {
+    'application-name': 'أكاديمية فلسطين الدولية (PIA)',
+    'apple-mobile-web-app-title': 'أكاديمية فلسطين الدولية (PIA)',
+    'site_name': 'أكاديمية فلسطين الدولية (PIA)',
     'mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'black-translucent',
-    'apple-mobile-web-app-title': 'PIA Academy',
     'geo.region': 'PS',
     'geo.placename': 'Palestine',
     'geo.position': '31.9522;35.2332',
@@ -97,9 +99,63 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const websiteLdJson = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${currentSiteUrl}/#website`,
+    'name': 'أكاديمية فلسطين الدولية',
+    'alternateName': [
+      'أكاديمية فلسطين الدولية (PIA)',
+      'أكاديمية فلسطين',
+      'PIA',
+      'Palestinian International Academy',
+      'PIA Academy'
+    ],
+    'url': `${currentSiteUrl}/`,
+    'inLanguage': 'ar',
+    'publisher': {
+      '@type': 'EducationalOrganization',
+      '@id': `${currentSiteUrl}/#organization`,
+      'name': 'أكاديمية فلسطين الدولية (PIA)',
+      'url': `${currentSiteUrl}/`,
+      'logo': `${currentSiteUrl}/logo-wep.png`
+    }
+  };
+
+  const organizationLdJson = {
+    '@context': 'https://schema.org',
+    '@type': 'EducationalOrganization',
+    '@id': `${currentSiteUrl}/#organization`,
+    'name': 'أكاديمية فلسطين الدولية',
+    'alternateName': [
+      'أكاديمية فلسطين الدولية (PIA)',
+      'أكاديمية فلسطين',
+      'PIA',
+      'Palestinian International Academy',
+      'PIA Academy'
+    ],
+    'url': `${currentSiteUrl}/`,
+    'logo': `${currentSiteUrl}/logo-wep.png`,
+    'image': `${currentSiteUrl}/screen.webp`,
+    'description': 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي ومكتبة رقمية ومختبرات سحابية بشهادات موثوقة.',
+    'sameAs': [
+      `${currentSiteUrl}/`,
+      'https://twitter.com/PIA_Academy',
+      'https://www.linkedin.com/school/palestine-international-academy'
+    ]
+  };
+
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLdJson) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLdJson) }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
