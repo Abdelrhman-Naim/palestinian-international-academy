@@ -6,7 +6,10 @@ import { createClient } from '@supabase/supabase-js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_URL = 'https://palestine-international-academy.netlify.app';
+const isVercel = process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_PROJECT_PRODUCTION_URL;
+const BASE_URL = isVercel
+  ? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://palestine-international-academy.vercel.app')
+  : (process.env.NEXT_PUBLIC_SITE_URL || 'https://palestine-international-academy.netlify.app');
 const TODAY = new Date().toISOString().split('T')[0];
 
 const supabaseUrl = 'https://erdogjeyqxufpsczriat.supabase.co';

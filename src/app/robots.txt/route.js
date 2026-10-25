@@ -1,7 +1,14 @@
-# Robots.txt for Palestinian International Academy (PIA)
-# Domain: https://palestine-international-academy.netlify.app/
+export const dynamic = 'force-dynamic';
 
-# Standard Search Crawlers
+export async function GET(request) {
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'palestine-international-academy.netlify.app';
+  const proto = request.headers.get('x-forwarded-proto') || 'https';
+  const cleanHost = host.split(':')[0];
+  const baseUrl = `${proto}://${cleanHost}`;
+
+  const content = `# Robots.txt for Palestinian International Academy (PIA)
+# Domain: ${baseUrl}
+
 User-agent: *
 Allow: /
 Allow: /courses
@@ -97,5 +104,15 @@ Disallow: /instructor-dashboard/
 Disallow: /dashboard/
 
 # Sitemaps & Host Definition
-Sitemap: https://palestine-international-academy.netlify.app/sitemap.xml
-Host: https://palestine-international-academy.netlify.app
+Sitemap: ${baseUrl}/sitemap.xml
+Host: ${baseUrl}
+`;
+
+  return new Response(content, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+    },
+  });
+}

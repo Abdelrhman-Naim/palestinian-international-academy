@@ -13,6 +13,7 @@ import { useSavedBooks } from '../hooks/useSavedBooks';
 import { getLocalizedCategory } from '../utils/categoryUtils';
 import { listenToTargetReviews } from '../services/reviewService';
 import SEO from '../components/SEO';
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 
 export default function BookDetail() {
   const { t, dir, lang } = useLanguage();
@@ -207,7 +208,7 @@ export default function BookDetail() {
       'name': cleanAuthor || (isRtl ? 'مؤلف أكاديمي' : 'Academic Author')
     },
     'description': book.description || cleanTitle,
-    'image': book.coverImage || 'https://palestine-international-academy.netlify.app/logo-wep.png',
+    'image': book.coverImage || `${getDynamicSiteUrl()}/logo-wep.png`,
     ...(book.pages ? { 'numberOfPages': Number(book.pages) } : {}),
     ...(reviewStats.count > 0 ? {
       'aggregateRating': {

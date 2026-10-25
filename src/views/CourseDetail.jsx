@@ -19,6 +19,7 @@ import GraduationExamModal from '../components/GraduationExamModal';
 import ReviewSection from '../components/ReviewSection';
 import { listenToTargetReviews } from '../services/reviewService';
 import SEO from '../components/SEO';
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 
 export default function CourseDetail() {
   const { t, dir } = useLanguage();
@@ -530,7 +531,7 @@ export default function CourseDetail() {
     'provider': {
       '@type': 'EducationalOrganization',
       'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
-      'sameAs': 'https://palestine-international-academy.netlify.app/'
+      'sameAs': `${getDynamicSiteUrl()}/`
     },
     'instructor': {
       '@type': 'Person',

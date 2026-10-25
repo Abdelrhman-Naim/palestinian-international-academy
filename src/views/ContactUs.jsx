@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../supabase/client';
 import { useToast } from '../context/ToastContext';
@@ -69,7 +70,7 @@ const ContactUs = () => {
           '@context': 'https://schema.org',
           '@type': 'ContactPage',
           'name': isRtl ? 'تواصل معنا - أكاديمية فلسطين الدولية' : 'Contact Us - Palestinian International Academy',
-          'url': 'https://palestine-international-academy.netlify.app/contact'
+          'url': `${getDynamicSiteUrl()}/contact`
         }}
       />
       <Navbar />

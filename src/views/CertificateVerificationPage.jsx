@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageLoader from '../components/PageLoader';
 import SEO from '../components/SEO';
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 import { getCertificateByCode } from '../services/certificateService';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../supabase/client';
@@ -79,11 +80,11 @@ export default function CertificateVerificationPage() {
           '@context': 'https://schema.org',
           '@type': 'WebPage',
           'name': isRtl ? 'نظام التحقق من الشهادات الرقمية - أكاديمية فلسطين الدولية' : 'Digital Certificate Verification - PIA',
-          'url': 'https://palestine-international-academy.netlify.app/verify-certificate',
+          'url': `${getDynamicSiteUrl()}/verify-certificate`,
           'provider': {
             '@type': 'EducationalOrganization',
             'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
-            'url': 'https://palestine-international-academy.netlify.app/'
+            'url': `${getDynamicSiteUrl()}/`
           }
         }}
       />

@@ -35,9 +35,13 @@ const itemVariants = {
   }
 };
 
+import { getDynamicSiteUrl } from '../utils/siteUrl';
+
 const Library = () => {
   const { t, dir, lang } = useLanguage();
   const isRtl = dir === 'rtl';
+
+  const currentOrigin = getDynamicSiteUrl();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -221,14 +225,14 @@ const Library = () => {
           '@context': 'https://schema.org',
           '@type': 'CollectionPage',
           'name': isRtl ? 'المكتبة الرقمية - أكاديمية فلسطين الدولية' : 'Digital Library - Palestinian International Academy',
-          'url': 'https://palestine-international-academy.netlify.app/library',
+          'url': `${currentOrigin}/library`,
           'description': isRtl
             ? 'مكتبة رقمية مفتوحة تضم أكثر من 1300 كتاب ومصدر تعليمي في مجالات البرمجة والذكاء الاصطناعي والأدب والعلوم والهندسة.'
             : 'Open digital library hosting over 1,300 academic books and resources.',
           'provider': {
             '@type': 'EducationalOrganization',
             'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
-            'url': 'https://palestine-international-academy.netlify.app/'
+            'url': `${currentOrigin}/`
           }
         }}
       />

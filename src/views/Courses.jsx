@@ -14,6 +14,7 @@ import CustomSelect from '../components/CustomSelect';
 import { useLanguage } from '../context/LanguageContext';
 import PageLoader from '../components/PageLoader';
 import SEO from '../components/SEO';
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -37,6 +38,7 @@ const itemVariants = {
 const Courses = ({ embedded = false }) => {
   const { t, dir, lang } = useLanguage();
   const isRtl = dir === 'rtl';
+  const currentOrigin = getDynamicSiteUrl();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const userId = currentUser?.uid || currentUser?.id;
@@ -224,9 +226,9 @@ const Courses = ({ embedded = false }) => {
               'provider': {
                 '@type': 'EducationalOrganization',
                 'name': 'Palestinian International Academy',
-                'sameAs': 'https://palestine-international-academy.netlify.app/'
+                'sameAs': `${currentOrigin}/`
               },
-              'url': `https://palestine-international-academy.netlify.app/courses/${c.id}`
+              'url': `${currentOrigin}/courses/${c.id}`
             }
           }))
         }}

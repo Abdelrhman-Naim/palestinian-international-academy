@@ -14,22 +14,25 @@ import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import { useLanguage } from "../context/LanguageContext";
+import { getDynamicSiteUrl } from "../utils/siteUrl";
 
 const Home = () => {
   const { language, dir, t } = useLanguage();
   const isAr = language === 'ar';
+
+  const currentOrigin = getDynamicSiteUrl();
 
   const homeSchema = {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'EducationalOrganization',
-        '@id': 'https://palestine-international-academy.netlify.app/#organization',
+        '@id': `${currentOrigin}/#organization`,
         'name': isAr ? 'أكاديمية فلسطين الدولية' : 'Palestinian International Academy',
         'alternateName': ['PIA', 'أكاديمية فلسطين', 'PIA Academy', 'Palestinian International Academy'],
-        'url': 'https://palestine-international-academy.netlify.app/',
-        'logo': 'https://palestine-international-academy.netlify.app/logo-wep.png',
-        'image': 'https://palestine-international-academy.netlify.app/screen.webp',
+        'url': `${currentOrigin}/`,
+        'logo': `${currentOrigin}/logo-wep.png`,
+        'image': `${currentOrigin}/screen.webp`,
         'description': isAr
           ? 'منصة تعليمية وتدريبية متقدمة تقدم دبلومات ودورات تقنية ومهنية ومكتبة رقمية ومختبرات سحابية.'
           : 'Advanced educational platform offering accredited diplomas, technical courses, digital library, and cloud labs.',
@@ -52,7 +55,7 @@ const Home = () => {
           'Computer Science'
         ],
         'sameAs': [
-          'https://palestine-international-academy.netlify.app/',
+          `${currentOrigin}/`,
           'https://twitter.com/PIA_Academy',
           'https://www.linkedin.com/school/palestine-international-academy'
         ],
@@ -65,22 +68,22 @@ const Home = () => {
       },
       {
         '@type': 'WebSite',
-        '@id': 'https://palestine-international-academy.netlify.app/#website',
-        'url': 'https://palestine-international-academy.netlify.app/',
+        '@id': `${currentOrigin}/#website`,
+        'url': `${currentOrigin}/`,
         'name': isAr ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
         'publisher': {
-          '@id': 'https://palestine-international-academy.netlify.app/#organization'
+          '@id': `${currentOrigin}/#organization`
         },
         'inLanguage': isAr ? 'ar' : 'en',
         'potentialAction': {
           '@type': 'SearchAction',
-          'target': 'https://palestine-international-academy.netlify.app/courses?search={search_term_string}',
+          'target': `${currentOrigin}/courses?search={search_term_string}`,
           'query-input': 'required name=search_term_string'
         }
       },
       {
         '@type': 'FAQPage',
-        '@id': 'https://palestine-international-academy.netlify.app/#faq',
+        '@id': `${currentOrigin}/#faq`,
         'mainEntity': [
           {
             '@type': 'Question',

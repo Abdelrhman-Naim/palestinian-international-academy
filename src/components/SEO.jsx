@@ -3,9 +3,7 @@ import { useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
-
-const SITE_URL = 'https://palestine-international-academy.netlify.app';
-const DEFAULT_IMAGE = `${SITE_URL}/screen.webp`;
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 
 export default function SEO({
   title,
@@ -13,13 +11,16 @@ export default function SEO({
   keywords,
   canonical,
   ogType = 'website',
-  ogImage = DEFAULT_IMAGE,
+  ogImage = null,
   noindex = false,
   schema = null,
   breadcrumbs = null,
 }) {
   const { language, dir } = useLanguage();
   const location = useLocation();
+
+  const siteUrl = useMemo(() => getDynamicSiteUrl(), []);
+  const defaultImage = `${siteUrl}/screen.webp`;
 
   const isAr = language === 'ar';
   const siteName = isAr ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)';
@@ -34,16 +35,16 @@ export default function SEO({
   // Construct absolute canonical URL
   const canonicalUrl = useMemo(() => {
     if (canonical) {
-      return canonical.startsWith('http') ? canonical : `${SITE_URL}${canonical.startsWith('/') ? canonical : `/${canonical}`}`;
+      return canonical.startsWith('http') ? canonical : `${siteUrl}${canonical.startsWith('/') ? canonical : `/${canonical}`}`;
     }
-    return `${SITE_URL}${location.pathname}`;
-  }, [canonical, location.pathname]);
+    return `${siteUrl}${location.pathname}`;
+  }, [canonical, location.pathname, siteUrl]);
 
   // Construct absolute og:image URL
   const absoluteOgImage = useMemo(() => {
-    if (!ogImage) return DEFAULT_IMAGE;
-    return ogImage.startsWith('http') ? ogImage : `${SITE_URL}${ogImage.startsWith('/') ? ogImage : `/${ogImage}`}`;
-  }, [ogImage]);
+    const targetImg = ogImage || defaultImage;
+    return targetImg.startsWith('http') ? targetImg : `${siteUrl}${targetImg.startsWith('/') ? targetImg : `/${targetImg}`}`;
+  }, [ogImage, defaultImage, siteUrl]);
 
   // Format page title
   const fullTitle = useMemo(() => {
@@ -67,10 +68,10 @@ export default function SEO({
         '@type': 'ListItem',
         'position': idx + 1,
         'name': crumb.name,
-        'item': crumb.item?.startsWith('http') ? crumb.item : `${SITE_URL}${crumb.item || ''}`
+        'item': crumb.item?.startsWith('http') ? crumb.item : `${siteUrl}${crumb.item || ''}`
       }))
     };
-  }, [breadcrumbs]);
+  }, [breadcrumbs, siteUrl]);
 
   return (
     <Helmet>

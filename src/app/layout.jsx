@@ -13,8 +13,16 @@ export const viewport = {
   viewportFit: 'cover',
 };
 
+const getBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return 'https://palestine-international-academy.netlify.app';
+};
+const currentSiteUrl = getBaseUrl();
+
 export const metadata = {
-  metadataBase: new URL('https://palestine-international-academy.netlify.app'),
+  metadataBase: new URL(currentSiteUrl),
   title: {
     default: 'أكاديمية فلسطين الدولية (PIA) - المنصة التعليمية الرائدة',
     template: '%s | أكاديمية فلسطين الدولية (PIA)',
@@ -57,7 +65,7 @@ export const metadata = {
     type: 'website',
     locale: 'ar_AR',
     alternateLocale: ['en_US'],
-    url: 'https://palestine-international-academy.netlify.app/',
+    url: `${currentSiteUrl}/`,
     siteName: 'أكاديمية فلسطين الدولية | PIA',
     title: 'أكاديمية فلسطين الدولية (PIA) - المنصة التعليمية الرائدة',
     description: 'منصة تعليمية وتدريبية معتمدة تقدم دورات احترافية في البرمجة والذكاء الاصطناعي، ومكتبة رقمية ومختبرات تفاعلية بشهادات موثوقة.',

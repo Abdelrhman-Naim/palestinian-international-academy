@@ -4,10 +4,13 @@ import Footer from "../components/Footer";
 import { Link } from "react-router-dom";
 import SEO from "../components/SEO";
 import { useLanguage } from "../context/LanguageContext";
+import { getDynamicSiteUrl } from "../utils/siteUrl";
 
 const About = () => {
   const { t, dir } = useLanguage();
   const isRtl = dir === "rtl";
+
+  const currentOrigin = getDynamicSiteUrl();
 
   const aboutSchema = {
     "@context": "https://schema.org",
@@ -15,7 +18,7 @@ const About = () => {
     name: isRtl
       ? "من نحن - أكاديمية فلسطين الدولية"
       : "About Us - Palestinian International Academy",
-    url: "https://palestine-international-academy.netlify.app/about",
+    url: `${currentOrigin}/about`,
     description: isRtl
       ? "تعرف على رؤية ورسالة الأكاديمية الفلسطينية الدولية، الصرح الأكاديمي الرائد في التدريب المهني والتقني."
       : "Learn about the vision and mission of Palestinian International Academy, the leading educational institution.",
@@ -25,9 +28,9 @@ const About = () => {
         ? "أكاديمية فلسطين الدولية (PIA)"
         : "Palestinian International Academy (PIA)",
       alternateName: ["PIA", "PIA Academy"],
-      url: "https://palestine-international-academy.netlify.app/",
-      logo: "https://palestine-international-academy.netlify.app/logo-wep.png",
-      image: "https://palestine-international-academy.netlify.app/screen.webp",
+      url: `${currentOrigin}/`,
+      logo: `${currentOrigin}/logo-wep.png`,
+      image: `${currentOrigin}/screen.webp`,
       foundingLocation: {
         "@type": "Place",
         name: isRtl ? "فلسطين" : "Palestine",
@@ -46,28 +49,28 @@ const About = () => {
           name: t("about.mem1Name"),
           jobTitle: t("about.mem1Role"),
           description: t("about.mem1Bio"),
-          image: "https://palestine-international-academy.netlify.app/Head of Academic Board.webp",
+          image: `${currentOrigin}/Head of Academic Board.webp`,
         },
         {
           "@type": "Person",
           name: t("about.mem2Name"),
           jobTitle: t("about.mem2Role"),
           description: t("about.mem2Bio"),
-          image: "https://palestine-international-academy.netlify.app/Director of Curriculum Development.webp",
+          image: `${currentOrigin}/Director of Curriculum Development.webp`,
         },
         {
           "@type": "Person",
           name: t("about.mem3Name"),
           jobTitle: t("about.mem3Role"),
           description: t("about.mem3Bio"),
-          image: "https://palestine-international-academy.netlify.app/Senior Engineering Consultant.webp",
+          image: `${currentOrigin}/Senior Engineering Consultant.webp`,
         },
         {
           "@type": "Person",
           name: t("about.mem4Name"),
           jobTitle: t("about.mem4Role"),
           description: t("about.mem4Bio"),
-          image: "https://palestine-international-academy.netlify.app/Director of Cloud & Practical Labs.webp",
+          image: `${currentOrigin}/Director of Cloud & Practical Labs.webp`,
         },
       ],
     },

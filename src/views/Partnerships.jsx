@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CustomSelect from '../components/CustomSelect';
 import SEO from '../components/SEO';
+import { getDynamicSiteUrl } from '../utils/siteUrl';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../supabase/client';
 import { useToast } from '../context/ToastContext';
@@ -101,11 +102,11 @@ ${formData.message}
           '@context': 'https://schema.org',
           '@type': 'WebPage',
           'name': isRtl ? 'شراكات المؤسسات والشركات - أكاديمية فلسطين الدولية' : 'Enterprise Partnerships - Palestinian International Academy',
-          'url': 'https://palestine-international-academy.netlify.app/partnerships',
+          'url': `${getDynamicSiteUrl()}/partnerships`,
           'publisher': {
             '@type': 'EducationalOrganization',
             'name': isRtl ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)',
-            'url': 'https://palestine-international-academy.netlify.app/'
+            'url': `${getDynamicSiteUrl()}/`
           }
         }}
       />
