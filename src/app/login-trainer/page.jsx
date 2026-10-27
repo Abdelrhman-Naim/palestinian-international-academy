@@ -2,10 +2,9 @@ import Login from '@/pages/Login';
 
 export const metadata = {
   title: 'تسجيل دخول المدربين | أكاديمية فلسطين الدولية (PIA)',
-  description: 'بوابة تسجيل دخول المدربين لإدارة الدورات والطلاب.',
-  robots: {
-    index: false,
-    follow: false,
+  description: 'بوابة تسجيل دخول المدربين والمحاضرين في أكاديمية فلسطين الدولية لإدارة المساقات والطلاب.',
+  alternates: {
+    canonical: '/login-trainer',
   },
 };
 

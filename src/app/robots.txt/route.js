@@ -24,13 +24,19 @@ Allow: /support
 Allow: /privacy
 Allow: /terms
 Allow: /login
+Allow: /login-trainer
 Allow: /register
 
 # Disallow Private Dashboards & Admin Areas
+Disallow: /admin-dashboard
 Disallow: /admin-dashboard/
+Disallow: /AdminDashboard
 Disallow: /AdminDashboard/
+Disallow: /instructor-dashboard
 Disallow: /instructor-dashboard/
+Disallow: /dashboard
 Disallow: /dashboard/
+Disallow: /chat
 Disallow: /login-admin
 Disallow: /forgot-password
 Disallow: /*?*token=

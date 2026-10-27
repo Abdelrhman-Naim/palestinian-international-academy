@@ -22,6 +22,7 @@ export async function GET(request) {
     { url: '/support', priority: '0.70', changefreq: 'monthly' },
     { url: '/register', priority: '0.65', changefreq: 'monthly' },
     { url: '/login', priority: '0.60', changefreq: 'monthly' },
+    { url: '/login-trainer', priority: '0.60', changefreq: 'monthly' },
     { url: '/privacy', priority: '0.50', changefreq: 'yearly' },
     { url: '/terms', priority: '0.50', changefreq: 'yearly' },
   ];
