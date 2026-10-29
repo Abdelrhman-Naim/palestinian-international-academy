@@ -10,6 +10,7 @@ import TopBooks from "../components/TopBooks";
 import PartnersTrust from "../components/PartnersTrust";
 import Testimonials from "../components/Testimonials";
 import FAQ from "../components/FAQ";
+import AcademicOverview from "../components/AcademicOverview";
 import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 import SEO from "../components/SEO";
@@ -26,7 +27,20 @@ const Home = () => {
     '@context': 'https://schema.org',
     '@graph': [
       {
-        '@type': 'EducationalOrganization',
+        '@type': 'WebSite',
+        '@id': `${currentOrigin}/#website`,
+        'name': isAr ? 'أكاديمية فلسطين الدولية' : 'Palestinian International Academy',
+        'alternateName': ['PIA', 'أكاديمية فلسطين الدولية (PIA)', 'أكاديمية فلسطين', 'PIA Academy', 'Palestinian International Academy'],
+        'url': `${currentOrigin}/`,
+        'inLanguage': isAr ? 'ar' : 'en',
+        'potentialAction': {
+          '@type': 'SearchAction',
+          'target': `${currentOrigin}/courses?search={search_term_string}`,
+          'query-input': 'required name=search_term_string'
+        }
+      },
+      {
+        '@type': ['Organization', 'EducationalOrganization'],
         '@id': `${currentOrigin}/#organization`,
         'name': isAr ? 'أكاديمية فلسطين الدولية' : 'Palestinian International Academy',
         'alternateName': ['PIA', 'أكاديمية فلسطين', 'PIA Academy', 'Palestinian International Academy'],
@@ -147,6 +161,7 @@ const Home = () => {
         <PartnersTrust />
         <Testimonials />
         <FAQ />
+        <AcademicOverview />
         <CTA />
       </main>
       <Footer />

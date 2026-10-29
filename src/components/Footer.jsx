@@ -99,11 +99,11 @@ const Footer = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="font-extrabold text-sm sm:text-base text-dark dark:text-white">
+                <h3 className="font-extrabold text-sm sm:text-base text-dark dark:text-white">
                   {isRtl
                     ? "منظومة التحقق من الشهادات الرقمية"
                     : "Digital Certificate Verification"}
-                </h4>
+                </h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
                   {isRtl ? "فوري وموثق" : "Official"}
                 </span>
@@ -145,6 +145,9 @@ const Footer = () => {
                 <img
                   src={logo?.src || logo}
                   alt={isRtl ? "أكاديمية فلسطين الدولية (PIA)" : "PALESTINIAN INTERNATIONAL ACADEMY (PIA)"}
+                  width={88}
+                  height={88}
+                  loading="lazy"
                   className="h-20 sm:h-22 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
@@ -210,9 +213,9 @@ const Footer = () => {
                     school
                   </span>
                 </span>
-                <h4 className="font-extrabold text-dark dark:text-white text-sm sm:text-base font-headline-sm group-hover:text-primary transition-colors">
+                <h3 className="font-extrabold text-dark dark:text-white text-sm sm:text-base font-headline-sm group-hover:text-primary transition-colors">
                   {isRtl ? "المسارات والدورات" : "Courses & Tracks"}
-                </h4>
+                </h3>
               </div>
             </button>
 
@@ -319,9 +322,9 @@ const Footer = () => {
                     verified_user
                   </span>
                 </span>
-                <h4 className="font-extrabold text-dark dark:text-white text-sm sm:text-base font-headline-sm group-hover:text-primary transition-colors">
+                <h3 className="font-extrabold text-dark dark:text-white text-sm sm:text-base font-headline-sm group-hover:text-primary transition-colors">
                   {isRtl ? "الخدمات والتحقق" : "Services & Verification"}
-                </h4>
+                </h3>
               </div>
             </button>
 
@@ -426,9 +429,9 @@ const Footer = () => {
                     shield
                   </span>
                 </span>
-                <h4 className="font-extrabold text-dark dark:text-white text-sm sm:text-base font-headline-sm group-hover:text-primary transition-colors">
+                <h3 className="font-extrabold text-dark dark:text-white text-sm sm:text-base font-headline-sm group-hover:text-primary transition-colors">
                   {isRtl ? "السياسات والتواصل" : "Policies & Contact"}
-                </h4>
+                </h3>
               </div>
             </button>
 

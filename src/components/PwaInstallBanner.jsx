@@ -74,7 +74,7 @@ export default function PwaInstallBanner() {
         style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <img src="/favicon.png?v=3" alt="PIA Logo" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-xs shrink-0" />
+          <img src="/favicon.png?v=3" alt="PIA Logo" width={40} height={40} loading="lazy" className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-xs shrink-0" />
           <div className="min-w-0">
             <p className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white truncate">
               {dir === 'rtl' ? 'تطبيق أكاديمية فلسطين' : 'PIA Mobile App'}

@@ -420,9 +420,9 @@ const Hero = () => {
                 to={courseLink}
                 className="block group/card font-bold hover:text-primary transition-colors mb-2"
               >
-                <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover/card:text-primary transition-colors truncate">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover/card:text-primary transition-colors truncate">
                   {featuredTitle}
-                </h4>
+                </h3>
               </Link>
 
               {/* Progress Bar */}

@@ -14,6 +14,12 @@ export const viewport = {
 };
 
 const getBaseUrl = () => {
+  if (process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_ENV) {
+    return 'https://palestine-international-academy.vercel.app';
+  }
+  if (process.env.NETLIFY === 'true') {
+    return 'https://palestine-international-academy.netlify.app';
+  }
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
@@ -113,8 +119,13 @@ export default function RootLayout({ children }) {
     ],
     'url': `${currentSiteUrl}/`,
     'inLanguage': 'ar',
+    'potentialAction': {
+      '@type': 'SearchAction',
+      'target': `${currentSiteUrl}/courses?search={search_term_string}`,
+      'query-input': 'required name=search_term_string'
+    },
     'publisher': {
-      '@type': 'EducationalOrganization',
+      '@type': ['Organization', 'EducationalOrganization'],
       '@id': `${currentSiteUrl}/#organization`,
       'name': 'أكاديمية فلسطين الدولية (PIA)',
       'url': `${currentSiteUrl}/`,
@@ -124,7 +135,7 @@ export default function RootLayout({ children }) {
 
   const organizationLdJson = {
     '@context': 'https://schema.org',
-    '@type': 'EducationalOrganization',
+    '@type': ['Organization', 'EducationalOrganization'],
     '@id': `${currentSiteUrl}/#organization`,
     'name': 'أكاديمية فلسطين الدولية',
     'alternateName': [

@@ -78,9 +78,9 @@ const Testimonials = () => {
               {/* Bottom Author Row */}
               <div className="flex items-center justify-between pt-5 border-t border-[#E8E2D5] dark:border-[#2E2720] mt-auto">
                 <div className="flex flex-col">
-                  <h4 className="font-bold text-dark dark:text-white text-base sm:text-lg mb-0.5">
+                  <h3 className="font-bold text-dark dark:text-white text-base sm:text-lg mb-0.5">
                     {rev.name}
-                  </h4>
+                  </h3>
                   <p className="text-gray-500 dark:text-stone-400 text-xs font-medium">
                     {rev.role}
                   </p>
