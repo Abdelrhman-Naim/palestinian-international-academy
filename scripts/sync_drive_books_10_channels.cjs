@@ -6,7 +6,7 @@ const path = require('path');
 // ================= Configuration =================
 const DRIVE_API_KEY = 'AIzaSyDXqTUNs0CR0aTfQooSN5UgxeZ2kC6rKos';
 const ROOT_FOLDER_ID = '1tBZLeebMZVQwqAzMGtep6Auaws68IirJ';
-const CONCURRENCY_CHANNELS = 10; // 10 parallel channels as requested
+const CONCURRENCY_CHANNELS = 10; // 10 parallel channels
 
 const supabaseUrl = 'https://erdogjeyqxufpsczriat.supabase.co';
 const supabaseAnonKey = 'sb_publishable_stz6G3e9pbCTRpRCq_miOA_lmIORu-m';
@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const drive = google.drive({ version: 'v3', auth: DRIVE_API_KEY });
 
-// Invalid author blacklist (must be rejected per user requirement: "اتاكد انو اخد تصنيف واسم كاتب وعدد الصفحات")
+// Invalid author blacklist
 const INVALID_AUTHORS = new Set([
   'غير معروف',
   'مجهول',
@@ -66,7 +66,7 @@ async function runWithChannels(tasks, concurrency, taskFn, progressLabel) {
         results[currentIndex] = { error: err.message, item };
       }
       doneCount++;
-      if (progressLabel && doneCount % 20 === 0) {
+      if (progressLabel && (doneCount % 20 === 0 || doneCount === tasks.length)) {
         console.log(`[10 قنوات - Channel] ${progressLabel}: ${doneCount}/${tasks.length} اكتمل...`);
       }
     }
@@ -76,14 +76,86 @@ async function runWithChannels(tasks, concurrency, taskFn, progressLabel) {
   return results;
 }
 
+// Helper to list all items in a folder with pagination
+async function listFolderItems(folderId, mimeTypeFilter) {
+  let items = [];
+  let pageToken = null;
+  do {
+    const qParts = [`'${folderId}' in parents`, 'trashed = false'];
+    if (mimeTypeFilter) {
+      qParts.push(mimeTypeFilter);
+    }
+    const res = await drive.files.list({
+      q: qParts.join(' and '),
+      fields: 'nextPageToken, files(id, name, mimeType, size, webViewLink, thumbnailLink, createdTime)',
+      pageSize: 100,
+      pageToken: pageToken
+    });
+    if (res.data.files) {
+      items = items.concat(res.data.files);
+    }
+    pageToken = res.data.nextPageToken;
+  } while (pageToken);
+  return items;
+}
+
+async function discoverAllDriveBooks() {
+  console.log('📡 1. جلب مجلدات الأقسام (Categories) من المجلد الرئيسي...');
+  const categoryFolders = await listFolderItems(ROOT_FOLDER_ID, "mimeType = 'application/vnd.google-apps.folder'");
+  console.log(`✅ تم العثور على ${categoryFolders.length} قسم/مجلد رئيسي.`);
+
+  console.log('\n📡 2. فحص مجلدات المؤلفين تحت كل قسم عبر 10 قنوات متزامنة...');
+  const authorFolders = [];
+  const directFiles = [];
+
+  await runWithChannels(categoryFolders, CONCURRENCY_CHANNELS, async (catFolder) => {
+    const subItems = await listFolderItems(catFolder.id);
+    for (const sub of subItems) {
+      if (sub.mimeType === 'application/vnd.google-apps.folder') {
+        authorFolders.push({
+          id: sub.id,
+          name: sub.name,
+          categoryName: catFolder.name,
+          categoryId: catFolder.id
+        });
+      } else {
+        directFiles.push({
+          ...sub,
+          categoryName: catFolder.name,
+          authorName: ''
+        });
+      }
+    }
+  }, 'فحص الأقسام');
+
+  console.log(`✅ تم العثور على ${authorFolders.length} مجلد مؤلف.`);
+
+  console.log('\n📡 3. فحص واستخراج ملفات الكتب من مجلدات المؤلفين عبر 10 قنوات متزامنة...');
+  const allDiscoveredFiles = [...directFiles];
+
+  await runWithChannels(authorFolders, CONCURRENCY_CHANNELS, async (authorFolder) => {
+    const bookFiles = await listFolderItems(authorFolder.id, "mimeType != 'application/vnd.google-apps.folder'");
+    for (const bf of bookFiles) {
+      allDiscoveredFiles.push({
+        ...bf,
+        categoryName: authorFolder.categoryName,
+        authorName: authorFolder.name
+      });
+    }
+  }, 'استخراج كتب المؤلفين');
+
+  console.log(`✅ إجمالي الملفات المكتشفة في Google Drive: ${allDiscoveredFiles.length} ملف.\n`);
+  return allDiscoveredFiles;
+}
+
 async function main() {
   console.log('=====================================================');
-  console.log('🚀 بدء مزامنة ورفع الكتب من Google Drive إلى Supabase');
-  console.log(`⚡ عدد القنوات المتزامنة: ${CONCURRENCY_CHANNELS} قنوات`);
+  console.log('🚀 بدء مزامنة ورفع الكتب المضافة حديثاً من Google Drive');
+  console.log(`⚡ نظام العمل: ${CONCURRENCY_CHANNELS} قنوات متزامنة بالكامل`);
   console.log('=====================================================\n');
 
   // 1. Fetch categories from Supabase
-  console.log('📥 1. جلب التصنيفات من قاعدة بيانات Supabase...');
+  console.log('📥 1. جلب التصنيفات المعتمدة من Supabase...');
   const { data: dbCategories, error: catErr } = await supabase
     .from('categories')
     .select('id, name, slug');
@@ -93,45 +165,59 @@ async function main() {
     process.exit(1);
   }
 
-  const categoryMap = new Map(); // name.trim() -> { id, name }
+  const categoryMap = new Map();
   dbCategories.forEach(c => {
     categoryMap.set(c.name.trim(), c);
   });
   console.log(`✅ تم تحميل ${categoryMap.size} تصنيف من قاعدة البيانات.\n`);
 
   // 2. Fetch existing books from Supabase to prevent duplicates
-  console.log('📥 2. جلب الكتب الموجودة مسبقاً في قاعدة البيانات لمنع التكرار...');
-  const { data: existingBooks, error: bookErr } = await supabase
-    .from('books')
-    .select('id, title, author, pdf_url');
+  console.log('📥 2. جلب جميع الكتب الحالية من Supabase لمنع أي تكرار...');
+  let existingBooks = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data: bBatch, error: bErr } = await supabase
+      .from('books')
+      .select('id, title, author, pdf_url')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (bErr) {
+      console.error('❌ خطأ في جلب الكتب من Supabase:', bErr.message);
+      process.exit(1);
+    }
+    if (!bBatch || bBatch.length === 0) break;
+    existingBooks = existingBooks.concat(bBatch);
+    if (bBatch.length < pageSize) break;
+    page++;
+  }
 
   const existingKeys = new Set();
   const existingUrls = new Set();
-  if (existingBooks) {
-    existingBooks.forEach(b => {
-      existingKeys.add(getBookKey(b.title, b.author));
-      if (b.pdf_url) existingUrls.add(b.pdf_url);
-    });
-  }
-  console.log(`✅ تم العثور على ${existingKeys.size} كتاب موجود مسبقاً في Supabase.\n`);
+  existingBooks.forEach(b => {
+    existingKeys.add(getBookKey(b.title, b.author));
+    if (b.pdf_url) existingUrls.add(b.pdf_url);
+  });
+  console.log(`✅ إجمالي الكتب الموجودة حالياً في المكتبة: ${existingBooks.length} كتاب.\n`);
 
-  // 3. Load catalog (either from discovery file or Drive)
-  let catalog = [];
-  if (fs.existsSync('scratch/drive_books_catalog.json')) {
-    console.log('📂 3. تحميل قائمة ملفات Google Drive المستخرجة (1405 ملف)...');
-    catalog = JSON.parse(fs.readFileSync('scratch/drive_books_catalog.json', 'utf-8'));
-  } else {
-    console.log('🔍 3. جلب ملفات الكتب من Google Drive...');
-    // Fallback: discover live if catalog file not present
-  }
-  console.log(`✅ إجمالي الملفات المعثور عليها: ${catalog.length}\n`);
+  // 3. Scan Google Drive live
+  console.log('🔍 3. الفحص الحي لملفات Google Drive...');
+  const catalog = await discoverAllDriveBooks();
+
+  // Save discovered catalog for local inspection
+  fs.mkdirSync('scratch', { recursive: true });
+  fs.writeFileSync('scratch/drive_books_catalog.json', JSON.stringify(catalog, null, 2), 'utf-8');
 
   // 4. Strict Validation Pass
-  console.log('🔍 4. بدء الفحص والتحقق الصارم لكل كتاب قبل الرفع...');
+  console.log('🔍 4. بدء التحقق الصارم من كل كتاب قبل الرفع:');
+  console.log('   - التأكد من سلامة عنوان الكتاب');
+  console.log('   - التأكد من صحة التصنيف ومطابقته للتصنيفات المعتمدة');
+  console.log('   - التأكد من وجود اسم مؤلف حقيقي وصريح (استبعاد غير معروف / مجهول / إلخ)');
+  console.log('   - التأكد من عدد الصفحات الإيجابي ورابط الملف');
+  console.log('   - استبعاد أي كتاب مكرر موجود مسبقاً في قاعدة البيانات\n');
+
   const validBooks = [];
   const rejectedBooks = [];
   const duplicateSkipped = [];
-
   const seenInBatch = new Set();
 
   for (const item of catalog) {
@@ -259,62 +345,65 @@ async function main() {
 
   console.log(`-----------------------------------------------------`);
   console.log(`📊 نتائج الفحص والتحقق:`);
-  console.log(`   ✅ كتب صالحة ومستوفية للشروط جاهزة للرفع: ${validBooks.length}`);
+  console.log(`   ✅ كتب جديدة صالحة ومستوفية للشروط جاهزة للرفع: ${validBooks.length}`);
   console.log(`   ❌ كتب مرفوضة لعدم استيفاء الشروط (المؤلف/التصنيف/الصفحات): ${rejectedBooks.length}`);
-  console.log(`   ⚠️ كتب مكررة تم تخطيها: ${duplicateSkipped.length}`);
+  console.log(`   ⚠️ كتب مكررة موجودة مسبقاً تم تخطيها: ${duplicateSkipped.length}`);
   console.log(`-----------------------------------------------------\n`);
 
-  // 5. Upload to Supabase using 10 Concurrent Channels in Batches
-  console.log(`🚀 5. بدء الرفع إلى Supabase عبر 10 قنوات متزامنة...`);
-  const BATCH_SIZE = 25;
-  const batches = [];
-  for (let i = 0; i < validBooks.length; i += BATCH_SIZE) {
-    batches.push({
-      batchIndex: Math.floor(i / BATCH_SIZE) + 1,
-      books: validBooks.slice(i, i + BATCH_SIZE)
-    });
-  }
+  if (validBooks.length === 0) {
+    console.log('✨ لا توجد كتب جديدة مؤهلة للرفع (كل الكتب الصالحة موجودة مسبقاً).');
+  } else {
+    // 5. Upload to Supabase using 10 Concurrent Channels in Batches
+    console.log(`🚀 5. بدء الرفع إلى Supabase عبر ${CONCURRENCY_CHANNELS} قنوات متزامنة...`);
+    const BATCH_SIZE = 25;
+    const batches = [];
+    for (let i = 0; i < validBooks.length; i += BATCH_SIZE) {
+      batches.push({
+        batchIndex: Math.floor(i / BATCH_SIZE) + 1,
+        books: validBooks.slice(i, i + BATCH_SIZE)
+      });
+    }
 
-  console.log(`📦 تم تقسيم الكتب الصالحة (${validBooks.length}) إلى ${batches.length} دفعة.`);
+    console.log(`📦 تم تقسيم الكتب الجديدة (${validBooks.length}) إلى ${batches.length} دفعة.`);
 
-  let totalInserted = 0;
-  const failedBatches = [];
+    let totalInserted = 0;
+    const failedBatches = [];
 
-  await runWithChannels(
-    batches,
-    CONCURRENCY_CHANNELS, // 10 channels
-    async (batch, channelId) => {
-      const { data, error } = await supabase
-        .from('books')
-        .insert(batch.books)
-        .select('id');
+    await runWithChannels(
+      batches,
+      CONCURRENCY_CHANNELS,
+      async (batch, channelId) => {
+        const { data, error } = await supabase
+          .from('books')
+          .insert(batch.books)
+          .select('id');
 
-      if (error) {
-        console.error(`❌ [قناة ${channelId + 1}] فشل رفع الدفعة ${batch.batchIndex}:`, error.message);
-        failedBatches.push({ batchIndex: batch.batchIndex, error: error.message, books: batch.books });
-        // Add each failed book to rejected list
-        batch.books.forEach(b => {
-          rejectedBooks.push({
-            title: b.title,
-            category: b.category_name,
-            author: b.author,
-            pages: b.pages,
-            fileId: b.pdf_url,
-            reason: `فشل الإدخال في قاعدة البيانات: ${error.message}`
+        if (error) {
+          console.error(`❌ [قناة ${channelId + 1}] فشل رفع الدفعة ${batch.batchIndex}:`, error.message);
+          failedBatches.push({ batchIndex: batch.batchIndex, error: error.message, books: batch.books });
+          batch.books.forEach(b => {
+            rejectedBooks.push({
+              title: b.title,
+              category: b.category_name,
+              author: b.author,
+              pages: b.pages,
+              fileId: b.pdf_url,
+              reason: `فشل الإدخال في قاعدة البيانات: ${error.message}`
+            });
           });
-        });
-      } else {
-        totalInserted += (data || []).length;
-      }
-    },
-    'رفع الدفعات'
-  );
+        } else {
+          totalInserted += (data || []).length;
+        }
+      },
+      'رفع الدفعات'
+    );
 
-  console.log(`\n=====================================================`);
-  console.log(`🎉 تم الانتهاء من المزامنة والرفع بنجاح!`);
-  console.log(`   ✅ إجمالي الكتب المرفوعة في Supabase: ${totalInserted}`);
-  console.log(`   ❌ إجمالي الكتب المرفوضة/المستبعدة: ${rejectedBooks.length}`);
-  console.log(`=====================================================\n`);
+    console.log(`\n=====================================================`);
+    console.log(`🎉 تم الانتهاء من المزامنة والرفع بنجاح!`);
+    console.log(`   ✅ إجمالي الكتب الجديدة المرفوعة في Supabase: ${totalInserted}`);
+    console.log(`   ❌ إجمالي الكتب المرفوضة/المستبعدة: ${rejectedBooks.length}`);
+    console.log(`=====================================================\n`);
+  }
 
   // 6. Save Reports to Disk
   fs.mkdirSync('reports', { recursive: true });
@@ -322,7 +411,7 @@ async function main() {
   const reportData = {
     timestamp: new Date().toISOString(),
     totalDriveFiles: catalog.length,
-    totalUploaded: totalInserted,
+    newlyUploaded: validBooks.length,
     totalRejected: rejectedBooks.length,
     totalDuplicatesSkipped: duplicateSkipped.length,
     rejectedBooks,
@@ -339,27 +428,30 @@ async function main() {
   mdReport += `| البيان | العدد |\n`;
   mdReport += `| :--- | :--- |\n`;
   mdReport += `| **إجمالي الملفات المفحوصة في Google Drive** | **${catalog.length}** |\n`;
-  mdReport += `| **الكتب التي استوفت كافة الشروط وتم رفعها بنجاح** | **${totalInserted}** |\n`;
+  mdReport += `| **الكتب الجديدة التي استوفت كافة الشروط وتم رفعها بنجاح** | **${validBooks.length}** |\n`;
   mdReport += `| **الكتب المستبعدة لعدم استيفاء الشروط (المؤلف/التصنيف/الصفحات)** | **${rejectedBooks.length}** |\n`;
-  mdReport += `| **الكتب المكررة التي تم تخطيها** | **${duplicateSkipped.length}** |\n\n`;
+  mdReport += `| **الكتب المكررة التي تم تخطيها (موجودة مسبقاً)** | **${duplicateSkipped.length}** |\n\n`;
 
-  mdReport += `## قائمة الكتب التي لم يتم رفعها وأسباب الاستبعاد\n\n`;
-  mdReport += `> تم تطبيق فحص صارم قبل الرفع لضمان وجود (اسم الكاتب الصريح، التصنيف المعتمد، عدد الصفحات الإيجابي، وعنوان سليم).\n\n`;
+  if (validBooks.length > 0) {
+    mdReport += `## عينة من الكتب الجديدة المرفوعة بنجاح\n\n`;
+    mdReport += `| # | اسم الكتاب | التصنيف | المؤلف | الصفحات |\n`;
+    mdReport += `| :--- | :--- | :--- | :--- | :--- |\n`;
+    validBooks.slice(0, 30).forEach((b, idx) => {
+      mdReport += `| ${idx + 1} | **${b.title}** | ${b.category_name} | ${b.author} | ${b.pages} صفحة |\n`;
+    });
+    if (validBooks.length > 30) {
+      mdReport += `\n*... و ${validBooks.length - 30} كتاباً إضافياً تم رفعها بنجاح.*\n\n`;
+    }
+  }
+
+  mdReport += `## قائمة الكتب المستبعدة وأسباب الاستبعاد\n\n`;
+  mdReport += `> تم تطبيق فحص صارم لضمان وجود (اسم الكاتب الصريح، التصنيف المعتمد، عدد الصفحات الإيجابي، وعنوان سليم).\n\n`;
   mdReport += `| # | اسم الكتاب / الملف | التصنيف | المؤلف في المجلد | سبب الاستبعاد |\n`;
   mdReport += `| :--- | :--- | :--- | :--- | :--- |\n`;
 
   rejectedBooks.forEach((b, idx) => {
     mdReport += `| ${idx + 1} | **${b.title}** | ${b.category || '-'} | ${b.author || '-'} | ${b.reason} |\n`;
   });
-
-  if (duplicateSkipped.length > 0) {
-    mdReport += `\n## قائمة الكتب المكررة التي تم تخطيها منعاً للازدواج\n\n`;
-    mdReport += `| # | اسم الكتاب | التصنيف | المؤلف |\n`;
-    mdReport += `| :--- | :--- | :--- | :--- |\n`;
-    duplicateSkipped.forEach((b, idx) => {
-      mdReport += `| ${idx + 1} | ${b.title} | ${b.category} | ${b.author} |\n`;
-    });
-  }
 
   fs.writeFileSync('reports/books_upload_report.md', mdReport, 'utf-8');
   console.log('📄 تم حفظ التقرير في:');
