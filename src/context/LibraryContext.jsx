@@ -9,7 +9,7 @@ import { safeStorage } from '../utils/safeStorage';
 
 const LibraryContext = createContext(null);
 
-const LOCAL_STORAGE_KEY = 'pia_local_books';
+const LOCAL_STORAGE_KEY = 'pia_local_books_v2';
 
 const getStoredLocalBooks = () => {
   try {
@@ -337,7 +337,7 @@ export function LibraryProvider({ children }) {
       driveUrl: book.driveUrl || bookLink,
       coverUrl: book.coverUrl || book.cover_url || '',
       cover_url: book.cover_url || book.coverUrl || '',
-      pages: Number(book.pages) || 120,
+      pages: Number(book.pages) || 0,
       downloads: book.downloads_count !== undefined ? Number(book.downloads_count) : (Number(book.downloads) || 0),
       downloads_count: book.downloads_count !== undefined ? Number(book.downloads_count) : (Number(book.downloads) || 0),
       year: book.year || (book.created_at ? new Date(book.created_at).getFullYear().toString() : new Date().getFullYear().toString()),
@@ -357,7 +357,7 @@ export function LibraryProvider({ children }) {
         id: bookId,
         created_at: book.created_at || new Date().toISOString(),
         year: book.year || new Date().getFullYear().toString(),
-        pages: Number(book.pages) > 0 ? Number(book.pages) : 120,
+        pages: Number(book.pages) > 0 ? Number(book.pages) : 0,
         downloads: book.downloads || 0,
         downloads_count: book.downloads || 0,
         rating: 5.0,
@@ -388,7 +388,7 @@ export function LibraryProvider({ children }) {
         category_name: fullBookObj.category_name || fullBookObj.category || '',
         pdf_url: fullBookObj.pdf_url || fullBookObj.link || '',
         cover_url: fullBookObj.cover_url || fullBookObj.coverUrl || '',
-        pages: parseInt(fullBookObj.pages, 10) || 120,
+        pages: parseInt(fullBookObj.pages, 10) || 0,
         downloads_count: parseInt(fullBookObj.downloads_count ?? fullBookObj.downloads, 10) || 0,
         rating: Number(fullBookObj.rating) || 5.0,
         created_at: fullBookObj.created_at

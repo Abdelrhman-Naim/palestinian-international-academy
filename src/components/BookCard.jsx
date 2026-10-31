@@ -12,17 +12,17 @@ const BookCard = ({
   showBookmark = false,
 }) => {
   const { t, dir, lang } = useLanguage();
-  const { incrementDownload } = useLibrary();
   const isRtl = dir === "rtl";
 
   if (!book) return null;
 
-  const verifiedDownloadsLabel = isRtl ? "تنزيل موثق" : "verified downloads";
   const categoryLabel = isRtl ? "التصنيف:" : "Category:";
   const downloadsLabel = isRtl ? "التحميلات:" : "Downloads:";
   const viewBookText = isRtl ? "عرض الكتاب" : "View The Book";
 
-  const formattedDownloads = (Number(book.downloads ?? book.downloads_count) || 0).toLocaleString();
+  const rawDownloads = Number(book.downloads ?? book.downloads_count) || 0;
+  const formattedDownloads = rawDownloads.toLocaleString();
+  const downloadsUnit = isRtl ? (t("downloads") || "تنزيل") : (rawDownloads === 1 ? "download" : "downloads");
   const categoryDisplay = getLocalizedCategory(book.category, lang);
   const badgeText = rank ? `#${rank} ${categoryDisplay}` : categoryDisplay;
 
@@ -91,26 +91,21 @@ const BookCard = ({
             {downloadsLabel}
           </span>
           <span className="text-amber-600 dark:text-amber-400 font-bold">
-            {formattedDownloads} {verifiedDownloadsLabel}
+            {formattedDownloads} {downloadsUnit}
           </span>
         </div>
       </div>
 
       {/* Action Row */}
       <div className="flex items-center gap-2 mt-auto">
-        {/* View & Download Book Button */}
+        {/* View Book Details Button */}
         <Link
           to={`/library/${book.id}`}
-          onClick={() => {
-            if (typeof incrementDownload === 'function' && book?.id) {
-              incrementDownload(book.id);
-            }
-          }}
           className="grow flex items-center justify-center gap-2 sm:gap-2.5 bg-white dark:bg-[#141210] border border-[#E8E2D5] dark:border-[#2E2823] hover:border-amber-500/50 hover:bg-[#F5F0E6] dark:hover:bg-[#201C18] text-dark dark:text-white hover:text-amber-600 dark:hover:text-amber-400 text-xs sm:text-sm font-bold py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl transition-all duration-300 shadow-sm min-h-[44px]"
         >
           <span>{viewBookText}</span>
           <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">
-            download
+            visibility
           </span>
         </Link>
 

@@ -136,35 +136,28 @@ export default function BookDetail() {
           throw new Error(`HTTP ${response.status}`);
         }
       } catch (corsErr) {
-        // 2. Fallback for CORS-restricted URLs (Google Drive export links)
-        // Perform no-cors check to ensure server responds with 200/opaque response
+        // 2. Reliable direct download trigger for cross-origin URLs (e.g. Google Drive)
         try {
-          const checkRes = await fetch(directDownloadUrl, { mode: 'no-cors' });
-          if (checkRes.type === 'opaque' || checkRes.ok) {
-            const a = document.createElement('a');
-            a.href = directDownloadUrl;
-            a.setAttribute('download', '');
-            a.setAttribute('target', '_blank');
-            a.setAttribute('rel', 'noopener noreferrer');
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            downloadStarted = true;
-          } else {
-            throw new Error('Server unreachable');
-          }
-        } catch (noCorsErr) {
-          throw new Error(dir === 'rtl' ? 'تعذر التوصيل بسيرفر التنزيل. تحقق من الاتصال بالإنترنت.' : 'Unable to connect to download server. Check your internet connection.');
+          const a = document.createElement('a');
+          a.href = directDownloadUrl;
+          a.setAttribute('download', `${cleanTitle || 'book'}.pdf`);
+          a.setAttribute('target', '_blank');
+          a.setAttribute('rel', 'noopener noreferrer');
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          downloadStarted = true;
+        } catch (linkErr) {
+          window.open(directDownloadUrl, '_blank', 'noopener,noreferrer');
+          downloadStarted = true;
         }
       }
 
-      // 3. Increment download counter in Supabase ONLY after verified server response & download start
+      // 3. Increment download counter in Supabase ONLY after download actually begins
       if (downloadStarted) {
         try {
           if (typeof incrementDownload === 'function') {
             await incrementDownload(id);
-          } else {
-            await updateDoc(doc(db, 'library', id), { downloads: increment(1) });
           }
           // Update local state display immediately
           if (book) {

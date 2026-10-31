@@ -279,9 +279,17 @@ export default function AdminSettings() {
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] font-semibold text-stone-600 dark:text-gray-300">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs text-emerald-500">check_circle</span>
-                      <span>{isRtl ? `${numCompleted} من ${numTotal} درساً مكتملة` : `${numCompleted} of ${numTotal} Lessons Done`}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="material-symbols-outlined text-xs text-amber-500 shrink-0">video_library</span>
+                      <span className="truncate">
+                        {isRtl
+                          ? (actualLecturesCount > 0 && actualLecturesCount < numTotal
+                              ? `${actualLecturesCount} من أصل ${numTotal} محاضرات منشورة`
+                              : `${numTotal} محاضرة متاحة بالدورة`)
+                          : (actualLecturesCount > 0 && actualLecturesCount < numTotal
+                              ? `${actualLecturesCount} of ${numTotal} Lectures Published`
+                              : `${numTotal} Lectures in Course`)}
+                      </span>
                     </span>
                     <span className="text-primary font-bold">{isRtl ? 'الدرس التالي ▶' : 'Next Lesson ▶'}</span>
                   </div>

@@ -78,7 +78,7 @@ const mapDocData = (d) => {
     link: d.pdf_url || d.file_url || d.link || '',
     cover_url: d.cover_url || d.coverUrl || '',
     coverUrl: d.cover_url || d.coverUrl || '',
-    pages: Number(d.pages) || 120,
+    pages: Number(d.pages) || 0,
     rating: Number(d.rating) || 5.0,
     instructor: d.instructor || d.instructor_name || d.instructorName || d.instructor_en || '',
     instructor_name: d.instructor_name || d.instructor || d.instructorName || d.instructor_en || '',
@@ -625,7 +625,7 @@ export const addDoc = async (colRef, data) => {
       if (raw.category_id) record.category_id = raw.category_id;
       record.pdf_url = raw.pdf_url || raw.link || raw.file_url || '';
       record.cover_url = raw.cover_url || raw.coverUrl || '';
-      record.pages = parseInt(raw.pages, 10) || 120;
+      record.pages = parseInt(raw.pages, 10) || 0;
       record.downloads_count = parseInt(raw.downloads_count ?? raw.downloads, 10) || 0;
       record.rating = Number(raw.rating) || 5.0;
       record.created_at = raw.created_at || new Date().toISOString();

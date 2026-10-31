@@ -292,6 +292,35 @@ const Hero = () => {
     ? Math.min(100, Math.round((featuredCompletedLessons / featuredTotalLessons) * 100))
     : 0;
 
+  // Clear, unambiguous summary of lectures (both published and total count)
+  const lecturesSummary = useMemo(() => {
+    if (userEnrollment) {
+      if (actualLecturesCount > 0 && actualLecturesCount < featuredTotalLessons) {
+        return isRtl
+          ? `${featuredCompletedLessons} من ${actualLecturesCount} منشورة (${featuredTotalLessons} الكلي)`
+          : `${featuredCompletedLessons} of ${actualLecturesCount} published (${featuredTotalLessons} total)`;
+      }
+      return isRtl
+        ? `${featuredCompletedLessons} من ${featuredTotalLessons} درساً مكتملة`
+        : `${featuredCompletedLessons} of ${featuredTotalLessons} Lessons Done`;
+    }
+
+    if (actualLecturesCount > 0 && actualLecturesCount < featuredTotalLessons) {
+      return isRtl
+        ? `${actualLecturesCount} من أصل ${featuredTotalLessons} محاضرات منشورة`
+        : `${actualLecturesCount} of ${featuredTotalLessons} Lectures Published`;
+    }
+
+    const count = actualLecturesCount || featuredTotalLessons;
+    if (isRtl) {
+      if (count === 1) return `محاضرة واحدة متاحة بالدورة`;
+      if (count === 2) return `محاضرتان متاحتان بالدورة`;
+      if (count >= 3 && count <= 10) return `${count} محاضرات متاحة بالدورة`;
+      return `${count} محاضرة متاحة بالدورة`;
+    }
+    return `${count} ${count === 1 ? 'Lecture' : 'Lectures'} in this Course`;
+  }, [userEnrollment, actualLecturesCount, featuredTotalLessons, featuredCompletedLessons, isRtl]);
+
   const courseLink = featuredCourse
     ? `/courses/${featuredCourse.id}`
     : "/courses";
@@ -428,19 +457,12 @@ const Hero = () => {
               </div>
 
               <div className="flex items-center justify-between text-[11px] font-semibold text-stone-600 dark:text-gray-300">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-emerald-500">
-                    check_circle
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className={`material-symbols-outlined text-xs shrink-0 ${userEnrollment ? 'text-emerald-500' : 'text-amber-500'}`}>
+                    {userEnrollment ? 'check_circle' : 'video_library'}
                   </span>
-                  <span>
-                    {userEnrollment
-                      ? (isRtl
-                          ? `${featuredCompletedLessons} من ${featuredTotalLessons} درساً مكتملة`
-                          : `${featuredCompletedLessons} of ${featuredTotalLessons} Lessons Done`)
-                      : (isRtl
-                          ? `${featuredTotalLessons} درساً متاحاً بالدورة`
-                          : `${featuredTotalLessons} Lessons in this Course`)
-                    }
+                  <span className="truncate">
+                    {lecturesSummary}
                   </span>
                 </span>
                 <Link

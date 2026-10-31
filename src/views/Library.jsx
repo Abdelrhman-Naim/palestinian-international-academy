@@ -165,7 +165,7 @@ const Library = () => {
         return yearB - yearA;
       }
       if (sortBy === 'downloads') {
-        return (Number(b.downloads) || 0) - (Number(a.downloads) || 0);
+        return (Number(b.downloads ?? b.downloads_count) || 0) - (Number(a.downloads ?? a.downloads_count) || 0);
       }
       if (sortBy === 'title') {
         return (a.title || '').localeCompare(b.title || '');
