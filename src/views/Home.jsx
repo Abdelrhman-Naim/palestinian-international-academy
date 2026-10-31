@@ -9,7 +9,6 @@ import TopBooks from "../components/TopBooks";
 import PartnersTrust from "../components/PartnersTrust";
 import Testimonials from "../components/Testimonials";
 import FAQ from "../components/FAQ";
-import AcademicOverview from "../components/AcademicOverview";
 import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 import SEO from "../components/SEO";
@@ -159,7 +158,6 @@ const Home = () => {
         <PartnersTrust />
         <Testimonials />
         <FAQ />
-        <AcademicOverview />
         <CTA />
       </main>
       <Footer />
