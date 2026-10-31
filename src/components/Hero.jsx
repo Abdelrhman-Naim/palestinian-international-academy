@@ -288,9 +288,17 @@ const Hero = () => {
     : 0;
 
   const featuredCompletedLessons = Math.min(featuredTotalLessons, completedLessonsCount);
-  const featuredProgress = featuredTotalLessons > 0
-    ? Math.min(100, Math.round((featuredCompletedLessons / featuredTotalLessons) * 100))
+
+  // Calculate publication progress ratio (e.g. 2 out of 4 published = 50%)
+  const publishedProgress = featuredTotalLessons > 0
+    ? Math.min(100, Math.round((actualLecturesCount / featuredTotalLessons) * 100))
     : 0;
+
+  // Course progress: If student is enrolled and has completed lessons, show their completed progress;
+  // otherwise show the curriculum publication progress (e.g. 50% for 2 out of 4 published lectures).
+  const featuredProgress = (userEnrollment && completedLessonsCount > 0)
+    ? Math.min(100, Math.round((featuredCompletedLessons / Math.max(1, actualLecturesCount)) * 100))
+    : publishedProgress;
 
   // Clear, unambiguous summary of lectures (both published and total count)
   const lecturesSummary = useMemo(() => {
