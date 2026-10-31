@@ -33,7 +33,7 @@ export default function PwaInstallBanner() {
     return (
       <div 
         role="alert" 
-        className="fixed bottom-4 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-md z-[999] bg-stone-900 text-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-amber-500/30 flex items-center justify-between gap-3 animate-fade-in"
+        className="fixed bottom-20 sm:bottom-4 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-md z-[999] bg-stone-900 text-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-amber-500/30 flex items-center justify-between gap-3 animate-fade-in"
         style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -70,7 +70,7 @@ export default function PwaInstallBanner() {
   return (
     <>
       <div 
-        className="fixed bottom-3 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-sm z-[990] bg-white/95 dark:bg-stone-900/95 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-xl border border-stone-200 dark:border-stone-700 flex items-center justify-between gap-2.5 sm:gap-3"
+        className="fixed bottom-20 sm:bottom-3 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-sm z-[990] bg-white/95 dark:bg-stone-900/95 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-xl border border-stone-200 dark:border-stone-700 flex items-center justify-between gap-2.5 sm:gap-3"
         style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="flex items-center gap-2.5 min-w-0">

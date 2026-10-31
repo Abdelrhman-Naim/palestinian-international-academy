@@ -13,6 +13,7 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import OfflineBanner from '../components/OfflineBanner';
 import ErrorBoundary from '../components/ErrorBoundary';
 import PwaInstallBanner from '../components/PwaInstallBanner';
+import MobileBottomNav from '../components/MobileBottomNav';
 
 function DarkModeInit() {
   useDarkMode();
@@ -36,6 +37,7 @@ export function Providers({ children }) {
                       <ErrorBoundary>
                         {children}
                       </ErrorBoundary>
+                      <MobileBottomNav />
                     </PwaProvider>
                   </CallProvider>
                 </CategoriesProvider>

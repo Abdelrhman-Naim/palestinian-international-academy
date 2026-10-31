@@ -240,7 +240,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="min-h-screen min-h-[100dvh] flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100">
+      <body className="min-h-screen min-h-[100dvh] flex flex-col bg-[#FAF7F2] dark:bg-[#12100e] text-dark dark:text-gray-100 pb-16 md:pb-0">
         <Providers>
           <React.Suspense fallback={null}>
             {children}
