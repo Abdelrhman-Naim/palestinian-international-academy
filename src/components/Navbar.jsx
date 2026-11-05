@@ -86,6 +86,7 @@ const Navbar = () => {
             alt={lang === 'ar' ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)'}
             width={56}
             height={56}
+            fetchPriority="high"
             className="h-12 md:h-14 w-auto object-contain rounded-lg drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
           />
         </Link>

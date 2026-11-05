@@ -69,12 +69,17 @@ export function LibraryProvider({ children }) {
   const { lang } = useLanguage();
   const hasPrunedRef = useRef(false);
 
-  const fetchBooks = async (isSilent = false) => {
+  const fetchBooks = async (isSilent = false, forceAll = false) => {
     if (!isSilent) {
       setLoading(true);
     }
     setFetchError(null);
     let isFinished = false;
+
+    const isFullCatalogPage = forceAll || (typeof window !== 'undefined' && 
+      (window.location.pathname.startsWith('/library') || 
+       window.location.pathname.startsWith('/admin-dashboard') || 
+       window.location.pathname.startsWith('/instructor-dashboard')));
 
     // Safety timeout prevents infinite spinner on aborted, stalled, or cancelled requests
     const timer = setTimeout(() => {
@@ -180,12 +185,24 @@ export function LibraryProvider({ children }) {
         return { data: all, error: all.length > 0 ? null : lastError };
       };
 
+      const fetchLightRemoteBooks = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('books')
+            .select('*')
+            .order('downloads_count', { ascending: false })
+            .limit(24);
+          return { data: data || [], error };
+        } catch (e) {
+          return { data: [], error: e };
+        }
+      };
+
       const [{ data, error }, { data: reviewRows }] = await Promise.all([
-        fetchAllRemoteBooks(),
-        supabase
-          .from('reviews')
-          .select('target_id, rating')
-          .eq('target_type', 'book')
+        isFullCatalogPage ? fetchAllRemoteBooks() : fetchLightRemoteBooks(),
+        isFullCatalogPage
+          ? supabase.from('reviews').select('target_id, rating').eq('target_type', 'book')
+          : Promise.resolve({ data: [] })
       ]);
 
       const reviewStatsMap = new Map();

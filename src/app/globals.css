@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&family=Cairo:wght@300;400;600;700&display=swap');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -35,8 +34,8 @@
   --color-gray-800: #292524;
   --color-gray-900: #1c1917;
   --color-gray-950: #0c0a09;
-  --font-alexandria: "Alexandria", sans-serif;
-  --font-cairo: "Cairo", sans-serif;
+  --font-alexandria: var(--font-alexandria), system-ui, -apple-system, sans-serif;
+  --font-cairo: var(--font-cairo), system-ui, -apple-system, sans-serif;
   --font-hanken: "Hanken Grotesk", sans-serif;
   --font-jetbrains: "JetBrains Mono", monospace;
   

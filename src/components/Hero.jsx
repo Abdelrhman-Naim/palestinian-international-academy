@@ -346,24 +346,41 @@ const Hero = () => {
 
     let bot = null;
     let isDisposed = false;
+    let idleId = null;
+    let timerId = null;
 
-    // Dynamically import medical-robot so mobile does NOT download or execute Three.js
-    import("../utils/medical-robot.js")
-      .then(({ createMedicalRobot }) => {
-        if (isDisposed || !robotRef.current) return;
-        bot = createMedicalRobot(robotRef.current, {
-          maxPixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
-          responsiveness: 1,
-          idleAmplitude: 1,
-          trackWindow: true,
+    const initRobot = () => {
+      if (isDisposed || !robotRef.current) return;
+      import("../utils/medical-robot.js")
+        .then(({ createMedicalRobot }) => {
+          if (isDisposed || !robotRef.current) return;
+          bot = createMedicalRobot(robotRef.current, {
+            maxPixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
+            responsiveness: 0.9,
+            idleAmplitude: 0.8,
+            trackWindow: true,
+          });
+        })
+        .catch((e) => {
+          console.warn("Robot canvas initialization error:", e);
         });
-      })
-      .catch((e) => {
-        console.warn("Robot canvas initialization error:", e);
-      });
+    };
+
+    // Defer 3D robot initialization to idle callback so it never blocks FCP / LCP or initial hydration
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(initRobot, { timeout: 2500 });
+    } else {
+      timerId = setTimeout(initRobot, 1200);
+    }
 
     return () => {
       isDisposed = true;
+      if (idleId && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId) {
+        clearTimeout(timerId);
+      }
       if (bot && typeof bot.dispose === "function") {
         bot.dispose();
       }

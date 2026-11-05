@@ -57,6 +57,13 @@ const Library = () => {
   const { currentUser } = useAuth();
   const { isSaved, toggleSave } = useSavedBooks();
 
+  // If initial load only retrieved the light preview slice (<= 25 items), fetch the full catalog
+  useEffect(() => {
+    if (booksData && booksData.length > 0 && booksData.length <= 25 && typeof retryFetchBooks === 'function') {
+      retryFetchBooks(true, true);
+    }
+  }, [booksData?.length, retryFetchBooks]);
+
   const libraryTitle = isRtl ? 'كتب المكتبة' : 'Library Books';
 
   const handleBookmarkClick = async (e, book) => {

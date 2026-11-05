@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from 'react';
 import { LanguageProvider } from '../context/LanguageContext';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
@@ -20,6 +21,20 @@ function DarkModeInit() {
   return null;
 }
 
+function FontAwesomeLoader() {
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('font-awesome-css')) return;
+    const link = document.createElement('link');
+    link.id = 'font-awesome-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+    link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
+  }, []);
+  return null;
+}
+
 export function Providers({ children }) {
   return (
     <LanguageProvider>
@@ -32,6 +47,7 @@ export function Providers({ children }) {
                   <CallProvider>
                     <PwaProvider>
                       <DarkModeInit />
+                      <FontAwesomeLoader />
                       <OfflineBanner />
                       <PwaInstallBanner />
                       <ErrorBoundary>

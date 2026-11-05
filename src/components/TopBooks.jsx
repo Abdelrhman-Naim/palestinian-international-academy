@@ -67,7 +67,7 @@ const TopBooks = () => {
             : topBooks.length === 0
             ? (
               <div className="col-span-1 sm:col-span-2 lg:col-span-4 text-center py-20 text-gray-400 dark:text-gray-500 border border-dashed border-[#E8E2D5] dark:border-gray-700 rounded-2xl">
-                <i className="fa-solid fa-book-open text-6xl mb-6 text-gray-300 dark:text-gray-700"></i>
+                <span className="material-symbols-outlined text-6xl mb-6 text-gray-300 dark:text-gray-700">menu_book</span>
                 <p className="text-xl font-bold">{t("topBooks.noBooks")}</p>
               </div>
             )

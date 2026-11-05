@@ -1,19 +1,22 @@
 "use client";
+import dynamic from 'next/dynamic';
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Features from "../components/Features";
 import LearningJourney from "../components/LearningJourney";
-import CloudLab from "../components/CloudLab";
 import PopularCourses from "../components/PopularCourses";
 import TopBooks from "../components/TopBooks";
-import PartnersTrust from "../components/PartnersTrust";
-import Testimonials from "../components/Testimonials";
-import FAQ from "../components/FAQ";
-import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import { useLanguage } from "../context/LanguageContext";
 import { getDynamicSiteUrl } from "../utils/siteUrl";
+
+// Below-the-fold sections: dynamically loaded with SSR preserved for SEO & GEO
+const CloudLab = dynamic(() => import("../components/CloudLab"), { ssr: true });
+const PartnersTrust = dynamic(() => import("../components/PartnersTrust"), { ssr: true });
+const Testimonials = dynamic(() => import("../components/Testimonials"), { ssr: true });
+const FAQ = dynamic(() => import("../components/FAQ"), { ssr: true });
+const CTA = dynamic(() => import("../components/CTA"), { ssr: true });
 
 const Home = () => {
   const { language, dir, t } = useLanguage();
