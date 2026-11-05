@@ -16,13 +16,15 @@ export default function SEO({
   schema = null,
   breadcrumbs = null,
 }) {
-  const { language, dir } = useLanguage();
+  const { language, lang, dir } = useLanguage();
   const location = useLocation();
 
+  const currentLang = language || lang || 'ar';
+  const currentDir = dir || (currentLang === 'ar' ? 'rtl' : 'ltr');
   const siteUrl = useMemo(() => getDynamicSiteUrl(), []);
   const defaultImage = `${siteUrl}/screen.webp`;
 
-  const isAr = language === 'ar';
+  const isAr = currentLang === 'ar';
   const siteName = isAr ? 'أكاديمية فلسطين الدولية (PIA)' : 'Palestinian International Academy (PIA)';
   const defaultDesc = isAr
     ? 'الأكاديمية الفلسطينية الدولية - منصة تعليمية وتدريبية رائدة تقدم دورات مهنية معتمدة، مكتبة رقمية متكاملة، ومختبرات سحابية ذكية.'
@@ -76,7 +78,7 @@ export default function SEO({
   return (
     <Helmet>
       {/* HTML Language & Direction Attributes */}
-      <html lang={language} dir={dir} />
+      <html lang={currentLang} dir={currentDir} />
 
       {/* Basic Title and Meta */}
       <title>{fullTitle}</title>

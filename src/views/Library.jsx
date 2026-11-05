@@ -268,7 +268,7 @@ const Library = () => {
               
               {/* Drawer Header (Fixed at top of drawer on mobile) */}
               <div className="flex justify-between items-center p-5 sm:p-6 border-b border-[#E8E2D5] dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
-                <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
+                <h2 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h2>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => { setSelectedCategory(''); setSearchQuery(''); }}
@@ -323,7 +323,10 @@ const Library = () => {
           </aside>
           
           {/* Main Grid Area */}
-          <div ref={gridRef} className="flex-1 min-w-0 w-full scroll-mt-28">
+          <section ref={gridRef} aria-labelledby="library-books-heading" className="flex-1 min-w-0 w-full scroll-mt-28">
+            <h2 id="library-books-heading" className="sr-only">
+              {isRtl ? 'فهرس الكتب والمراجع الرقمية المتاحة' : 'Digital Books & References Catalog'}
+            </h2>
             
             {/* Search Bar & Top Controls */}
             <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 p-2 rounded-xl flex items-center shadow-sm mb-6 transition-colors">
@@ -503,7 +506,7 @@ const Library = () => {
                 </div>
               </motion.div>
             )}
-          </div>
+          </section>
           
         </div>
       </main>

@@ -63,7 +63,7 @@ const LearningJourney = () => {
                 <div className="w-12 h-12 rounded-2xl bg-[#FAF7F2] dark:bg-gray-700/60 border border-[#E8E2D5] dark:border-gray-600 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-dark transition-colors duration-300">
                   <span className="material-symbols-outlined text-2xl">{step.icon}</span>
                 </div>
-                <span className="font-mono text-2xl font-black text-secondary/80 group-hover:text-primary transition-colors">
+                <span className="font-mono text-2xl font-black text-[#856314] dark:text-amber-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                   {step.num}
                 </span>
               </div>
@@ -77,7 +77,7 @@ const LearningJourney = () => {
                 </p>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-[#FAF7F2] dark:border-gray-700/60 flex items-center justify-between text-xs font-bold text-gray-500 dark:text-gray-400 group-hover:text-primary transition-colors">
+              <div className="mt-6 pt-4 border-t border-[#FAF7F2] dark:border-gray-700/60 flex items-center justify-between text-xs font-bold text-stone-600 dark:text-stone-300 group-hover:text-primary transition-colors">
                 <span>{isRtl ? `المرحلة ${step.num}` : `Phase ${step.num}`}</span>
                 <span className="material-symbols-outlined text-sm">
                   {isRtl ? 'arrow_back' : 'arrow_forward'}

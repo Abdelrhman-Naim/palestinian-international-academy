@@ -30,3 +30,4 @@ serviceAccountKey.json
 __pycache__/
 playwright-report/
 test-results/
+scratch/

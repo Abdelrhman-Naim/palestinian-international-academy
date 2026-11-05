@@ -169,9 +169,9 @@ const VirtualLab = () => {
                 <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
                   <span className="material-symbols-outlined text-4xl">mark_email_read</span>
                 </div>
-                <h3 className="text-2xl font-extrabold text-dark dark:text-white">
+                <h2 className="text-2xl font-extrabold text-dark dark:text-white">
                   {isRtl ? 'تم تسجيل اهتمامك بنجاح! 🎉' : 'Your Interest Has Been Registered! 🎉'}
-                </h3>
+                </h2>
                 <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
                   {isRtl
                     ? 'شكراً لك! تم تدوين بريدك الإلكتروني بنجاح وسنكون أول من يخطرك ويمنحك الوصول المبكر المجاني فور إطلاق المعمل الافتراضي.'
@@ -190,9 +190,9 @@ const VirtualLab = () => {
                   <span className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 inline-flex items-center justify-center mb-3">
                     <span className="material-symbols-outlined text-2xl">notifications_active</span>
                   </span>
-                  <h3 className="text-2xl font-extrabold text-dark dark:text-white mb-2">
+                  <h2 className="text-2xl font-extrabold text-dark dark:text-white mb-2">
                     {isRtl ? 'احصل على وصول مبكر للمعمل الافتراضي' : 'Get Early Access to Virtual Lab'}
-                  </h3>
+                  </h2>
                   <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
                     {isRtl ? 'سجّل اهتمامك ليصلك إشعار فوري وحصري فور إتاحة المعمل للاستخدام.' : 'Register your interest to get priority early access upon public release.'}
                   </p>

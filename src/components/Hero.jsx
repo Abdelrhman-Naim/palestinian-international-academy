@@ -449,9 +449,9 @@ const Hero = () => {
                 to={courseLink}
                 className="block group/card font-bold hover:text-primary transition-colors mb-2"
               >
-                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover/card:text-primary transition-colors truncate">
+                <h2 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover/card:text-primary transition-colors truncate">
                   {featuredTitle}
-                </h3>
+                </h2>
               </Link>
 
               {/* Progress Bar */}
@@ -494,40 +494,40 @@ const Hero = () => {
         <section className="flex items-center justify-center py-6 sm:py-10 lg:py-12 relative transition-colors">
           <div className="w-[94%] sm:w-11/12 max-w-7xl bg-white/95 dark:bg-[#151311] border border-[#E8E2D5] dark:border-[#2C2722] rounded-2xl md:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-sm dark:shadow-2xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-y-6 sm:gap-y-8 lg:gap-y-0 gap-x-2 sm:gap-x-4 lg:gap-x-6">
             <div className="text-center px-2 sm:px-4 border-e border-[#E8E2D5] dark:border-gray-700">
-              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+              <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter value={coursesCount} suffix="+" />
-              </h3>
+              </div>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">
                 {t("homeNew.statsCoursesLabel") || t("hero.courses")}
               </p>
             </div>
 
             <div className="text-center px-2 sm:px-4 lg:border-e border-[#E8E2D5] dark:border-gray-700">
-              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+              <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter
                   value={traineesValue}
                   decimals={traineesDecimals}
                   suffix={traineesSuffix}
                 />
-              </h3>
+              </div>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">
                 {t("homeNew.statsActiveLabel") || t("hero.activeTrainees")}
               </p>
             </div>
 
             <div className="text-center px-2 sm:px-4 border-e border-[#E8E2D5] dark:border-gray-700">
-              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+              <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter value={extraStats.completionRate} suffix="%" />
-              </h3>
+              </div>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">
                 {t("homeNew.statsCompletionLabel") || t("hero.completionRate")}
               </p>
             </div>
 
             <div className="text-center px-2 sm:px-4">
-              <h3 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
+              <div className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-amber-800 dark:text-amber-300 mb-1 sm:mb-2">
                 <AnimatedCounter value={avgRating} decimals={1} suffix=" ★" />
-              </h3>
+              </div>
               <p className="text-stone-700 dark:text-stone-300 font-bold text-xs sm:text-sm md:text-base mb-1">
                 {t("homeNew.statsRatingLabel") ||
                   (isRtl ? "متوسط التقييم العام" : "Average Rating")}

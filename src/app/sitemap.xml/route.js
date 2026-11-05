@@ -29,15 +29,22 @@ export async function GET(request) {
 
   let courses = [];
   let books = [];
-  try {
-    const { data: c } = await supabase.from('courses').select('id, title');
-    if (c) courses = c;
-  } catch (e) {}
+  const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 2500));
 
   try {
-    const { data: b } = await supabase.from('books').select('id, title').limit(30);
-    if (b) books = b;
-  } catch (e) {}
+    const fetchPromises = Promise.all([
+      supabase.from('courses').select('id, title').then(r => r.data || []),
+      supabase.from('books').select('id, title').limit(40).then(r => r.data || [])
+    ]);
+
+    const result = await Promise.race([fetchPromises, timeoutPromise]);
+    if (Array.isArray(result)) {
+      courses = result[0] || [];
+      books = result[1] || [];
+    }
+  } catch (e) {
+    // Graceful fallback to static routes on any network glitch
+  }
 
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n';
@@ -96,7 +103,7 @@ export async function GET(request) {
     status: 200,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
     },
   });
 }

@@ -1,8 +1,6 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import logo from '../assets/logo.webp';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -162,11 +160,16 @@ export default function CertificateModal({ certificate, onClose }) {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  // Direct PDF Download handler using html-to-image (SVG foreignObject) and jsPDF
+  // Direct PDF Download handler using dynamic html-to-image and jsPDF
   const handleDownloadPdf = async () => {
     if (!certRef.current || isDownloadingPdf) return;
     setIsDownloadingPdf(true);
     try {
+      const [{ toPng }, { jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf')
+      ]);
+
       let dataUrl;
       try {
         dataUrl = await toPng(certRef.current, {

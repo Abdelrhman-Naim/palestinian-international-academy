@@ -109,7 +109,10 @@ export default function CertificateVerificationPage() {
           </div>
 
           {/* Search Box */}
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-4 sm:p-6 shadow-sm mb-8">
+          <section aria-labelledby="verification-form-heading" className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-4 sm:p-6 shadow-sm mb-8">
+            <h2 id="verification-form-heading" className="sr-only">
+              {isRtl ? 'بوابة التحقق المباشر من الشهادات' : 'Direct Certificate Verification Portal'}
+            </h2>
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
@@ -145,7 +148,7 @@ export default function CertificateVerificationPage() {
                 )}
               </button>
             </form>
-          </div>
+          </section>
 
           {/* Results Area */}
           {loading ? (
@@ -222,9 +225,9 @@ export default function CertificateVerificationPage() {
                 <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-4">
                   <span className="material-symbols-outlined text-2xl">error</span>
                 </div>
-                <h3 className="text-lg font-bold text-dark dark:text-white mb-2">
+                <h2 className="text-lg font-bold text-dark dark:text-white mb-2">
                   {isRtl ? 'لم يتم العثور على شهادة بهذا الرمز' : 'Certificate Not Found'}
-                </h3>
+                </h2>
                 <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto">
                   {isRtl 
                     ? 'يرجى التأكد من كتابة رمز الشهادة بدقة مثل EDU-2026-XXXXXX كما هو مدون على وثيقة التخرج.' 
@@ -233,6 +236,33 @@ export default function CertificateVerificationPage() {
               </div>
             )
           )}
+
+          {/* Trust & Verification Guidelines */}
+          <section className="mt-12 pt-8 border-t border-stone-200/80 dark:border-stone-800/80">
+            <h2 className="text-lg sm:text-xl font-bold text-dark dark:text-white mb-4 text-center">
+              {isRtl ? 'معايير الموثوقية والتحقق الأكاديمي المعتمد' : 'Accredited Verification & Trust Standards'}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              <div className="p-4 rounded-2xl bg-white/70 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-800/60">
+                <span className="material-symbols-outlined text-primary text-2xl mb-1">lock</span>
+                <p className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                  {isRtl ? 'تشفير رقمي مشفر' : 'Cryptographically Verified'}
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-white/70 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-800/60">
+                <span className="material-symbols-outlined text-primary text-2xl mb-1">qr_code_2</span>
+                <p className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                  {isRtl ? 'مطابقة الباركود الفورية' : 'Instant QR Match'}
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-white/70 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-800/60">
+                <span className="material-symbols-outlined text-primary text-2xl mb-1">workspace_premium</span>
+                <p className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                  {isRtl ? 'اعتماد دولي ومؤسسي' : 'Institutional Accreditation'}
+                </p>
+              </div>
+            </div>
+          </section>
 
         </div>
       </main>

@@ -100,4 +100,3 @@ Disallow: /instructor-dashboard/
 Disallow: /dashboard/
 
 Sitemap: https://palestine-international-academy.netlify.app/sitemap.xml
-Sitemap: https://palestine-international-academy.vercel.app/sitemap.xml

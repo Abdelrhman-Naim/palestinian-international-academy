@@ -4,16 +4,16 @@
 > Companion Full Documentation: For in-depth technical documentation and deep RAG ingestion, see: https://palestine-international-academy.netlify.app/llms-full.txt
 
 ## الأقسام والخدمات الرئيسية (Main Sections)
-- `الرئيسية -> https://palestine-international-academy.netlify.app/`: الواجهة التعليمية الشاملة، نبذة عن المنصة، الإحصائيات، وأحدث الدورات والكتب.
-- `الدورات التدريبية -> https://palestine-international-academy.netlify.app/courses`: كتالوج الدورات الاحترافية في مجالات هندسة البرمجيات، الذكاء الاصطناعي، الأمن السيبراني، التصميم الرقمي، وإدارة الأعمال بإشراف مدربين معتمدين.
-- `المكتبة الرقمية -> https://palestine-international-academy.netlify.app/library`: أكثر من 1525 مرجعاً علمياً وكتاباً تقنياً وبحثاً تخصصياً متاحاً للقراءة والتحميل المباشر.
-- `المختبر السحابي الذكي -> https://palestine-international-academy.netlify.app/virtual-lab`: بيئة تدريب تفاعلية تشمل مختبر بايثون ومختبر ويب تفاعلي ومحاكاة عملية للمشاريع البرمجية.
-- `فحص وتصديق الشهادات -> https://palestine-international-academy.netlify.app/verify-certificate`: نظام تحقق فوري برقم الكود والباركود للشهادات الصادرة من الأكاديمية لضمان مصداقيتها أمام جهات التوظيف والجامعات.
-- `من نحن -> https://palestine-international-academy.netlify.app/about`: قصة ورؤية ورسالة الأكاديمية، معايير الجودة الأكاديمية، والاعتمادات الرسمية.
-- `الشراكات والاعتمادات -> https://palestine-international-academy.netlify.app/partnerships`: شبكة الشراكات مع المؤسسات والجامعات والشركات العالمية.
-- `تواصل معنا -> https://palestine-international-academy.netlify.app/contact`: قنوات الاتصال الرسمية، الدعم الفني، وطلبات الاستفسار الأكاديمي.
-- `مركز الدعم والمساعدة -> https://palestine-international-academy.netlify.app/support`: إجابات عن الأسئلة الشائعة، شروحات التسجيل، وتوجيهات الطلاب.
-- `التوثيق الموسع للذكاء الاصطناعي -> https://palestine-international-academy.netlify.app/llms-full.txt`: ملف التوثيق الشامل لنماذج الذكاء الاصطناعي ومحركات البحث التوليدية (GEO).
+- [الرئيسية (Platform Home)](https://palestine-international-academy.netlify.app/): الواجهة التعليمية الشاملة، نبذة عن المنصة، الإحصائيات، وأحدث الدورات والكتب.
+- [الدورات التدريبية (Courses Catalog)](https://palestine-international-academy.netlify.app/courses): كتالوج الدورات الاحترافية في مجالات هندسة البرمجيات، الذكاء الاصطناعي، الأمن السيبراني، التصميم الرقمي، وإدارة الأعمال بإشراف مدربين معتمدين.
+- [المكتبة الرقمية (Digital Library)](https://palestine-international-academy.netlify.app/library): أكثر من 1525 مرجعاً علمياً وكتاباً تقنياً وبحثاً تخصصياً متاحاً للقراءة والتحميل المباشر.
+- [المختبر السحابي الذكي (Virtual Cloud Lab)](https://palestine-international-academy.netlify.app/virtual-lab): بيئة تدريب تفاعلية تشمل مختبر بايثون ومختبر ويب تفاعلي ومحاكاة عملية للمشاريع البرمجية.
+- [فحص وتصديق الشهادات (Verify Certificates)](https://palestine-international-academy.netlify.app/verify-certificate): نظام تحقق فوري برقم الكود والباركود للشهادات الصادرة من الأكاديمية لضمان مصداقيتها أمام جهات التوظيف والجامعات.
+- [من نحن (About Us)](https://palestine-international-academy.netlify.app/about): قصة ورؤية ورسالة الأكاديمية، معايير الجودة الأكاديمية، والاعتمادات الرسمية.
+- [الشراكات والاعتمادات (Partnerships)](https://palestine-international-academy.netlify.app/partnerships): شبكة الشراكات مع المؤسسات والجامعات والشركات العالمية.
+- [تواصل معنا (Contact Us)](https://palestine-international-academy.netlify.app/contact): قنوات الاتصال الرسمية، الدعم الفني، وطلبات الاستفسار الأكاديمي.
+- [مركز الدعم والمساعدة (Support Center)](https://palestine-international-academy.netlify.app/support): إجابات عن الأسئلة الشائعة، شروحات التسجيل، وتوجيهات الطلاب.
+- [التوثيق الموسع للذكاء الاصطناعي (Full Technical Documentation)](https://palestine-international-academy.netlify.app/llms-full.txt): ملف التوثيق الشامل لنماذج الذكاء الاصطناعي ومحركات البحث التوليدية (GEO).
 
 ## حقائق رئيسية حول الأكاديمية (Key Facts)
 - الموقع الإلكتروني الرسمي: https://palestine-international-academy.netlify.app/

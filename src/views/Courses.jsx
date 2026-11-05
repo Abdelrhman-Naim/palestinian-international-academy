@@ -265,7 +265,7 @@ const Courses = ({ embedded = false }) => {
               
               {/* Drawer Header (Fixed at top of drawer on mobile) */}
               <div className="flex justify-between items-center p-5 sm:p-6 border-b border-[#E8E2D5] dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
-                <h3 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h3>
+                <h2 className="font-bold text-xl text-dark dark:text-white">{t('library.filter')}</h2>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => { setSelectedCategory('ALL'); setSelectedLevel('ALL'); setSelectedPrice('ALL'); }}
@@ -352,7 +352,10 @@ const Courses = ({ embedded = false }) => {
           </aside>
           
           {/* Courses Grid */}
-          <div className="flex-1 min-w-0 w-full">
+          <section aria-labelledby="courses-catalog-heading" className="flex-1 min-w-0 w-full">
+            <h2 id="courses-catalog-heading" className="sr-only">
+              {isRtl ? 'قائمة وتصنيفات الدورات المتاحة' : 'Available Courses Catalog'}
+            </h2>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button 
@@ -428,7 +431,7 @@ const Courses = ({ embedded = false }) => {
                 </div>
               </motion.div>
             )}
-          </div>
+          </section>
           
         </div>
       </main>
