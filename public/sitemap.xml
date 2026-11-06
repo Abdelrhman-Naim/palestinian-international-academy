@@ -4,7 +4,7 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://palestine-international-academy.netlify.app/</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/" />
@@ -18,7 +18,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/courses</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/courses" />
@@ -27,7 +27,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library" />
@@ -36,7 +36,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/virtual-lab</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/virtual-lab" />
@@ -45,7 +45,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/verify-certificate</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/verify-certificate" />
@@ -54,7 +54,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/about</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/about" />
@@ -63,7 +63,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/contact</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/contact" />
@@ -72,7 +72,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/partnerships</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/partnerships" />
@@ -81,7 +81,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/support</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/support" />
@@ -90,7 +90,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/register</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.65</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/register" />
@@ -99,7 +99,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/login</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/login" />
@@ -108,7 +108,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/privacy</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/privacy" />
@@ -117,7 +117,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/terms</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/terms" />
@@ -126,7 +126,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/courses/458616bc-1d89-4d64-85ce-70efd61733c9</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/courses/458616bc-1d89-4d64-85ce-70efd61733c9" />
@@ -135,7 +135,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/courses/7fecbaa7-caba-443e-9b15-0017aef4cb59</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/courses/7fecbaa7-caba-443e-9b15-0017aef4cb59" />
@@ -144,7 +144,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/courses/f794c113-2d69-480b-be0d-b01d0c026618</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/courses/f794c113-2d69-480b-be0d-b01d0c026618" />
@@ -153,7 +153,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/922bb3f2-fd40-48f6-a9e0-ac57b296d755</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/922bb3f2-fd40-48f6-a9e0-ac57b296d755" />
@@ -162,7 +162,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/60500b82-a15d-4d0b-9feb-e80d738f8dea</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/60500b82-a15d-4d0b-9feb-e80d738f8dea" />
@@ -171,7 +171,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/eb54127d-6dbb-48a2-a046-118e2e2ece0b</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/eb54127d-6dbb-48a2-a046-118e2e2ece0b" />
@@ -180,7 +180,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/d200184e-209b-4015-bf2f-811a03212503</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/d200184e-209b-4015-bf2f-811a03212503" />
@@ -189,7 +189,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/69188733-06e9-48fb-a4f5-7e6e3c700ac1</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/69188733-06e9-48fb-a4f5-7e6e3c700ac1" />
@@ -198,7 +198,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/650d49e7-7770-4c05-9ef5-8cbec234bed7</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/650d49e7-7770-4c05-9ef5-8cbec234bed7" />
@@ -207,7 +207,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/894576b2-f8da-4773-a71c-154ea7ca9e15</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/894576b2-f8da-4773-a71c-154ea7ca9e15" />
@@ -216,7 +216,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/6d5176a5-9a21-428f-bd0a-f34ea52fae9b</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/6d5176a5-9a21-428f-bd0a-f34ea52fae9b" />
@@ -225,7 +225,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/c53e8935-3f39-48e9-b5e0-9f41bf1a8dd5</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/c53e8935-3f39-48e9-b5e0-9f41bf1a8dd5" />
@@ -234,7 +234,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/7c7fc254-2edc-4e34-9dee-03c00289f65b</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/7c7fc254-2edc-4e34-9dee-03c00289f65b" />
@@ -243,7 +243,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/0b02beba-69d6-46e3-8389-9ef35c3902b4</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/0b02beba-69d6-46e3-8389-9ef35c3902b4" />
@@ -252,7 +252,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/68046870-00ed-4103-881f-790e3519069a</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/68046870-00ed-4103-881f-790e3519069a" />
@@ -261,7 +261,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/bc1e9fa2-797b-4590-954d-95bbffce95b8</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/bc1e9fa2-797b-4590-954d-95bbffce95b8" />
@@ -270,7 +270,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/4029da1f-d33c-4533-be30-4c7410134ddd</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/4029da1f-d33c-4533-be30-4c7410134ddd" />
@@ -279,7 +279,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/ef5cf26e-9636-41b7-bc93-74bdce2c89eb</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/ef5cf26e-9636-41b7-bc93-74bdce2c89eb" />
@@ -288,7 +288,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/3d321aca-3789-49d8-a144-48e1e326fd59</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/3d321aca-3789-49d8-a144-48e1e326fd59" />
@@ -297,7 +297,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/bdc350c5-6628-4dae-9b72-ef74011f6754</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/bdc350c5-6628-4dae-9b72-ef74011f6754" />
@@ -306,7 +306,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/2e3c7cdb-044c-461c-aec7-75aa9bfc1bca</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/2e3c7cdb-044c-461c-aec7-75aa9bfc1bca" />
@@ -315,7 +315,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/febacdce-fb0d-41a4-9503-3153218e1466</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/febacdce-fb0d-41a4-9503-3153218e1466" />
@@ -324,7 +324,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/3ee976f3-b215-4a95-abc1-34d01ad73fed</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/3ee976f3-b215-4a95-abc1-34d01ad73fed" />
@@ -333,7 +333,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/5876ab84-d327-4cff-be31-f5ee395f49d7</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/5876ab84-d327-4cff-be31-f5ee395f49d7" />
@@ -342,7 +342,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/f1f7e439-b7b5-4dd0-a843-edb44ab4078a</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/f1f7e439-b7b5-4dd0-a843-edb44ab4078a" />
@@ -351,7 +351,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/9ab3a63a-423a-4643-a612-a208c4b29873</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/9ab3a63a-423a-4643-a612-a208c4b29873" />
@@ -360,7 +360,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/b4a0a14d-f286-41ea-a874-64acef98afcb</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/b4a0a14d-f286-41ea-a874-64acef98afcb" />
@@ -369,7 +369,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/8b75db9d-25e3-4fcf-b419-c9911ad3b2ab</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/8b75db9d-25e3-4fcf-b419-c9911ad3b2ab" />
@@ -378,7 +378,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/f3af20be-c984-40fd-9e25-01e0e79133db</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/f3af20be-c984-40fd-9e25-01e0e79133db" />
@@ -387,7 +387,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/42a64996-8b0b-4e6e-91d0-a2bd905d8277</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/42a64996-8b0b-4e6e-91d0-a2bd905d8277" />
@@ -396,7 +396,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/20ef0ed3-599f-488b-98a8-8e0116aef205</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/20ef0ed3-599f-488b-98a8-8e0116aef205" />
@@ -405,7 +405,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/612629d5-be08-400c-853e-4d46255313c6</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/612629d5-be08-400c-853e-4d46255313c6" />
@@ -414,7 +414,7 @@
   </url>
   <url>
     <loc>https://palestine-international-academy.netlify.app/library/d21d3846-979c-4f04-8860-7242e5cc8ee2</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/library/d21d3846-979c-4f04-8860-7242e5cc8ee2" />
