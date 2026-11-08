@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return new Response('39d173aa5401fbd47ac7d9b46ffeeec13c05fed59f087648', {
+  return new Response('9938c5f8aa8c83ac0413a486d5371175a04eccd9131e1460', {
     status: 200,
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
