@@ -76,10 +76,12 @@ export function LibraryProvider({ children }) {
     setFetchError(null);
     let isFinished = false;
 
-    const isFullCatalogPage = forceAll || (typeof window !== 'undefined' && 
-      (window.location.pathname.startsWith('/library') || 
-       window.location.pathname.startsWith('/admin-dashboard') || 
-       window.location.pathname.startsWith('/instructor-dashboard')));
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const isLibraryList = path === '/library' || path === '/library/';
+    const isFullCatalogPage = forceAll || 
+      isLibraryList || 
+      path.startsWith('/admin-dashboard') || 
+      path.startsWith('/instructor-dashboard');
 
     // Safety timeout prevents infinite spinner on aborted, stalled, or cancelled requests
     const timer = setTimeout(() => {

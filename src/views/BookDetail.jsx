@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLibrary } from '../context/LibraryContext';
+import { supabase } from '../supabase/client';
 import { doc, updateDoc, increment, db } from '../supabase/db';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -20,13 +21,59 @@ export default function BookDetail() {
   const isRtl = dir === 'rtl';
   const { id } = useParams();
   const navigate = useNavigate();
-  const { books, loading, incrementDownload } = useLibrary();
+  const { books, loading: libraryLoading, incrementDownload } = useLibrary();
   const { currentUser } = useAuth();
   const { isSaved, toggleSave } = useSavedBooks();
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const book = books.find(b => b.id === id);
+
+  // Fast single book resolution
+  const cachedBook = books.find(b => b.id === id);
+  const [singleBook, setSingleBook] = useState(null);
+  const [singleLoading, setSingleLoading] = useState(!cachedBook);
+
+  useEffect(() => {
+    if (cachedBook) {
+      setSingleLoading(false);
+      return;
+    }
+    if (!id) return;
+    let isMounted = true;
+    const fetchSingleBook = async () => {
+      try {
+        setSingleLoading(true);
+        const { data, error } = await supabase
+          .from('books')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (isMounted && data && !error) {
+          const resolvedCategory = data.category_name || data.category || '';
+          setSingleBook({
+            ...data,
+            category: resolvedCategory,
+            category_name: resolvedCategory,
+            downloads: data.downloads_count !== undefined ? Number(data.downloads_count) : (Number(data.downloads) || 0),
+            downloads_count: data.downloads_count !== undefined ? Number(data.downloads_count) : (Number(data.downloads) || 0),
+            link: data.link || data.pdf_url || '',
+            driveUrl: data.driveUrl || data.pdf_url || data.link || '',
+            pdf_url: data.pdf_url || data.driveUrl || data.link || '',
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching single book:', err);
+      } finally {
+        if (isMounted) setSingleLoading(false);
+      }
+    };
+
+    fetchSingleBook();
+    return () => { isMounted = false; };
+  }, [id, cachedBook]);
+
+  const book = cachedBook || singleBook;
 
   // Lock body scroll and handle Escape key when preview modal is open
   useEffect(() => {
@@ -77,7 +124,7 @@ export default function BookDetail() {
     }
   }, [book?.ratingCount, book?.ratingAverage, book?.rating]);
 
-  if (loading) {
+  if (!book && (singleLoading || libraryLoading)) {
     return (
       <div className="min-h-screen flex flex-col font-alexandria bg-[#FAF7F2] dark:bg-gray-900" dir={dir}>
         <Navbar />
@@ -348,7 +395,7 @@ export default function BookDetail() {
                   type="button"
                   onClick={() => setIsPreviewOpen(true)}
                   disabled={!previewUrl}
-                  className="flex items-center gap-2 bg-[#27221D] hover:bg-[#3A322B] text-amber-400 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-amber-300 border border-amber-500/40 px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
+                  className="flex items-center gap-2 bg-white dark:bg-gray-800 border-2 border-primary text-primary dark:text-amber-400 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-stone-900 px-6 py-3 rounded-xl font-bold transition-all shadow-xs hover:shadow-md cursor-pointer disabled:opacity-50"
                   title={dir === 'rtl' ? 'تصفح وقراءة الكتاب قبل التنزيل' : 'Browse and read book before downloading'}
                 >
                   <span className="material-symbols-outlined text-lg">auto_stories</span>
@@ -522,30 +569,22 @@ export default function BookDetail() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <a
-                  href={rawUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-stone-200/60 dark:hover:bg-gray-800 transition-colors border border-stone-200 dark:border-gray-700"
-                  title={dir === 'rtl' ? 'فتح في علامة تبويب جديدة' : 'Open in new tab'}
-                >
-                  <span className="material-symbols-outlined text-base">open_in_new</span>
-                  <span>{dir === 'rtl' ? 'نافذة مستقلة' : 'New Tab'}</span>
-                </a>
-
                 {directDownloadUrl && (
                   <button
                     type="button"
                     onClick={handleDownload}
                     disabled={downloading}
-                    className="flex items-center gap-1.5 bg-primary hover:bg-secondary text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                    className="flex items-center gap-1.5 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                     title={t('bookDetail.downloadBook')}
                   >
                     <span className="material-symbols-outlined text-base">
                       {downloading ? 'hourglass_top' : 'download'}
                     </span>
-                    <span className="hidden sm:inline">
-                      {downloading ? (dir === 'rtl' ? 'جاري التنزيل...' : 'Downloading...') : t('bookDetail.download')}
+                    <span>
+                      {downloading 
+                        ? (dir === 'rtl' ? 'جاري التنزيل...' : 'Downloading...') 
+                        : (dir === 'rtl' ? 'تنزيل' : 'Download')
+                      }
                     </span>
                   </button>
                 )}
@@ -569,15 +608,6 @@ export default function BookDetail() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                   {dir === 'rtl' ? 'جاري تحميل الكتاب لتصفحه...' : 'Loading book for reading...'}
                 </p>
-                <a
-                  href={rawUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 text-xs text-primary hover:underline font-bold flex items-center gap-1"
-                >
-                  <span>{dir === 'rtl' ? 'إذا تأخر العرض، انقر هنا لفتح الكتاب مباشرة' : 'If loading takes long, click here to open directly'}</span>
-                  <span className="material-symbols-outlined text-sm rtl:rotate-180">arrow_forward</span>
-                </a>
               </div>
 
               {/* PDF / Document Iframe */}
@@ -587,24 +617,7 @@ export default function BookDetail() {
                 className="relative z-10 w-full h-full border-0 bg-transparent"
                 allow="autoplay; encrypted-media; fullscreen"
                 allowFullScreen
-                loading="lazy"
               />
-            </div>
-
-            {/* Modal Footer info */}
-            <div className="px-4 py-2 border-t border-stone-200 dark:border-gray-800 bg-[#FAF7F2] dark:bg-gray-900/90 flex items-center justify-between text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 shrink-0">
-              <span className="truncate max-w-[60%] sm:max-w-md">
-                {cleanTitle} • {cleanAuthor || ''}
-              </span>
-              <a
-                href={rawUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline font-bold flex items-center gap-1 shrink-0"
-              >
-                <span>{dir === 'rtl' ? 'فتح الكتاب كاملاً' : 'Open full book'}</span>
-                <span className="material-symbols-outlined text-xs rtl:rotate-180">arrow_forward</span>
-              </a>
             </div>
           </div>
         </div>
