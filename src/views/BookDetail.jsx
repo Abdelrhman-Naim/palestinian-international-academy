@@ -25,7 +25,23 @@ export default function BookDetail() {
   const { isSaved, toggleSave } = useSavedBooks();
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const book = books.find(b => b.id === id);
+
+  // Lock body scroll and handle Escape key when preview modal is open
+  useEffect(() => {
+    if (!isPreviewOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsPreviewOpen(false);
+    };
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPreviewOpen]);
 
   const [reviewStats, setReviewStats] = useState({
     average: Number(book?.ratingAverage ?? book?.rating ?? 5.0),
@@ -105,6 +121,18 @@ export default function BookDetail() {
   };
 
   const directDownloadUrl = getDirectDownloadUrl(rawUrl);
+
+  // 3. رابط تصفح الكتاب ومعاينته التفاعلية (Google Drive Viewer أو الرابط المباشر)
+  const getPreviewUrl = (url) => {
+    if (!url) return null;
+    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/file/d/${match[1]}/preview`;
+    }
+    return url;
+  };
+
+  const previewUrl = getPreviewUrl(rawUrl);
 
   const handleDownload = async () => {
     if (!directDownloadUrl) {
@@ -317,6 +345,16 @@ export default function BookDetail() {
 
               <div className="flex flex-wrap gap-3">
                 <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  disabled={!previewUrl}
+                  className="flex items-center gap-2 bg-[#27221D] hover:bg-[#3A322B] text-amber-400 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-amber-300 border border-amber-500/40 px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
+                  title={dir === 'rtl' ? 'تصفح وقراءة الكتاب قبل التنزيل' : 'Browse and read book before downloading'}
+                >
+                  <span className="material-symbols-outlined text-lg">auto_stories</span>
+                  <span>{t('bookDetail.browseBook') || (dir === 'rtl' ? 'تصفح الكتاب' : 'Browse Book')}</span>
+                </button>
+                <button
                   onClick={handleDownload}
                   disabled={downloading}
                   className="flex items-center gap-2 bg-primary hover:bg-secondary text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-lg cursor-pointer disabled:opacity-50"
@@ -452,6 +490,125 @@ export default function BookDetail() {
         </section>
       </main>
       <Footer />
+
+      {/* Book Reading / Preview Modal */}
+      {isPreviewOpen && previewUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="book-preview-title"
+          onClick={() => setIsPreviewOpen(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl max-w-5xl w-full h-[92vh] max-h-[900px] overflow-hidden shadow-2xl border border-stone-200 dark:border-gray-800 flex flex-col transition-all"
+            dir={dir}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-4 sm:px-6 py-3.5 border-b border-stone-200 dark:border-gray-800 flex items-center justify-between gap-3 bg-[#FAF7F2] dark:bg-gray-900/90 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">auto_stories</span>
+                </div>
+                <div className="min-w-0">
+                  <h3 id="book-preview-title" className="font-extrabold text-sm sm:text-base text-dark dark:text-white truncate" title={cleanTitle}>
+                    {cleanTitle}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {cleanAuthor || (dir === 'rtl' ? 'نسخة للقراءة والمطالعة' : 'Reading Edition')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={rawUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-stone-200/60 dark:hover:bg-gray-800 transition-colors border border-stone-200 dark:border-gray-700"
+                  title={dir === 'rtl' ? 'فتح في علامة تبويب جديدة' : 'Open in new tab'}
+                >
+                  <span className="material-symbols-outlined text-base">open_in_new</span>
+                  <span>{dir === 'rtl' ? 'نافذة مستقلة' : 'New Tab'}</span>
+                </a>
+
+                {directDownloadUrl && (
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="flex items-center gap-1.5 bg-primary hover:bg-secondary text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                    title={t('bookDetail.downloadBook')}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {downloading ? 'hourglass_top' : 'download'}
+                    </span>
+                    <span className="hidden sm:inline">
+                      {downloading ? (dir === 'rtl' ? 'جاري التنزيل...' : 'Downloading...') : t('bookDetail.download')}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(false)}
+                  aria-label={dir === 'rtl' ? 'إغلاق نافذة المعاينة' : 'Close preview modal'}
+                  className="w-9 h-9 rounded-xl hover:bg-stone-200/60 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-800 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-stone-200 dark:hover:border-gray-700"
+                >
+                  <span className="material-symbols-outlined text-xl" aria-hidden="true">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content - Book Viewer */}
+            <div className="relative flex-1 w-full bg-stone-100 dark:bg-stone-950 overflow-hidden">
+              {/* Fallback loading indicator behind iframe */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center -z-0">
+                <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
+                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  {dir === 'rtl' ? 'جاري تحميل الكتاب لتصفحه...' : 'Loading book for reading...'}
+                </p>
+                <a
+                  href={rawUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 text-xs text-primary hover:underline font-bold flex items-center gap-1"
+                >
+                  <span>{dir === 'rtl' ? 'إذا تأخر العرض، انقر هنا لفتح الكتاب مباشرة' : 'If loading takes long, click here to open directly'}</span>
+                  <span className="material-symbols-outlined text-sm rtl:rotate-180">arrow_forward</span>
+                </a>
+              </div>
+
+              {/* PDF / Document Iframe */}
+              <iframe
+                src={previewUrl}
+                title={cleanTitle}
+                className="relative z-10 w-full h-full border-0 bg-transparent"
+                allow="autoplay; encrypted-media; fullscreen"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+
+            {/* Modal Footer info */}
+            <div className="px-4 py-2 border-t border-stone-200 dark:border-gray-800 bg-[#FAF7F2] dark:bg-gray-900/90 flex items-center justify-between text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 shrink-0">
+              <span className="truncate max-w-[60%] sm:max-w-md">
+                {cleanTitle} • {cleanAuthor || ''}
+              </span>
+              <a
+                href={rawUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-bold flex items-center gap-1 shrink-0"
+              >
+                <span>{dir === 'rtl' ? 'فتح الكتاب كاملاً' : 'Open full book'}</span>
+                <span className="material-symbols-outlined text-xs rtl:rotate-180">arrow_forward</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
