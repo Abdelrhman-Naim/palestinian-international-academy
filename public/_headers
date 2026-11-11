@@ -32,3 +32,7 @@
 /site.webmanifest
   Cache-Control: public, max-age=86400
   Content-Type: application/manifest+json; charset=utf-8
+
+/google119906917dd2fdd3.html
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: text/html; charset=utf-8
