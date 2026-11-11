@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { getShortVideos, parseVideoEmbed } from '../services/shortsService';
 
@@ -58,12 +59,10 @@ export default function TechShortsSection() {
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-10 sm:mb-14 space-y-3 flex flex-col items-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/15 dark:bg-primary/20 text-primary border border-primary/30 shadow-xs">
-            <span className="material-symbols-outlined text-base animate-pulse">bolt</span>
-            <span className="font-bold text-xs sm:text-sm tracking-wide">
-              {isRtl ? 'إضاءات ومعلومات سريعة' : 'Quick Tech & Engineering Insights'}
-            </span>
-          </div>
+          <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-flex items-center gap-1.5 font-label-caps">
+            <span className="material-symbols-outlined text-base">bolt</span>
+            <span>{isRtl ? 'إضاءات ومعلومات سريعة' : 'Quick Tech & Engineering Insights'}</span>
+          </span>
 
           <h2 className="font-headline-lg text-2xl sm:text-3xl md:text-5xl text-dark dark:text-white font-black tracking-tight">
             {isRtl ? 'فيديوهات ومعلومات هندسية وبرمجية سريعة' : 'Short Videos & Fast Tech Capsules'}
@@ -76,9 +75,9 @@ export default function TechShortsSection() {
           </p>
         </div>
 
-        {/* Cards Grid */}
+        {/* Cards Grid (Maximum 4 cards on home section) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {shorts.map((item) => {
+          {shorts.slice(0, 4).map((item) => {
             const parsed = parseVideoEmbed(item.video_url);
             const iconName = item.icon || 'smart_display';
 
@@ -150,6 +149,19 @@ export default function TechShortsSection() {
               </div>
             );
           })}
+        </div>
+
+        {/* Footer CTA: Link to full /shorts catalog page */}
+        <div className="mt-10 sm:mt-12 text-center">
+          <Link
+            to="/shorts"
+            className="inline-flex items-center justify-center gap-2.5 bg-white dark:bg-gray-800 hover:bg-primary dark:hover:bg-primary text-dark dark:text-white hover:text-stone-950 dark:hover:text-stone-950 border border-[#E8E2D5] dark:border-gray-700 font-bold text-sm px-7 py-3.5 rounded-xl shadow-xs transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+          >
+            <span>{isRtl ? 'استعراض كافة الفيديوهات والمعلومات' : 'Browse All Tech Shorts & Videos'}</span>
+            <span className="material-symbols-outlined text-base">
+              {isRtl ? 'arrow_back' : 'arrow_forward'}
+            </span>
+          </Link>
         </div>
       </div>
 

@@ -20,6 +20,7 @@ const staticRoutes = [
   { url: '/', priority: '1.0', changefreq: 'daily', hasImage: true },
   { url: '/courses', priority: '0.95', changefreq: 'daily' },
   { url: '/library', priority: '0.95', changefreq: 'daily' },
+  { url: '/shorts', priority: '0.85', changefreq: 'daily' },
   { url: '/virtual-lab', priority: '0.85', changefreq: 'weekly' },
   { url: '/verify-certificate', priority: '0.85', changefreq: 'weekly' },
   { url: '/about', priority: '0.8', changefreq: 'weekly' },

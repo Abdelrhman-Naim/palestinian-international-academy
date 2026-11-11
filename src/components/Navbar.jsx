@@ -95,6 +95,7 @@ const Navbar = () => {
           {[
             { path: '/courses', label: 'navbar.courses' },
             { path: '/library', label: 'navbar.library' },
+            { path: '/shorts', label: 'navbar.shorts' },
             { path: '/about', label: 'navbar.about' }
           ].map(link => {
             const isActive = location.pathname.startsWith(link.path);
@@ -312,6 +313,18 @@ const Navbar = () => {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="absolute top-20 left-0 w-full bg-white dark:bg-gray-900 border-b border-stone-200 dark:border-gray-800 md:hidden flex flex-col px-6 py-6 space-y-4 shadow-xl overflow-y-auto max-h-[calc(100dvh-5rem)] custom-scrollbar z-50"
           >
+            <Link to="/courses" onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-stone-800 dark:text-gray-100 hover:text-primary py-1 flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary">school</span>
+              <span>{t('navbar.courses') || (lang === 'ar' ? 'الدورات' : 'Courses')}</span>
+            </Link>
+            <Link to="/library" onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-stone-800 dark:text-gray-100 hover:text-primary py-1 flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary">auto_stories</span>
+              <span>{t('navbar.library') || (lang === 'ar' ? 'المكتبة' : 'Library')}</span>
+            </Link>
+            <Link to="/shorts" onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-stone-800 dark:text-gray-100 hover:text-primary py-1 flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary">smart_display</span>
+              <span>{t('navbar.shorts') || (lang === 'ar' ? 'فيديوهات سريعة' : 'Tech Shorts')}</span>
+            </Link>
             <Link to="/about" onClick={() => setIsOpen(false)} className="font-label-caps text-sm font-bold text-stone-800 dark:text-gray-100 hover:text-primary py-1 flex items-center gap-2">
               <span className="material-symbols-outlined text-base text-primary">info</span>
               <span>{t('navbar.about') || (lang === 'ar' ? 'من نحن' : 'About Us')}</span>

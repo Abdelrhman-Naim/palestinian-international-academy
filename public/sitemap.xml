@@ -35,6 +35,15 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://palestine-international-academy.netlify.app/library" />
   </url>
   <url>
+    <loc>https://palestine-international-academy.netlify.app/shorts</loc>
+    <lastmod>2026-11-11</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://palestine-international-academy.netlify.app/shorts" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://palestine-international-academy.netlify.app/shorts" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://palestine-international-academy.netlify.app/shorts" />
+  </url>
+  <url>
     <loc>https://palestine-international-academy.netlify.app/virtual-lab</loc>
     <lastmod>2026-11-11</lastmod>
     <changefreq>weekly</changefreq>
