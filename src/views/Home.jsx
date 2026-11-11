@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Features from "../components/Features";
 import LearningJourney from "../components/LearningJourney";
+import TechShortsSection from "../components/TechShortsSection";
 import PopularCourses from "../components/PopularCourses";
 import TopBooks from "../components/TopBooks";
 import Footer from "../components/Footer";
@@ -156,6 +157,7 @@ const Home = () => {
         <Features />
         <LearningJourney />
         <CloudLab />
+        <TechShortsSection />
         <PopularCourses />
         <TopBooks />
         <PartnersTrust />

@@ -62,16 +62,21 @@ export function PwaProvider({ children }) {
     };
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Register Service Worker (P-501, P-503)
+    // Register Service Worker and manage lifecycle updates
+    let updateInterval = null;
+    let handleVisibilityChange = null;
+
     if ('serviceWorker' in navigator && process.env.NODE_ENV !== 'development') {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((reg) => {
-          // Listen for new SW waiting
+          // If there is already a waiting worker on load
           if (reg.waiting) {
             setWaitingWorker(reg.waiting);
             setUpdateAvailable(true);
           }
+
+          // Listen for new workers installing and becoming ready
           reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;
             if (!newWorker) return;
@@ -82,6 +87,21 @@ export function PwaProvider({ children }) {
               }
             });
           });
+
+          // Check for service worker updates periodically (every 10 min)
+          updateInterval = setInterval(() => {
+            if (reg && typeof reg.update === 'function') {
+              reg.update().catch(() => {});
+            }
+          }, 10 * 60 * 1000);
+
+          // Check for updates when user returns to the tab/app
+          handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && reg && typeof reg.update === 'function') {
+              reg.update().catch(() => {});
+            }
+          };
+          document.addEventListener('visibilitychange', handleVisibilityChange);
         })
         .catch((err) => {
           console.warn('[SW Registration Notice]:', err);
@@ -90,7 +110,6 @@ export function PwaProvider({ children }) {
       let refreshing = false;
       const hadControllerOnLoad = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // Only automatically reload if the client was already controlled by a prior service worker
         if (!refreshing && hadControllerOnLoad) {
           refreshing = true;
           window.location.reload();
@@ -104,6 +123,8 @@ export function PwaProvider({ children }) {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      if (updateInterval) clearInterval(updateInterval);
+      if (handleVisibilityChange) document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

@@ -1,7 +1,7 @@
 // Service Worker for Palestinian International Academy (PIA) PWA
 // Compliant with pwa-offline standards (network-first navigation, versioned caches, skipWaiting on message)
 
-const CACHE_VERSION = 'pia-pwa-v2';
+const CACHE_VERSION = 'pia-pwa-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -16,7 +16,6 @@ const PRECACHE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS).catch((err) => {

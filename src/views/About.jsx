@@ -43,36 +43,6 @@ const About = () => {
         "Cloud Computing",
         "Higher Technical Education",
       ],
-      member: [
-        {
-          "@type": "Person",
-          name: t("about.mem1Name"),
-          jobTitle: t("about.mem1Role"),
-          description: t("about.mem1Bio"),
-          image: `${currentOrigin}/Head of Academic Board.webp`,
-        },
-        {
-          "@type": "Person",
-          name: t("about.mem2Name"),
-          jobTitle: t("about.mem2Role"),
-          description: t("about.mem2Bio"),
-          image: `${currentOrigin}/Director of Curriculum Development.webp`,
-        },
-        {
-          "@type": "Person",
-          name: t("about.mem3Name"),
-          jobTitle: t("about.mem3Role"),
-          description: t("about.mem3Bio"),
-          image: `${currentOrigin}/Senior Engineering Consultant.webp`,
-        },
-        {
-          "@type": "Person",
-          name: t("about.mem4Name"),
-          jobTitle: t("about.mem4Role"),
-          description: t("about.mem4Bio"),
-          image: `${currentOrigin}/Director of Cloud & Practical Labs.webp`,
-        },
-      ],
     },
   };
 
@@ -550,8 +520,8 @@ const About = () => {
         {/* ========================================================
             6. LEADERSHIP & ADVISORY TEAM (قيادات وخبرات)
         ======================================================== */}
-        <section className="py-24 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+        <section className="py-20 px-4 sm:px-6 md:px-8 max-w-5xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto">
             <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-block font-label-caps">
               {t("about.teamBadge")}
             </span>
@@ -561,66 +531,6 @@ const About = () => {
             <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg leading-relaxed">
               {t("about.teamSubtitle")}
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                name: t("about.mem1Name"),
-                role: t("about.mem1Role"),
-                bio: t("about.mem1Bio"),
-                img: "/Head of Academic Board.webp",
-              },
-              {
-                name: t("about.mem2Name"),
-                role: t("about.mem2Role"),
-                bio: t("about.mem2Bio"),
-                img: "/Director of Curriculum Development.webp",
-              },
-              {
-                name: t("about.mem3Name"),
-                role: t("about.mem3Role"),
-                bio: t("about.mem3Bio"),
-                img: "/Senior Engineering Consultant.webp",
-              },
-              {
-                name: t("about.mem4Name"),
-                role: t("about.mem4Role"),
-                bio: t("about.mem4Bio"),
-                img: "/Director of Cloud & Practical Labs.webp",
-              },
-            ].map((member, idx) => (
-              <div
-                key={idx}
-                className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-2xl overflow-hidden hover-lift shadow-sm flex flex-col group transition-all duration-300"
-              >
-                {/* Photo with Overlay Badge */}
-                <div className="relative h-64 w-full overflow-hidden bg-gray-100 dark:bg-gray-700">
-                  <img
-                    src={member.img}
-                    alt={member.name}
-                    className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
-                  {/* Floating Role Pill */}
-                  <div className="absolute bottom-3 inset-s-3 inset-e-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-primary text-xs font-semibold text-center truncate">
-                    {member.role}
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div className="p-5 flex flex-col grow justify-between">
-                  <div>
-                    <h3 className="font-headline-md text-lg font-bold text-dark dark:text-white mb-2">
-                      {member.name}
-                    </h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
-                      {member.bio}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 

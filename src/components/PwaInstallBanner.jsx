@@ -28,34 +28,45 @@ export default function PwaInstallBanner() {
     }
   };
 
-  // If already installed or user dismissed, don't show install banner (still show update if available)
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // If update is available, show high-priority update notification
   if (updateAvailable) {
     return (
       <div 
         role="alert" 
-        className="fixed bottom-20 sm:bottom-4 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-md z-[999] bg-stone-900 text-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-amber-500/30 flex items-center justify-between gap-3 animate-fade-in"
+        className="fixed bottom-20 sm:bottom-6 start-3 end-3 sm:start-auto sm:end-6 sm:max-w-md z-[9999] bg-stone-900/95 dark:bg-stone-900/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border-2 border-amber-500/40 flex items-center justify-between gap-3 animate-fade-in"
         style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+          <div className="relative w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-2xl animate-spin" style={{ animationDuration: '3s' }}>
+              sync
+            </span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-white truncate">
-              {dir === 'rtl' ? 'تحديث جديد متاح' : 'New Update Available'}
+            <p className="text-sm font-black text-white truncate">
+              {dir === 'rtl' ? 'يتوفر إصدار جديد من المنصة' : 'New Platform Version Available'}
             </p>
             <p className="text-xs text-stone-300 truncate">
-              {dir === 'rtl' ? 'انقر لتحديث التطبيق فوراً' : 'Click to refresh the app now'}
+              {dir === 'rtl' ? 'انقر لتحديث التطبيق وتطبيق أحدث التحسينات' : 'Click to update and get latest improvements'}
             </p>
           </div>
         </div>
         <button
-          onClick={applyUpdate}
-          className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-950 font-bold px-3.5 py-2 rounded-xl text-xs transition-all cursor-pointer shrink-0"
+          onClick={() => {
+            setIsUpdating(true);
+            applyUpdate();
+          }}
+          disabled={isUpdating}
+          className="bg-linear-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-95 text-stone-950 font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition-all cursor-pointer shrink-0 shadow-lg shadow-amber-500/20 disabled:opacity-60"
         >
-          {dir === 'rtl' ? 'تحديث الآن' : 'Update Now'}
+          {isUpdating
+            ? (dir === 'rtl' ? 'جاري التحديث...' : 'Updating...')
+            : (dir === 'rtl' ? 'تحديث الآن' : 'Update Now')
+          }
         </button>
       </div>
     );

@@ -354,7 +354,12 @@ const AdminDashboard = ({ children }) => {
             </AnimatePresence>
           </div>
 
-          <div className="pt-2 border-t border-[#E8E2D5] dark:border-gray-800">
+          <div className="pt-2 border-t border-[#E8E2D5] dark:border-gray-800 space-y-1">
+            <NavLink to="/admin-dashboard/shorts" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+              <span className="material-symbols-outlined ml-3 text-lg">smart_display</span>
+              {isRtl ? 'الفيديوهات والمعلومات السريعة' : 'Tech Short Videos'}
+            </NavLink>
+
             <NavLink to="/admin-dashboard/settings" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
               <span className="material-symbols-outlined ml-3 text-lg">settings</span>
               {t('adminSettings.title')}

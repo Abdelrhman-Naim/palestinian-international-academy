@@ -157,29 +157,44 @@ export default function BookDetail() {
   // 1. رابط ملف الكتاب
   const rawUrl = book.driveUrl || book.link || book.pdf_url;
 
-  // 2.  Google Drive  {t('bookDetail.download')} 
+  // استخراج معرّف ملف Google Drive إن وُجد
+  const driveIdMatch = rawUrl ? (rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/)) : null;
+  const driveId = driveIdMatch ? driveIdMatch[1] : null;
+
+  // 2. رابط التنزيل المباشر
   const getDirectDownloadUrl = (url) => {
     if (!url) return null;
-    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+    if (driveId) {
+      return `https://drive.google.com/uc?export=download&id=${driveId}`;
     }
     return url;
   };
 
   const directDownloadUrl = getDirectDownloadUrl(rawUrl);
 
-  // 3. رابط تصفح الكتاب ومعاينته التفاعلية (Google Drive Viewer أو الرابط المباشر)
-  const getPreviewUrl = (url) => {
-    if (!url) return null;
-    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      return `https://drive.google.com/file/d/${match[1]}/preview`;
+  // 3. وضع المعاينة (على الجوال نبدأ بـ Google Docs Viewer لتجاوز قيود التضمين على هواتف أندرويد وiOS)
+  const [viewerMode, setViewerMode] = useState(() => {
+    if (typeof navigator !== 'undefined') {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+      return isMobile ? 'docs' : 'drive';
     }
-    return url;
+    return 'drive';
+  });
+
+  // رابط تصفح الكتاب ومعاينته التفاعلية (Google Docs Viewer للهواتف أو Google Drive Preview للكمبيوتر)
+  const getPreviewUrl = () => {
+    if (!rawUrl) return null;
+    if (viewerMode === 'docs') {
+      const fileTarget = directDownloadUrl || (driveId ? `https://drive.google.com/uc?export=download&id=${driveId}` : rawUrl);
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(fileTarget)}&embedded=true`;
+    }
+    if (driveId) {
+      return `https://drive.google.com/file/d/${driveId}/preview`;
+    }
+    return rawUrl;
   };
 
-  const previewUrl = getPreviewUrl(rawUrl);
+  const previewUrl = getPreviewUrl();
 
   const handleDownload = async () => {
     if (!directDownloadUrl) {
@@ -569,6 +584,24 @@ export default function BookDetail() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                {/* زر تبديل المشغل (Google Docs / Google Drive) لضمان العمل على الهواتف والكمبيوتر */}
+                <button
+                  type="button"
+                  onClick={() => setViewerMode(prev => prev === 'drive' ? 'docs' : 'drive')}
+                  className="flex items-center gap-1.5 bg-white dark:bg-gray-800 hover:bg-stone-100 dark:hover:bg-gray-700 text-dark dark:text-white border border-stone-300 dark:border-gray-700 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                  title={dir === 'rtl' ? 'تبديل المشغل بين قارئ Google Docs و Google Drive' : 'Switch reader between Google Docs and Drive'}
+                >
+                  <span className="material-symbols-outlined text-base text-primary">sync_alt</span>
+                  <span className="hidden sm:inline">
+                    {viewerMode === 'docs' 
+                      ? (dir === 'rtl' ? 'قارئ مستندات Google' : 'Google Docs Viewer')
+                      : (dir === 'rtl' ? 'معاين Google Drive' : 'Drive Viewer')}
+                  </span>
+                  <span className="sm:hidden">
+                    {dir === 'rtl' ? 'تبديل القارئ' : 'Switch'}
+                  </span>
+                </button>
+
                 {directDownloadUrl && (
                   <button
                     type="button"
@@ -608,15 +641,24 @@ export default function BookDetail() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                   {dir === 'rtl' ? 'جاري تحميل الكتاب لتصفحه...' : 'Loading book for reading...'}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setViewerMode(prev => prev === 'drive' ? 'docs' : 'drive')}
+                  className="text-xs text-primary hover:underline font-bold mt-2 cursor-pointer z-10"
+                >
+                  {dir === 'rtl' ? 'إذا لم يظهر الكتاب على هاتفك، اضغط هنا لتبديل مشغل القراءة' : 'Having trouble viewing on mobile? Tap here to switch reader'}
+                </button>
               </div>
 
               {/* PDF / Document Iframe */}
               <iframe
+                key={viewerMode}
                 src={previewUrl}
                 title={cleanTitle}
                 className="relative z-10 w-full h-full border-0 bg-transparent"
                 allow="autoplay; encrypted-media; fullscreen"
                 allowFullScreen
+                loading="eager"
               />
             </div>
           </div>
