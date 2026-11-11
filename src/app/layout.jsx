@@ -117,6 +117,9 @@ export const metadata = {
     'geo.position': '31.9522;35.2332',
     'ICBM': '31.9522, 35.2332',
   },
+  verification: {
+    google: 'google119906917dd2fdd3',
+  },
 };
 
 export default function RootLayout({ children }) {
