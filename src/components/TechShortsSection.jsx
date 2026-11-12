@@ -59,8 +59,10 @@ export default function TechShortsSection() {
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-10 sm:mb-14 space-y-3 flex flex-col items-center">
-          <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-flex items-center gap-1.5 font-label-caps">
-            <span className="material-symbols-outlined text-base">bolt</span>
+          <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-flex items-center gap-1.5 select-none font-label-caps">
+            <svg className="w-4 h-4 text-primary dark:text-[#D9A54C] shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"/>
+            </svg>
             <span>{isRtl ? 'إضاءات ومعلومات سريعة' : 'Quick Tech & Engineering Insights'}</span>
           </span>
 
@@ -114,11 +116,11 @@ export default function TechShortsSection() {
                     </span>
                   )}
 
-                  {/* Centered Glowing Icon (أيقونة بالنص) */}
+                  {/* Centered Glowing Play Icon (أيقونة بالنص) */}
                   <div className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-linear-to-tr from-primary to-amber-400 text-stone-950 flex items-center justify-center shadow-lg shadow-primary/40 group-hover/thumb:scale-110 group-hover/thumb:shadow-primary/60 transition-all duration-300 ring-4 ring-white/20">
-                    <span className="material-symbols-outlined text-2xl sm:text-3xl font-black">
-                      {iconName === 'smart_display' ? 'play_arrow' : iconName}
-                    </span>
+                    <svg className="w-7 h-7 sm:w-8 sm:h-8 fill-stone-950 translate-x-0.5 rtl:-translate-x-0.5 shrink-0" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
                     <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping opacity-75 pointer-events-none" />
                   </div>
                 </div>

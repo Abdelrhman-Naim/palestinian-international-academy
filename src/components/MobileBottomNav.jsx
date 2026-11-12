@@ -41,6 +41,14 @@ const NAV_CONFIG = [
     labelEn: 'Courses',
   },
   {
+    id: 'shorts',
+    path: '/shorts',
+    exact: false,
+    icon: 'smart_display',
+    labelAr: 'إضاءات',
+    labelEn: 'Shorts',
+  },
+  {
     id: 'dashboard',
     isDynamic: true,
     icon: 'space_dashboard',
@@ -68,6 +76,9 @@ const checkIsActive = (item, currentPath) => {
   }
   if (item.id === 'courses') {
     return currentPath.startsWith('/courses');
+  }
+  if (item.id === 'shorts') {
+    return currentPath.startsWith('/shorts');
   }
   if (item.id === 'dashboard') {
     return (
@@ -165,7 +176,7 @@ export default function MobileBottomNav() {
       className="md:hidden fixed bottom-0 inset-x-0 z-50 w-full bg-[#FAF7F2]/95 dark:bg-[#141210]/95 backdrop-blur-xl border-t border-[#E8E2D5] dark:border-stone-800/90 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_28px_rgba(0,0,0,0.5)] transition-colors"
       style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom, 0px))' }}
     >
-      <div className="grid grid-cols-4 items-center justify-around px-1 max-w-lg mx-auto">
+      <div className="grid grid-cols-5 items-center justify-around px-0.5 max-w-lg mx-auto">
         {NAV_CONFIG.map((item) => {
           const isActive = checkIsActive(item, currentPath);
           const resolvedPath = item.isDynamic ? dashboardPath : item.path;
