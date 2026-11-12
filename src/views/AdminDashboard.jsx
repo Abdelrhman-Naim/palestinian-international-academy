@@ -30,6 +30,7 @@ const AdminDashboard = ({ children }) => {
   const [openMenus, setOpenMenus] = useState({
     courses: true,
     library: true,
+    shorts: true,
     users: true,
     instructors: true,
   });
@@ -354,12 +355,49 @@ const AdminDashboard = ({ children }) => {
             </AnimatePresence>
           </div>
 
-          <div className="pt-2 border-t border-[#E8E2D5] dark:border-gray-800 space-y-1">
-            <NavLink to="/admin-dashboard/shorts" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
-              <span className="material-symbols-outlined ml-3 text-lg">smart_display</span>
-              {isRtl ? 'الفيديوهات والمعلومات السريعة' : 'Tech Short Videos'}
-            </NavLink>
+          <div className="pt-2">
+            <button
+              onClick={() => toggleMenu('shorts')}
+              className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 hover:text-dark dark:hover:text-white transition-colors focus:outline-none cursor-pointer"
+              aria-expanded={openMenus.shorts}
+            >
+              {t('adminDashboard.manageShorts') || (isRtl ? 'الفيديوهات والمعلومات السريعة' : 'Tech Shorts & Insights')}
+              <span
+                className={`material-symbols-outlined text-sm transition-transform duration-300 ${
+                  openMenus.shorts ? 'rotate-180' : ''
+                }`}
+              >
+                expand_more
+              </span>
+            </button>
 
+            <AnimatePresence>
+              {openMenus.shorts && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="space-y-1 pr-2 border-r-2 border-[#E8E2D5] dark:border-gray-700 mr-2 mt-1 overflow-hidden"
+                >
+                  <NavLink to="/admin-dashboard/shorts" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <span className="material-symbols-outlined ml-3 text-base">smart_display</span>
+                    {t('adminDashboard.shortsContent') || (isRtl ? 'محتوى الفيديوهات' : 'Shorts Content')}
+                  </NavLink>
+                  <NavLink to="/admin-dashboard/shorts-categories" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <span className="material-symbols-outlined ml-3 text-base">category</span>
+                    {t('adminDashboard.shortsCategories') || (isRtl ? 'تصنيفات الفيديوهات' : 'Shorts Categories')}
+                  </NavLink>
+                  <NavLink to="/admin-dashboard/add-short" end onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
+                    <span className="material-symbols-outlined ml-3 text-base">add_box</span>
+                    {t('adminDashboard.addShort') || (isRtl ? 'إضافة فيديو/معلومة' : 'Add Short')}
+                  </NavLink>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="pt-2 border-t border-[#E8E2D5] dark:border-gray-800 space-y-1">
             <NavLink to="/admin-dashboard/settings" onClick={() => setIsSidebarOpen(false)} className={navItemClass}>
               <span className="material-symbols-outlined ml-3 text-lg">settings</span>
               {t('adminSettings.title')}

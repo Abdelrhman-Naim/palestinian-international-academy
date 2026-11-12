@@ -46,11 +46,22 @@ const defaultLibraryCategories = [
 
 const defaultCourseCategories = ['برمجة', 'أمن سيبراني', 'إدارة أعمال'];
 
+const defaultShortsCategories = [
+  'برمجة',
+  'ذكاء اصطناعي',
+  'أمن سيبراني',
+  'هندسة متطورة',
+  'أنظمة سحابية',
+  'تطوير ويب'
+];
+
 const defaultCategories = {
   courses: defaultCourseCategories,
   library: defaultLibraryCategories,
+  shorts: defaultShortsCategories,
   courses_en: defaultCourseCategories.map(c => getLocalizedCategory(c, 'en')),
-  library_en: defaultLibraryCategories.map(c => getLocalizedCategory(c, 'en'))
+  library_en: defaultLibraryCategories.map(c => getLocalizedCategory(c, 'en')),
+  shorts_en: defaultShortsCategories.map(c => getLocalizedCategory(c, 'en'))
 };
 
 const CategoriesContext = createContext(null);
@@ -61,7 +72,13 @@ export function CategoriesProvider({ children }) {
       const saved = safeStorage.getItem('app_categories');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.library?.length > 10) return parsed;
+        if (parsed?.library?.length > 10) {
+          if (!parsed.shorts || !Array.isArray(parsed.shorts) || parsed.shorts.length === 0) {
+            parsed.shorts = defaultShortsCategories;
+            parsed.shorts_en = defaultShortsCategories.map(c => getLocalizedCategory(c, 'en'));
+          }
+          return parsed;
+        }
       }
     } catch (_) {}
     return defaultCategories;
@@ -86,10 +103,13 @@ export function CategoriesProvider({ children }) {
 
           if (data && data.length > 0) {
             const courseItems = data.filter(c => c.slug === 'courses' || c.slug === 'course');
-            const libItems = data.filter(c => c.slug === 'library' || !c.slug);
+            const shortItems = data.filter(c => c.slug === 'shorts' || c.slug === 'short');
+            const libItems = data.filter(c => c.slug === 'library' || (!c.slug && c.slug !== 'courses' && c.slug !== 'course' && c.slug !== 'shorts' && c.slug !== 'short'));
 
             const courseCats = courseItems.map(c => c.name);
             const courseCatsEn = courseItems.map(c => c.description || getLocalizedCategory(c.name, 'en'));
+            const shortCats = shortItems.map(c => c.name);
+            const shortCatsEn = shortItems.map(c => c.description || getLocalizedCategory(c.name, 'en'));
             const libCats = libItems.map(c => c.name);
             const libCatsEn = libItems.map(c => c.description || getLocalizedCategory(c.name, 'en'));
 
@@ -97,7 +117,9 @@ export function CategoriesProvider({ children }) {
               courses: courseCats.length ? Array.from(new Set(courseCats)) : defaultCourseCategories,
               courses_en: courseCatsEn.length ? Array.from(new Set(courseCatsEn)) : defaultCourseCategories.map(c => getLocalizedCategory(c, 'en')),
               library: libCats.length ? Array.from(new Set(libCats)) : defaultLibraryCategories,
-              library_en: libCatsEn.length ? Array.from(new Set(libCatsEn)) : defaultLibraryCategories.map(c => getLocalizedCategory(c, 'en'))
+              library_en: libCatsEn.length ? Array.from(new Set(libCatsEn)) : defaultLibraryCategories.map(c => getLocalizedCategory(c, 'en')),
+              shorts: shortCats.length ? Array.from(new Set(shortCats)) : defaultShortsCategories,
+              shorts_en: shortCatsEn.length ? Array.from(new Set(shortCatsEn)) : defaultShortsCategories.map(c => getLocalizedCategory(c, 'en'))
             };
 
             setRawCategories(updated);
@@ -137,7 +159,8 @@ export function CategoriesProvider({ children }) {
 
   const categories = {
     courses: lang === 'en' && rawCategories.courses_en && rawCategories.courses_en.length === rawCategories.courses.length ? rawCategories.courses_en : rawCategories.courses,
-    library: lang === 'en' && rawCategories.library_en && rawCategories.library_en.length === rawCategories.library.length ? rawCategories.library_en : rawCategories.library
+    library: lang === 'en' && rawCategories.library_en && rawCategories.library_en.length === rawCategories.library.length ? rawCategories.library_en : rawCategories.library,
+    shorts: lang === 'en' && rawCategories.shorts_en && rawCategories.shorts_en.length === (rawCategories.shorts || []).length ? rawCategories.shorts_en : (rawCategories.shorts || defaultShortsCategories)
   };
 
   const saveState = (updated) => {
@@ -170,7 +193,7 @@ export function CategoriesProvider({ children }) {
       await supabase.from('categories').insert([{
         name: trimmed,
         description: name_en,
-        slug: type === 'courses' ? 'courses' : 'library'
+        slug: type === 'courses' ? 'courses' : type === 'shorts' ? 'shorts' : 'library'
       }]);
     } catch (e) {
       console.warn('Category insert in Supabase notice:', e);

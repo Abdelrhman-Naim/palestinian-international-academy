@@ -203,3 +203,24 @@ export function parseVideoEmbed(url) {
     thumbnailUrl: null,
   };
 }
+
+/**
+ * Update category for all shorts that had oldCategory
+ */
+export async function renameCategoryInShorts(oldCategory, newCategory) {
+  const current = getLocalShorts();
+  const updated = current.map(item =>
+    item.category === oldCategory ? { ...item, category: newCategory } : item
+  );
+  saveLocalShorts(updated);
+
+  try {
+    await supabase
+      .from('short_videos')
+      .update({ category: newCategory })
+      .eq('category', oldCategory);
+  } catch (err) {
+    console.warn('Supabase renameCategoryInShorts notice:', err);
+  }
+}
+

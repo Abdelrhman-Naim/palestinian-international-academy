@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AdminPageShell from './AdminPageShell';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
+import { useCategories } from '../../context/CategoriesContext';
 import {
   getShortVideos,
   addShortVideo,
@@ -36,6 +38,11 @@ export default function AdminShorts() {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
   const { showSuccess, showError } = useToast();
+  const { rawCategories } = useCategories();
+  const availableCategories =
+    rawCategories.shorts && rawCategories.shorts.length > 0
+      ? rawCategories.shorts
+      : AVAILABLE_CATEGORIES;
 
   const [shorts, setShorts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +56,7 @@ export default function AdminShorts() {
     title: '',
     description: '',
     video_url: '',
-    category: 'برمجة',
+    category: availableCategories[0] || 'برمجة',
     icon: 'smart_display',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -78,7 +85,7 @@ export default function AdminShorts() {
       title: '',
       description: '',
       video_url: '',
-      category: 'برمجة',
+      category: availableCategories[0] || 'برمجة',
       icon: 'smart_display',
     });
     setEditingId(null);
@@ -154,22 +161,31 @@ export default function AdminShorts() {
 
   return (
     <AdminPageShell
-      parent={isRtl ? 'لوحة التحكم' : 'Admin'}
-      title={isRtl ? 'الفيديوهات والمعلومات السريعة' : 'Tech Short Videos & Bites'}
+      parent={t('adminDashboard.manageShorts') || (isRtl ? 'الفيديوهات والمعلومات السريعة' : 'Tech Shorts')}
+      title={t('adminDashboard.shortsContent') || (isRtl ? 'محتوى الفيديوهات' : 'Shorts Content')}
       subtitle={
         isRtl
-          ? 'إدارة محتوى الفيديوهات القصيرة والمعلومات الهندسية والبرمجية المعروضة في الصفحة الرئيسية'
-          : 'Manage engineering and coding short videos displayed on the homepage'
+          ? 'استعراض وإدارة كبسولات الفيديوهات والمعلومات البرمجية والهندسية السريعة المعروضة بالمنصة'
+          : 'Browse and manage engineering and coding short videos displayed across the platform'
       }
       icon="smart_display"
       actions={
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-primary hover:bg-secondary text-stone-950 px-4 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all cursor-pointer active:scale-95"
-        >
-          <span className="material-symbols-outlined text-lg">add_circle</span>
-          <span>{isRtl ? 'إضافة فيديو جديد' : 'Add New Short Video'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin-dashboard/shorts-categories"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#E8E2D5] bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 transition-colors hover:bg-stone-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">category</span>
+            <span>{t('adminDashboard.shortsCategories') || (isRtl ? 'تصنيفات الفيديوهات' : 'Categories')}</span>
+          </Link>
+          <Link
+            href="/admin-dashboard/add-short"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-stone-950 shadow-md shadow-primary/20 transition-all hover:bg-secondary cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">add_circle</span>
+            <span>{t('adminDashboard.addShort') || (isRtl ? 'إضافة فيديو/معلومة' : 'Add Short')}</span>
+          </Link>
+        </div>
       }
     >
       {/* Controls & Filter Bar */}
@@ -200,7 +216,7 @@ export default function AdminShorts() {
           >
             {isRtl ? 'الكل' : 'All'} ({shorts.length})
           </button>
-          {AVAILABLE_CATEGORIES.map((cat) => (
+          {availableCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -421,7 +437,7 @@ export default function AdminShorts() {
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-3 py-2.5 bg-[#FAF7F2] dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:border-primary text-dark dark:text-white"
                   >
-                    {AVAILABLE_CATEGORIES.map((cat) => (
+                    {availableCategories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
