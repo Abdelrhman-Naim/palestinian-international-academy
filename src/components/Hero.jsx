@@ -397,9 +397,9 @@ const Hero = () => {
         <div className="max-w-7xl mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10 items-center">
           {/* Text Area */}
           <div className="space-y-6">
-            <h1 className="font-display-lg text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.25] sm:leading-[1.3] md:leading-[1.35] lg:leading-[1.4] font-black tracking-tight text-gray-900 dark:text-white">
-              {t("hero.title1")} <br />
-              <span className="bg-linear-to-r from-[#e5be53] via-primary to-[#b38b22] bg-clip-text text-transparent">
+            <h1 className="font-display-lg text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.3] sm:leading-[1.35] md:leading-[1.4] font-black tracking-tight text-gray-900 dark:text-white">
+              <span className="inline-block">{t("hero.title1")}</span> <br />
+              <span className="inline-block pb-2 sm:pb-3 pt-1 bg-gradient-to-r from-[#e5be53] via-primary to-[#b38b22] bg-clip-text text-transparent">
                 {t("hero.title2")}
               </span>
             </h1>

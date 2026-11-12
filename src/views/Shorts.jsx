@@ -6,7 +6,9 @@ import Footer from '../components/Footer';
 import Breadcrumbs from '../components/Breadcrumbs';
 import PageLoader from '../components/PageLoader';
 import SEO from '../components/SEO';
+import CustomSelect from '../components/CustomSelect';
 import { useLanguage } from '../context/LanguageContext';
+import { useCategories } from '../context/CategoriesContext';
 import { getDynamicSiteUrl } from '../utils/siteUrl';
 import { getShortVideos, parseVideoEmbed } from '../services/shortsService';
 
@@ -14,6 +16,7 @@ export default function Shorts() {
   const { t, dir } = useLanguage();
   const isRtl = dir === 'rtl';
   const currentOrigin = getDynamicSiteUrl();
+  const { rawCategories } = useCategories();
 
   const [shorts, setShorts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +24,7 @@ export default function Shorts() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'alphabetical'
   const [activeVideo, setActiveVideo] = useState(null);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Fetch videos
   const fetchVideos = async () => {
@@ -58,15 +62,23 @@ export default function Shorts() {
     };
   }, [activeVideo]);
 
-  // Compute available categories with dynamic counts
-  const categoriesWithCounts = useMemo(() => {
-    const counts = { ALL: shorts.length };
-    shorts.forEach((item) => {
-      const cat = item.category || (isRtl ? 'عام' : 'General');
+  // Combine categories from context + any in shorts
+  const categoryList = useMemo(() => {
+    const fromContext = rawCategories?.shorts || [];
+    const fromShorts = shorts.map((s) => s.category).filter(Boolean);
+    const combined = Array.from(new Set([...fromContext, ...fromShorts]));
+    return combined;
+  }, [rawCategories?.shorts, shorts]);
+
+  // Count videos per category
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    shorts.forEach((s) => {
+      const cat = s.category || '';
       counts[cat] = (counts[cat] || 0) + 1;
     });
     return counts;
-  }, [shorts, isRtl]);
+  }, [shorts]);
 
   // Filtered and sorted short videos
   const filteredShorts = useMemo(() => {
@@ -115,7 +127,11 @@ export default function Shorts() {
     setSortBy('newest');
   };
 
-  const isFilteringActive = searchQuery.trim() !== '' || selectedCategory !== 'ALL' || sortBy !== 'newest';
+  const sortOptions = [
+    { value: 'newest', label: isRtl ? 'الأحدث إضافة' : 'Newest First' },
+    { value: 'oldest', label: isRtl ? 'الأقدم إضافة' : 'Oldest First' },
+    { value: 'alphabetical', label: isRtl ? 'أبجدياً (أ-ي)' : 'Alphabetical (A-Z)' },
+  ];
 
   const shortsSchema = {
     '@context': 'https://schema.org',
@@ -163,258 +179,325 @@ export default function Shorts() {
 
       <main className="grow">
         {/* ========================================================
-            1. HERO & SEARCH HEADER
+            1. HEADER BANNER (Matching Courses & Library style)
         ======================================================== */}
-        <section className="relative bg-[#FAF7F2] dark:bg-gray-900 pt-8 pb-12 sm:pb-16 px-4 sm:px-6 md:px-8 border-b border-[#E8E2D5] dark:border-gray-800 transition-colors">
-          <div className="max-w-7xl mx-auto">
+        <section className="bg-[#FAF7F2] dark:bg-gray-900 text-dark dark:text-white py-16 px-4 border-b border-[#E8E2D5] dark:border-gray-800 relative overflow-hidden transition-colors">
+          <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 relative z-10">
             <Breadcrumbs
               items={[
                 { label: isRtl ? 'الرئيسية' : 'Home', href: '/' },
                 { label: isRtl ? 'فيديوهات ومعلومات سريعة' : 'Tech Shorts' },
               ]}
             />
-
-            <div className="mt-6 text-center max-w-3xl mx-auto space-y-4">
-              <span className="text-primary dark:text-[#D9A54C] font-bold text-xs sm:text-sm tracking-wide inline-flex items-center gap-1.5 select-none font-label-caps">
-                <svg className="w-4 h-4 text-primary dark:text-[#D9A54C] shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"/>
-                </svg>
-                <span>{isRtl ? 'مكتبة الفيديوهات والمعلومات السريعة' : 'Tech Insights & Shorts Repository'}</span>
-              </span>
-
-              <h1 className="font-headline-lg text-3xl sm:text-4xl md:text-5xl font-black text-dark dark:text-white tracking-tight">
-                {isRtl ? 'كبسولات وفيديوهات هندسية وبرمجية' : 'Fast Engineering & Tech Capsules'}
-              </h1>
-
-              <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base leading-relaxed">
-                {isRtl
-                  ? 'اكتشف جديد الهندسة والبرمجيات والذكاء الاصطناعي من خلال مقاطع ومعلومات سريعة ومكثفة مقدمة من خبراء الأكاديمية.'
-                  : 'Discover the latest breakthroughs in engineering, coding, and AI through bite-sized, high-impact video capsules.'}
+            <div className="text-center mt-4">
+              <p className="text-sm font-label-caps text-secondary mb-3 tracking-widest">
+                {isRtl ? 'إضاءات ومعلومات سريعة' : 'TECH SHORTS & INSIGHTS'}
               </p>
+              <h1 className="text-4xl md:text-6xl font-extrabold mb-6 font-headline-lg text-dark dark:text-white">
+                {isRtl ? 'فيديوهات ومعلومات هندسية وبرمجية' : 'Fast Engineering & Tech Capsules'}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+                {isRtl
+                  ? 'كبسولات علمية وتقنية مكثفة تواكب أحدث المستجدات في البرمجة والذكاء الاصطناعي والهندسة المتطورة.'
+                  : 'Concise engineering and tech video insights keeping you ahead in coding, AI, and modern systems.'}
+              </p>
+            </div>
+          </div>
+        </section>
 
-              {/* Search Bar */}
-              <div className="pt-2 max-w-xl mx-auto">
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute start-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none">
+        {/* ========================================================
+            2. CONTENT CONTAINER (Sidebar Filter + Main Grid)
+        ======================================================== */}
+        <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 lg:py-12 flex flex-col lg:flex-row gap-6 xl:gap-8 relative">
+          {/* Mobile Overlay */}
+          {isMobileFiltersOpen && (
+            <div
+              className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-xs transition-opacity"
+              onClick={() => setIsMobileFiltersOpen(false)}
+            />
+          )}
+
+          {/* Sidebar / Filters (Exact match to Courses & Library) */}
+          <aside
+            className={`${
+              isMobileFiltersOpen
+                ? 'fixed inset-y-0 z-[70] flex flex-col translate-x-0 shadow-2xl h-[100dvh]'
+                : 'hidden lg:block'
+            } ${isRtl ? 'left-0' : 'right-0'} w-80 max-w-[88vw] bg-white dark:bg-gray-800 lg:bg-transparent lg:dark:bg-transparent lg:relative lg:w-64 xl:w-72 2xl:w-80 shrink-0 lg:translate-x-0 lg:shadow-none lg:overflow-visible lg:h-auto transition-all duration-300`}
+          >
+            <div className="bg-white dark:bg-gray-800 lg:border border-[#E8E2D5] dark:border-gray-700 lg:rounded-2xl shadow-xs lg:sticky lg:top-28 transition-colors flex flex-col h-full lg:h-auto overflow-hidden">
+              {/* Drawer Header (Fixed at top of drawer on mobile) */}
+              <div className="flex justify-between items-center p-5 sm:p-6 border-b border-[#E8E2D5] dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0">
+                <h2 className="font-bold text-xl text-dark dark:text-white">
+                  {t('library.filter') || (isRtl ? 'تصفية' : 'Filter')}
+                </h2>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="text-xs font-bold text-gray-500 hover:text-primary transition-colors min-h-[40px] px-2 flex items-center cursor-pointer"
+                  >
+                    {t('library.reset') || (isRtl ? 'إعادة ضبط' : 'Reset')}
+                  </button>
+                  <button
+                    type="button"
+                    className="lg:hidden text-gray-500 hover:text-primary w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700/60 cursor-pointer transition-colors"
+                    onClick={() => setIsMobileFiltersOpen(false)}
+                    aria-label="Close filters"
+                  >
+                    <span className="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Filters Body */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-7 custom-scrollbar pb-32 lg:pb-6">
+                {/* Category Filter */}
+                <div>
+                  <h4 className="font-semibold text-text-main dark:text-gray-300 mb-3 text-sm">
+                    {t('adminAddBook.category') || (isRtl ? 'التصنيف' : 'Category')}
+                  </h4>
+                  <div className="space-y-1.5">
+                    {/* All Categories Option */}
+                    <label
+                      onClick={() => {
+                        setSelectedCategory('ALL');
+                        if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
+                      }}
+                      className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${
+                        selectedCategory === 'ALL'
+                          ? 'bg-primary/10 dark:bg-primary/20 text-primary'
+                          : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'
+                      }`}
+                    >
+                      <span className={`text-sm ${selectedCategory === 'ALL' ? 'font-bold' : 'font-medium'}`}>
+                        {isRtl ? 'الكل' : 'All'}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          selectedCategory === 'ALL'
+                            ? 'bg-white dark:bg-gray-900 font-bold shadow-xs text-primary'
+                            : 'bg-gray-100 dark:bg-gray-700/60'
+                        }`}
+                      >
+                        {shorts.length}
+                      </span>
+                    </label>
+
+                    {/* Dynamic Categories */}
+                    {categoryList.map((cat) => {
+                      const isSelected = selectedCategory === cat;
+                      const count = categoryCounts[cat] || 0;
+                      return (
+                        <label
+                          key={cat}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
+                          }}
+                          className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 dark:bg-primary/20 text-primary'
+                              : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'
+                          }`}
+                        >
+                          <span className={`text-sm ${isSelected ? 'font-bold' : 'font-medium'}`}>
+                            {cat}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              isSelected
+                                ? 'bg-white dark:bg-gray-900 font-bold shadow-xs text-primary'
+                                : 'bg-gray-100 dark:bg-gray-700/60'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Drawer Footer with Apply/Show Results Button */}
+              <div className="lg:hidden p-4 border-t border-[#E8E2D5] dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-secondary text-stone-950 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>
+                    {isRtl
+                      ? `عرض النتائج (${filteredShorts.length})`
+                      : `Show Results (${filteredShorts.length})`}
+                  </span>
+                  <span className="material-symbols-outlined text-base">check</span>
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content: Controls Header + Videos Grid */}
+          <section aria-labelledby="shorts-catalog-heading" className="flex-1 min-w-0 w-full">
+            <h2 id="shorts-catalog-heading" className="sr-only">
+              {isRtl ? 'قائمة الفيديوهات السريعة المتاحة' : 'Available Tech Short Videos'}
+            </h2>
+
+            {/* Top Controls Bar: Mobile filter button + Search Bar + Sort */}
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="lg:hidden flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 text-dark dark:text-white px-4 py-3 rounded-xl text-sm font-bold shadow-xs min-h-[44px] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-lg">filter_alt</span>
+                  <span>{t('library.filter') || (isRtl ? 'تصفية' : 'Filter')}</span>
+                </button>
+                <span className="text-dark dark:text-white font-bold whitespace-nowrap shrink-0">
+                  {filteredShorts.length} {isRtl ? 'فيديو ومعلومة' : 'videos'}
+                </span>
+              </div>
+
+              {/* Search Bar & Sort Dropdown */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                {/* Search */}
+                <div className="relative w-full sm:w-64 md:w-80">
+                  <span className="material-symbols-outlined absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none">
                     search
                   </span>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={
-                      isRtl
-                        ? 'ابحث في الفيديوهات (مثال: Next.js، ذكاء اصطناعي، BIM، أمن...)'
-                        : 'Search videos (e.g. Next.js, AI, BIM, Cloud...)'
-                    }
-                    className="w-full ps-12 pe-10 py-3.5 bg-white dark:bg-gray-800 border-2 border-[#E8E2D5] dark:border-gray-700 rounded-2xl text-sm sm:text-base text-dark dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-primary shadow-xs transition-colors"
+                    placeholder={isRtl ? 'ابحث بالاسم أو الشرح...' : 'Search by title...'}
+                    className="w-full ps-9 pe-8 py-2.5 bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-xl text-xs sm:text-sm text-dark dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-primary shadow-xs transition-colors"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
                       aria-label={isRtl ? 'مسح نص البحث' : 'Clear search text'}
-                      className="absolute end-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-stone-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs hover:bg-stone-300 transition-colors cursor-pointer"
+                      className="absolute end-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-stone-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center text-[10px] hover:bg-stone-300 transition-colors cursor-pointer"
                     >
                       ✕
                     </button>
                   )}
                 </div>
+
+                {/* Sort */}
+                <div className="w-full sm:w-48 shrink-0">
+                  <CustomSelect
+                    value={sortBy}
+                    onChange={(val) => setSortBy(val)}
+                    options={sortOptions}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* ========================================================
-            2. FILTERS & SORT BAR
-        ======================================================== */}
-        <section className="bg-white/70 dark:bg-gray-800/70 border-b border-[#E8E2D5] dark:border-gray-800 sticky top-20 z-30 backdrop-blur-md transition-colors py-3.5 px-4 sm:px-6 md:px-8">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 items-center justify-between">
-            {/* Category Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setSelectedCategory('ALL')}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                  selectedCategory === 'ALL'
-                    ? 'bg-primary text-stone-950 shadow-md shadow-primary/20'
-                    : 'bg-[#FAF7F2] dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-stone-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                {isRtl ? 'جميع التصنيفات' : 'All Categories'} ({categoriesWithCounts['ALL'] || 0})
-              </button>
-
-              {Object.keys(categoriesWithCounts)
-                .filter((cat) => cat !== 'ALL')
-                .map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                      selectedCategory === cat
-                        ? 'bg-primary text-stone-950 shadow-md shadow-primary/20'
-                        : 'bg-[#FAF7F2] dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-stone-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {cat} ({categoriesWithCounts[cat] || 0})
-                  </button>
-                ))}
-            </div>
-
-            {/* Sort & Filter Reset */}
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 font-semibold hidden sm:inline">
-                  {isRtl ? 'ترتيب:' : 'Sort:'}
-                </span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-[#FAF7F2] dark:bg-gray-700 border border-[#E8E2D5] dark:border-gray-600 text-dark dark:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:border-primary cursor-pointer"
-                >
-                  <option value="newest">{isRtl ? 'الأحدث إضافة' : 'Newest First'}</option>
-                  <option value="oldest">{isRtl ? 'الأقدم إضافة' : 'Oldest First'}</option>
-                  <option value="alphabetical">{isRtl ? 'أبجدياً (أ-ي)' : 'Alphabetical (A-Z)'}</option>
-                </select>
+            {/* Videos Grid / Loading / Empty States */}
+            {loading ? (
+              <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center min-h-80 text-center transition-colors">
+                <PageLoader message={isRtl ? 'جاري تحميل الفيديوهات...' : 'Loading short videos...'} />
               </div>
-
-              {isFilteringActive && (
+            ) : filteredShorts.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 border border-[#E8E2D5] dark:border-gray-700 rounded-3xl p-8 sm:p-12 flex flex-col items-center justify-center text-center shadow-xs transition-colors my-4">
+                <div className="w-20 h-20 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6 text-amber-600 dark:text-amber-400 shadow-inner">
+                  <span className="material-symbols-outlined text-4xl">search_off</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-dark dark:text-white mb-2">
+                  {isRtl ? 'لم نجد أي نتائج مطابقة' : 'No short videos found'}
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mb-8 leading-relaxed">
+                  {isRtl
+                    ? 'جرب البحث عن كلمات رئيسية أخرى أو قم بتغيير التصنيف المختار لاستعراض المزيد من الفيديوهات.'
+                    : 'Try searching for different keywords or adjust your selected category filter.'}
+                </p>
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 hover:underline cursor-pointer"
+                  className="bg-primary hover:bg-secondary text-stone-950 font-bold text-sm px-6 py-3 rounded-xl min-h-[44px] transition-all shadow-md shadow-primary/20 flex items-center gap-2 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-sm">restart_alt</span>
-                  <span>{isRtl ? 'إعادة ضبط' : 'Reset'}</span>
+                  <span className="material-symbols-outlined text-lg">filter_alt_off</span>
+                  <span>{t('library.clearFilters') || (isRtl ? 'إعادة ضبط الفلاتر' : 'Clear Filters')}</span>
                 </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================
-            3. RESULTS SUMMARY STRIP
-        ======================================================== */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-8 pb-4">
-          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-semibold">
-            <span>
-              {isRtl
-                ? `عرض ${filteredShorts.length} من أصل ${shorts.length} فيديو ومعلومة`
-                : `Showing ${filteredShorts.length} of ${shorts.length} tech capsules`}
-            </span>
-            {selectedCategory !== 'ALL' && (
-              <span className="text-primary font-bold">
-                {isRtl ? `التصنيف: ${selectedCategory}` : `Category: ${selectedCategory}`}
-              </span>
-            )}
-          </div>
-        </section>
-
-        {/* ========================================================
-            4. VIDEOS GRID
-        ======================================================== */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pb-20">
-          {loading ? (
-            <div className="py-24 flex items-center justify-center">
-              <PageLoader message={isRtl ? 'جاري تحميل الفيديوهات والمعلومات...' : 'Loading tech shorts...'} />
-            </div>
-          ) : filteredShorts.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 border-2 border-dashed border-[#E8E2D5] dark:border-gray-700 rounded-3xl p-12 text-center max-w-lg mx-auto my-12">
-              <div className="w-16 h-16 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-3xl">search_off</span>
               </div>
-              <h3 className="font-extrabold text-lg sm:text-xl text-dark dark:text-white mb-2">
-                {isRtl ? 'لم نتمكن من العثور على أي نتائج' : 'No matching tech videos found'}
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
-                {isRtl
-                  ? 'جرب البحث بكلمة مفتاحية مختلفة أو اختيار تصنيف آخر لإظهار الفيديوهات.'
-                  : 'Try searching with different keywords or clearing active category filters.'}
-              </p>
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-stone-950 font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-base">restart_alt</span>
-                <span>{isRtl ? 'إعادة تعيين البحث والفلاتر' : 'Reset Search & Filters'}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredShorts.map((item) => {
-                const parsed = parseVideoEmbed(item.video_url);
-                const iconName = item.icon || 'smart_display';
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredShorts.map((item) => {
+                  const parsed = parseVideoEmbed(item.video_url);
 
-                return (
-                  <div
-                    key={item.id}
-                    className="group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border border-[#E8E2D5] dark:border-gray-700/80 p-5 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-                  >
-                    {/* Decorative Top Gradient Glow */}
-                    <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-primary/40 via-primary to-amber-500 rounded-t-3xl opacity-80 group-hover:opacity-100 transition-opacity" />
-
-                    {/* Media Preview Area with Centered Glowing Icon */}
+                  return (
                     <div
-                      className="relative w-full aspect-16/10 rounded-xl sm:rounded-2xl overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center cursor-pointer mb-4 shadow-inner group/thumb"
-                      onClick={() => setActiveVideo(item)}
-                      title={isRtl ? `مشاهدة: ${item.title}` : `Watch: ${item.title}`}
+                      key={item.id}
+                      className="group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border border-[#E8E2D5] dark:border-gray-700/80 p-5 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden"
                     >
-                      {parsed.thumbnailUrl && (
-                        <img
-                          src={parsed.thumbnailUrl}
-                          alt={item.title}
-                          className="absolute inset-0 w-full h-full object-cover opacity-45 group-hover/thumb:opacity-60 group-hover/thumb:scale-105 transition-all duration-500"
-                        />
-                      )}
+                      {/* Decorative Top Gradient Glow */}
+                      <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-primary/40 via-primary to-amber-500 rounded-t-3xl opacity-80 group-hover:opacity-100 transition-opacity" />
 
-                      <div className="absolute inset-0 bg-radial from-transparent via-black/40 to-black/70" />
+                      {/* Media Preview Area with Centered Glowing Icon */}
+                      <div
+                        className="relative w-full aspect-16/10 rounded-xl sm:rounded-2xl overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center cursor-pointer mb-4 shadow-inner group/thumb"
+                        onClick={() => setActiveVideo(item)}
+                        title={isRtl ? `مشاهدة: ${item.title}` : `Watch: ${item.title}`}
+                      >
+                        {parsed.thumbnailUrl && (
+                          <img
+                            src={parsed.thumbnailUrl}
+                            alt={item.title}
+                            className="absolute inset-0 w-full h-full object-cover opacity-45 group-hover/thumb:opacity-60 group-hover/thumb:scale-105 transition-all duration-500"
+                          />
+                        )}
 
-                      {item.category && (
-                        <span className="absolute top-3 start-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-bold text-amber-400 border border-amber-400/30">
-                          {item.category}
+                        <div className="absolute inset-0 bg-radial from-transparent via-black/40 to-black/70" />
+
+                        {item.category && (
+                          <span className="absolute top-3 start-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-bold text-amber-400 border border-amber-400/30">
+                            {item.category}
+                          </span>
+                        )}
+
+                        {/* Centered Glowing Play Icon */}
+                        <div className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-linear-to-tr from-primary to-amber-400 text-stone-950 flex items-center justify-center shadow-lg shadow-primary/40 group-hover/thumb:scale-110 group-hover/thumb:shadow-primary/60 transition-all duration-300 ring-4 ring-white/20">
+                          <svg className="w-7 h-7 sm:w-8 sm:h-8 fill-stone-950 translate-x-0.5 rtl:-translate-x-0.5 shrink-0" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                          <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping opacity-75 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 flex flex-col justify-between mb-4">
+                        <div>
+                          <h3 className="font-extrabold text-base sm:text-lg text-dark dark:text-white mb-2 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Card Action View Button */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveVideo(item)}
+                        className="w-full flex items-center justify-center gap-2 bg-[#FAF7F2] dark:bg-gray-700/60 hover:bg-primary dark:hover:bg-primary text-dark dark:text-white hover:text-stone-950 dark:hover:text-stone-950 border border-[#E8E2D5] dark:border-gray-600/70 hover:border-primary py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer shadow-xs active:scale-[0.98]"
+                      >
+                        <span className="material-symbols-outlined text-base text-primary group-hover:text-stone-950 transition-colors">
+                          play_circle
                         </span>
-                      )}
-
-                      {/* Centered Glowing Play Icon (أيقونة بالنص) */}
-                      <div className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-linear-to-tr from-primary to-amber-400 text-stone-950 flex items-center justify-center shadow-lg shadow-primary/40 group-hover/thumb:scale-110 group-hover/thumb:shadow-primary/60 transition-all duration-300 ring-4 ring-white/20">
-                        <svg className="w-7 h-7 sm:w-8 sm:h-8 fill-stone-950 translate-x-0.5 rtl:-translate-x-0.5 shrink-0" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                        <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping opacity-75 pointer-events-none" />
-                      </div>
+                        <span>{isRtl ? 'عرض الفيديو والمعلومات' : 'View Video & Details'}</span>
+                      </button>
                     </div>
-
-                    {/* Content */}
-                    <div className="flex-1 flex flex-col justify-between mb-4">
-                      <div>
-                        <h3 className="font-extrabold text-base sm:text-lg text-dark dark:text-white mb-2 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                          {item.title}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Card Action View Button */}
-                    <button
-                      type="button"
-                      onClick={() => setActiveVideo(item)}
-                      className="w-full flex items-center justify-center gap-2 bg-[#FAF7F2] dark:bg-gray-700/60 hover:bg-primary dark:hover:bg-primary text-dark dark:text-white hover:text-stone-950 dark:hover:text-stone-950 border border-[#E8E2D5] dark:border-gray-600/70 hover:border-primary py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer shadow-xs active:scale-[0.98]"
-                    >
-                      <span className="material-symbols-outlined text-base text-primary group-hover:text-stone-950 transition-colors">
-                        play_circle
-                      </span>
-                      <span>{isRtl ? 'عرض الفيديو والمعلومات' : 'View Video & Details'}</span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       </main>
 
       <Footer />
