@@ -64,6 +64,9 @@ export default function AdminShorts() {
   // Test player modal
   const [previewVideo, setPreviewVideo] = useState(null);
 
+  // Delete confirmation modal (بوب أب تأكيد الحذف في الموقع)
+  const [pendingDelete, setPendingDelete] = useState(null);
+
   const fetchShorts = async () => {
     try {
       setLoading(true);
@@ -144,18 +147,29 @@ export default function AdminShorts() {
     }
   };
 
-  const handleDelete = async (item) => {
-    const confirmMsg = isRtl
-      ? `هل أنت متأكد من حذف الفيديو "${item.title}"؟`
-      : `Are you sure you want to delete "${item.title}"?`;
+  // Close active modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (pendingDelete) setPendingDelete(null);
+        else if (previewVideo) setPreviewVideo(null);
+        else if (isFormOpen) resetForm();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pendingDelete, previewVideo, isFormOpen]);
 
-    if (!window.confirm(confirmMsg)) return;
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const itemToDelete = pendingDelete;
+    setPendingDelete(null);
 
     // Optimistic deletion - instantly removes from UI
-    setShorts((prev) => prev.filter((s) => s.id !== item.id));
+    setShorts((prev) => prev.filter((s) => s.id !== itemToDelete.id));
 
     try {
-      await deleteShortVideo(item.id);
+      await deleteShortVideo(itemToDelete.id);
       showSuccess(isRtl ? 'تم حذف الفيديو بنجاح' : 'Video deleted successfully');
     } catch (err) {
       showError(isRtl ? 'فشل حذف الفيديو' : 'Failed to delete video');
@@ -344,7 +358,7 @@ export default function AdminShorts() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(item)}
+                        onClick={() => setPendingDelete(item)}
                         className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                         title={isRtl ? 'حذف' : 'Delete'}
                       >
@@ -560,6 +574,75 @@ export default function AdminShorts() {
                   />
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal (بوب أب تأكيد الحذف في الموقع) */}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4 backdrop-blur-xs dark:bg-black/70 animate-fade-in"
+          onClick={() => setPendingDelete(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#E8E2D5] bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-800 animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+            dir={dir}
+          >
+            {/* Header with Warning Icon */}
+            <div className="flex items-center gap-3.5 mb-3">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-2xl">delete_forever</span>
+              </div>
+              <div>
+                <h3 id="delete-dialog-title" className="text-base font-bold text-dark dark:text-white">
+                  {isRtl ? 'حذف الفيديو' : 'Delete Video'}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {isRtl ? 'تأكيد الحذف من المنصة' : 'Confirm deletion from platform'}
+                </p>
+              </div>
+            </div>
+
+            {/* Video preview card */}
+            <div className="my-4 rounded-xl bg-[#FAF7F2] p-3.5 border border-[#E8E2D5] dark:bg-gray-900/60 dark:border-gray-700/60">
+              <p className="text-sm font-bold text-dark dark:text-white line-clamp-2">
+                "{pendingDelete.title}"
+              </p>
+              {pendingDelete.category && (
+                <span className="mt-1.5 inline-block text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  {pendingDelete.category}
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400 mb-6">
+              {isRtl
+                ? 'هل أنت متأكد من رغبتك في حذف هذا الفيديو؟ لن يظهر هذا الفيديو بعد الآن في الصفحة الرئيسية أو صفحة الفيديوهات.'
+                : 'Are you sure you want to delete this short video? It will be permanently removed from the website.'}
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2.5 border-t border-[#E8E2D5] dark:border-gray-700 pt-4">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="rounded-xl border border-[#E8E2D5] bg-white px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-stone-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+              >
+                {isRtl ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-rose-700 active:scale-95 cursor-pointer shadow-sm transition-all"
+              >
+                <span className="material-symbols-outlined text-base">delete</span>
+                <span>{isRtl ? 'تأكيد الحذف' : 'Confirm Delete'}</span>
+              </button>
             </div>
           </div>
         </div>
