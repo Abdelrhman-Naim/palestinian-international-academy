@@ -49,10 +49,8 @@ const defaultCourseCategories = ['برمجة', 'أمن سيبراني', 'إدا�
 const defaultShortsCategories = [
   'برمجة',
   'ذكاء اصطناعي',
-  'أمن سيبراني',
-  'هندسة متطورة',
-  'أنظمة سحابية',
-  'تطوير ويب'
+  'هندسة',
+  'أمن سيبراني'
 ];
 
 const defaultCategories = {
@@ -76,6 +74,18 @@ export function CategoriesProvider({ children }) {
           if (!parsed.shorts || !Array.isArray(parsed.shorts) || parsed.shorts.length === 0) {
             parsed.shorts = defaultShortsCategories;
             parsed.shorts_en = defaultShortsCategories.map(c => getLocalizedCategory(c, 'en'));
+          } else {
+            // Strip out obsolete dummy categories from previously cached storage
+            parsed.shorts = parsed.shorts.filter(
+              c => !['هندسة متطورة', 'أنظمة سحابية', 'تطوير ويب'].includes(c)
+            );
+            parsed.shorts_en = (parsed.shorts_en || []).filter(
+              c => !['Advanced Engineering', 'Cloud Systems', 'Web Development'].includes(c)
+            );
+            if (parsed.shorts.length === 0) {
+              parsed.shorts = defaultShortsCategories;
+              parsed.shorts_en = defaultShortsCategories.map(c => getLocalizedCategory(c, 'en'));
+            }
           }
           return parsed;
         }

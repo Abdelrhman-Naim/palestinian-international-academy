@@ -62,23 +62,28 @@ export default function Shorts() {
     };
   }, [activeVideo]);
 
-  // Combine categories from context + any in shorts
-  const categoryList = useMemo(() => {
-    const fromContext = rawCategories?.shorts || [];
-    const fromShorts = shorts.map((s) => s.category).filter(Boolean);
-    const combined = Array.from(new Set([...fromContext, ...fromShorts]));
-    return combined;
-  }, [rawCategories?.shorts, shorts]);
-
   // Count videos per category
   const categoryCounts = useMemo(() => {
     const counts = {};
     shorts.forEach((s) => {
       const cat = s.category || '';
-      counts[cat] = (counts[cat] || 0) + 1;
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
     });
     return counts;
   }, [shorts]);
+
+  // Combine categories: only display categories that actually have videos (> 0), exactly like Courses.jsx
+  const categoryList = useMemo(() => {
+    const fromShorts = shorts.map((s) => s.category).filter(Boolean);
+    const fromContext = (rawCategories?.shorts || []).filter(
+      (c) => !['هندسة متطورة', 'أنظمة سحابية', 'تطوير ويب'].includes(c)
+    );
+    const combined = Array.from(new Set([...fromShorts, ...fromContext]));
+    // Crucial: Only display categories that actually have at least 1 video, preventing 0-count ghost categories
+    return combined
+      .filter((cat) => (categoryCounts[cat] || 0) > 0)
+      .sort((a, b) => a.localeCompare(b, isRtl ? 'ar' : 'en'));
+  }, [rawCategories?.shorts, shorts, categoryCounts, isRtl]);
 
   // Filtered and sorted short videos
   const filteredShorts = useMemo(() => {
@@ -258,64 +263,74 @@ export default function Shorts() {
                     {t('adminAddBook.category') || (isRtl ? 'التصنيف' : 'Category')}
                   </h4>
                   <div className="space-y-1.5">
-                    {/* All Categories Option */}
-                    <label
-                      onClick={() => {
-                        setSelectedCategory('ALL');
-                        if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
-                      }}
-                      className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${
-                        selectedCategory === 'ALL'
-                          ? 'bg-primary/10 dark:bg-primary/20 text-primary'
-                          : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'
-                      }`}
-                    >
-                      <span className={`text-sm ${selectedCategory === 'ALL' ? 'font-bold' : 'font-medium'}`}>
-                        {isRtl ? 'الكل' : 'All'}
-                      </span>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          selectedCategory === 'ALL'
-                            ? 'bg-white dark:bg-gray-900 font-bold shadow-xs text-primary'
-                            : 'bg-gray-100 dark:bg-gray-700/60'
-                        }`}
-                      >
-                        {shorts.length}
-                      </span>
-                    </label>
-
-                    {/* Dynamic Categories */}
-                    {categoryList.map((cat) => {
-                      const isSelected = selectedCategory === cat;
-                      const count = categoryCounts[cat] || 0;
-                      return (
+                    {loading ? (
+                      <div className="space-y-2 animate-pulse py-1">
+                        <div className="h-11 rounded-xl bg-gray-100 dark:bg-gray-700/60" />
+                        <div className="h-11 rounded-xl bg-gray-100 dark:bg-gray-700/60" />
+                        <div className="h-11 rounded-xl bg-gray-100 dark:bg-gray-700/60" />
+                      </div>
+                    ) : (
+                      <>
+                        {/* All Categories Option */}
                         <label
-                          key={cat}
                           onClick={() => {
-                            setSelectedCategory(cat);
+                            setSelectedCategory('ALL');
                             if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
                           }}
                           className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${
-                            isSelected
+                            selectedCategory === 'ALL'
                               ? 'bg-primary/10 dark:bg-primary/20 text-primary'
                               : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'
                           }`}
                         >
-                          <span className={`text-sm ${isSelected ? 'font-bold' : 'font-medium'}`}>
-                            {cat}
+                          <span className={`text-sm ${selectedCategory === 'ALL' ? 'font-bold' : 'font-medium'}`}>
+                            {isRtl ? 'الكل' : 'All'}
                           </span>
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ${
-                              isSelected
+                              selectedCategory === 'ALL'
                                 ? 'bg-white dark:bg-gray-900 font-bold shadow-xs text-primary'
                                 : 'bg-gray-100 dark:bg-gray-700/60'
                             }`}
                           >
-                            {count}
+                            {shorts.length}
                           </span>
                         </label>
-                      );
-                    })}
+
+                        {/* Dynamic Categories with real items */}
+                        {categoryList.map((cat) => {
+                          const isSelected = selectedCategory === cat;
+                          const count = categoryCounts[cat] || 0;
+                          return (
+                            <label
+                              key={cat}
+                              onClick={() => {
+                                setSelectedCategory(cat);
+                                if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
+                              }}
+                              className={`flex items-center justify-between p-3 min-h-[44px] rounded-xl cursor-pointer transition-colors ${
+                                isSelected
+                                  ? 'bg-primary/10 dark:bg-primary/20 text-primary'
+                                  : 'hover:bg-[#FAF7F2] dark:hover:bg-gray-700 text-text-main dark:text-gray-400'
+                              }`}
+                            >
+                              <span className={`text-sm ${isSelected ? 'font-bold' : 'font-medium'}`}>
+                                {cat}
+                              </span>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                  isSelected
+                                    ? 'bg-white dark:bg-gray-900 font-bold shadow-xs text-primary'
+                                    : 'bg-gray-100 dark:bg-gray-700/60'
+                                }`}
+                              >
+                                {count}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
