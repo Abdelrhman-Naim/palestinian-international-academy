@@ -35,6 +35,7 @@ export default function AdminAddShort() {
   const [category, setCategory] = useState(categoriesList[0] || 'برمجة');
   const [icon, setIcon] = useState('smart_display');
   const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
   const [errors, setErrors] = useState({});
 
   const parsedVideo = parseVideoEmbed(videoUrl);
@@ -60,6 +61,7 @@ export default function AdminAddShort() {
     if (!validate()) return;
 
     setSubmitting(true);
+    setSuccessMsg('');
     try {
       await addShortVideo({
         title: title.trim(),
@@ -68,11 +70,16 @@ export default function AdminAddShort() {
         category: category.trim(),
         icon: icon.trim(),
       });
-      showSuccess(isRtl ? 'تمت إضافة ونشر الفيديو بنجاح' : 'Short video published successfully');
-      router.push('/admin-dashboard/shorts');
+      const msg = isRtl
+        ? 'تمت إضافة ونشر الفيديو بنجاح! جاري تحويلك إلى قائمة الفيديوهات...'
+        : 'Short video published successfully! Redirecting to videos list...';
+      setSuccessMsg(msg);
+      showSuccess(msg);
+      setTimeout(() => {
+        router.push('/admin-dashboard/shorts');
+      }, 700);
     } catch (err) {
       showError(err.message || (isRtl ? 'حدث خطأ أثناء حفظ الفيديو' : 'Failed to save short video'));
-    } finally {
       setSubmitting(false);
     }
   };
@@ -103,6 +110,13 @@ export default function AdminAddShort() {
       }
     >
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {successMsg && (
+          <div className="lg:col-span-3 rounded-2xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2.5 shadow-xs animate-fade-in">
+            <span className="material-symbols-outlined text-xl text-emerald-600 dark:text-emerald-400">check_circle</span>
+            <span>{successMsg}</span>
+          </div>
+        )}
+
         {/* Main Inputs (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="rounded-2xl border border-[#E8E2D5] bg-white p-5 sm:p-6 shadow-xs dark:border-gray-700 dark:bg-gray-800 space-y-5">

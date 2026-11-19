@@ -78,6 +78,14 @@ export default function AdminShorts() {
 
   useEffect(() => {
     fetchShorts();
+
+    const handleUpdate = () => {
+      getShortVideos().then((data) => {
+        setShorts(data || []);
+      });
+    };
+    window.addEventListener('pia:shorts-updated', handleUpdate);
+    return () => window.removeEventListener('pia:shorts-updated', handleUpdate);
   }, []);
 
   const resetForm = () => {
@@ -121,13 +129,14 @@ export default function AdminShorts() {
       setSubmitting(true);
       if (editingId) {
         await updateShortVideo(editingId, formData);
+        setShorts((prev) => prev.map((s) => s.id === editingId ? { ...s, ...formData } : s));
         showSuccess(isRtl ? 'تم تحديث الفيديو بنجاح' : 'Short video updated successfully');
       } else {
-        await addShortVideo(formData);
+        const newShort = await addShortVideo(formData);
+        setShorts((prev) => [newShort, ...prev]);
         showSuccess(isRtl ? 'تمت إضافة الفيديو الجديد بنجاح' : 'Short video added successfully');
       }
       resetForm();
-      fetchShorts();
     } catch (err) {
       showError(err.message || (isRtl ? 'فشل حفظ الفيديو' : 'Failed to save video'));
     } finally {
@@ -142,12 +151,15 @@ export default function AdminShorts() {
 
     if (!window.confirm(confirmMsg)) return;
 
+    // Optimistic deletion - instantly removes from UI
+    setShorts((prev) => prev.filter((s) => s.id !== item.id));
+
     try {
       await deleteShortVideo(item.id);
-      showSuccess(isRtl ? 'تم حذف الفيديو' : 'Video deleted');
-      fetchShorts();
+      showSuccess(isRtl ? 'تم حذف الفيديو بنجاح' : 'Video deleted successfully');
     } catch (err) {
       showError(isRtl ? 'فشل حذف الفيديو' : 'Failed to delete video');
+      fetchShorts(); // rollback on error
     }
   };
 

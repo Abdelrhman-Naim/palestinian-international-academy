@@ -7,6 +7,7 @@ import { useLibrary } from '../../context/LibraryContext';
 import { supabase } from '../../supabase/client';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCustomDateTime } from '../../utils/formatDate';
+import { getShortVideos } from '../../services/shortsService';
 
 export default function AdminOverview() {
   const { t, dir } = useLanguage();
@@ -35,6 +36,14 @@ export default function AdminOverview() {
 
   const [dbCoursesCount, setDbCoursesCount] = useState(courses.length || 0);
   const [dbBooksCount, setDbBooksCount] = useState(books.length || 0);
+  const [dbShortsCount, setDbShortsCount] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('admin_overview_shorts_count');
+      return cached ? JSON.parse(cached) : 0;
+    } catch (e) {
+      return 0;
+    }
+  });
   const [recentActivities, setRecentActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
 
@@ -103,6 +112,16 @@ export default function AdminOverview() {
       }
       if (booksCountRes.count !== null && booksCountRes.count !== undefined) {
         setDbBooksCount(booksCountRes.count);
+      }
+
+      // Fetch shorts count and recent shorts
+      let currentShorts = [];
+      try {
+        currentShorts = await getShortVideos();
+        setDbShortsCount(currentShorts.length);
+        try { sessionStorage.setItem('admin_overview_shorts_count', JSON.stringify(currentShorts.length)); } catch (e) {}
+      } catch (errShorts) {
+        console.warn('Shorts fetch notice in overview:', errShorts);
       }
 
       // Compile real recent activities across all tables
@@ -178,6 +197,18 @@ export default function AdminOverview() {
         });
       });
 
+      (currentShorts || []).slice(0, 3).forEach(s => {
+        acts.push({
+          id: `short-${s.id}`,
+          title: s.title || (isRtl ? 'فيديو ومعلومة جديدة' : 'New Tech Short'),
+          user: s.category || (isRtl ? 'إضاءة تقنية' : 'Tech Short'),
+          category: isRtl ? 'نشر فيديو سريع' : 'Tech Short',
+          icon: 'smart_display',
+          tone: 'amber',
+          rawDate: s.created_at
+        });
+      });
+
       acts.sort((a, b) => toEpoch(b.rawDate) - toEpoch(a.rawDate));
       // Deduplicate by ID
       const seen = new Set();
@@ -217,13 +248,28 @@ export default function AdminOverview() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'course_requests' }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'short_videos' }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, handleRealtimeChange)
       .subscribe();
+
+    const handleShortsUpdate = (e) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setDbShortsCount(e.detail.length);
+        try { sessionStorage.setItem('admin_overview_shorts_count', JSON.stringify(e.detail.length)); } catch (_) {}
+      } else {
+        getShortVideos().then(list => {
+          setDbShortsCount(list.length);
+          try { sessionStorage.setItem('admin_overview_shorts_count', JSON.stringify(list.length)); } catch (_) {}
+        });
+      }
+    };
+    window.addEventListener('pia:shorts-updated', handleShortsUpdate);
 
     const interval = setInterval(fetchAllData, 30000);
 
     return () => {
       clearTimeout(debounceTimer);
+      window.removeEventListener('pia:shorts-updated', handleShortsUpdate);
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
@@ -263,6 +309,14 @@ export default function AdminOverview() {
       tone: 'blue', 
       to: '/admin-dashboard/library' 
     },
+    { 
+      label: t('adminOverview.techShorts') || (isRtl ? 'الفيديوهات والمعلومات' : 'Tech Short Videos'), 
+      value: dbShortsCount.toString(), 
+      subtitle: isRtl ? 'كبسولات علمية وتقنية سريعة' : 'Fast technical capsules',
+      icon: 'smart_display', 
+      tone: 'amber', 
+      to: '/admin-dashboard/shorts' 
+    },
   ];
 
   return (
@@ -272,7 +326,7 @@ export default function AdminOverview() {
       icon="dashboard"
     >
       {/* Primary Metrics Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((item) => (
           <Link
             key={item.label}
@@ -288,7 +342,9 @@ export default function AdminOverview() {
                       ? 'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40'
                       : item.tone === 'green'
                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40'
-                        : 'bg-sky-50 text-sky-600 border border-sky-100 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/40'
+                        : item.tone === 'amber'
+                          ? 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40'
+                          : 'bg-sky-50 text-sky-600 border border-sky-100 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/40'
                 }`}
               >
                 <span className="material-symbols-outlined text-2xl">{item.icon}</span>

@@ -24,15 +24,25 @@ export const ToastProvider = ({ children }) => {
     }
   }, [removeToast]);
 
+  const showSuccess = useCallback((msg, dur) => showToast(msg, 'success', dur), [showToast]);
+  const showError = useCallback((msg, dur) => showToast(msg, 'error', dur), [showToast]);
+  const showInfo = useCallback((msg, dur) => showToast(msg, 'info', dur), [showToast]);
+
   const toastHelpers = {
     show: showToast,
-    success: (msg, dur) => showToast(msg, 'success', dur),
-    error: (msg, dur) => showToast(msg, 'error', dur),
-    info: (msg, dur) => showToast(msg, 'info', dur),
+    success: showSuccess,
+    error: showError,
+    info: showInfo,
   };
 
   return (
-    <ToastContext.Provider value={{ showToast, toast: toastHelpers }}>
+    <ToastContext.Provider value={{
+      showToast,
+      toast: toastHelpers,
+      showSuccess,
+      showError,
+      showInfo,
+    }}>
       {children}
 
       {/* Floating Toast Notification Container */}
@@ -101,6 +111,9 @@ export const useToast = () => {
     // Safe fallback if used outside provider
     return {
       showToast: (msg) => console.log('Toast:', msg),
+      showSuccess: (msg) => console.log('Toast success:', msg),
+      showError: (msg) => console.log('Toast error:', msg),
+      showInfo: (msg) => console.log('Toast info:', msg),
       toast: {
         show: (msg) => console.log('Toast:', msg),
         success: (msg) => console.log('Toast success:', msg),

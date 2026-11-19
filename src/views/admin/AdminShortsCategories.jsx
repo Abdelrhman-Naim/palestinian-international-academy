@@ -45,17 +45,20 @@ export default function AdminShortsCategories() {
     const trimmed = name.trim();
     if (!trimmed) return;
     setIsAdding(true);
+    setError('');
+
     try {
       const result = await addCategory('shorts', trimmed);
-      if (!result.ok) {
-        setError(result.error);
+      if (!result?.ok) {
+        setError(result?.error || (isRtl ? 'فشل إضافة التصنيف' : 'Failed to add category'));
         return;
       }
       setName('');
       setError('');
       showSuccess(isRtl ? 'تمت إضافة التصنيف بنجاح' : 'Category added successfully');
     } catch (err) {
-      setError(isRtl ? 'حدث خطأ أثناء إضافة التصنيف' : 'Failed to add category');
+      console.error('Category add error:', err);
+      setError(err?.message || (isRtl ? 'حدث خطأ أثناء إضافة التصنيف' : 'Failed to add category'));
     } finally {
       setIsAdding(false);
     }
@@ -76,8 +79,8 @@ export default function AdminShortsCategories() {
     setEditModal((prev) => ({ ...prev, saving: true, error: '' }));
     try {
       const res = await updateCategory('shorts', editModal.item, trimmed);
-      if (!res.ok) {
-        setEditModal((prev) => ({ ...prev, saving: false, error: res.error }));
+      if (!res?.ok) {
+        setEditModal((prev) => ({ ...prev, saving: false, error: res?.error || (isRtl ? 'فشل حفظ التعديل' : 'Failed to save edit') }));
         return;
       }
       // Also update category across all existing shorts
@@ -92,24 +95,29 @@ export default function AdminShortsCategories() {
         return next;
       });
 
-      showSuccess(isRtl ? 'تم تعديل التصنيف بنجاح' : 'Category updated successfully');
+      // Close modal first so it's guaranteed to close
       setEditModal(null);
+      showSuccess(isRtl ? 'تم تعديل التصنيف بنجاح' : 'Category updated successfully');
     } catch (err) {
+      console.error('Category edit error:', err);
       setEditModal((prev) => ({
         ...prev,
         saving: false,
-        error: isRtl ? 'فشل حفظ التعديل' : 'Failed to save edit',
+        error: err?.message || (isRtl ? 'فشل حفظ التعديل' : 'Failed to save edit'),
       }));
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
+    const toDelete = pendingDelete;
+    setPendingDelete(null); // Close modal immediately
+
     try {
-      await removeCategory('shorts', pendingDelete);
+      await removeCategory('shorts', toDelete);
       showSuccess(isRtl ? 'تم حذف التصنيف بنجاح' : 'Category removed');
-      setPendingDelete(null);
     } catch (err) {
+      console.error('Category delete error:', err);
       showError(isRtl ? 'فشل حذف التصنيف' : 'Failed to delete category');
     }
   };

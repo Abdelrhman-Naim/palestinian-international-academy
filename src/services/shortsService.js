@@ -42,16 +42,19 @@ export const DEFAULT_SHORTS = [
   },
 ];
 
+const SEEDED_KEY = 'pia_shorts_seeded_v1';
+
 const getLocalShorts = () => {
   if (typeof window === 'undefined') return DEFAULT_SHORTS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
+    if (raw === null) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SHORTS));
+      localStorage.setItem(SEEDED_KEY, 'true');
       return DEFAULT_SHORTS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_SHORTS;
+    return Array.isArray(parsed) ? parsed : DEFAULT_SHORTS;
   } catch (e) {
     return DEFAULT_SHORTS;
   }
@@ -61,6 +64,7 @@ const saveLocalShorts = (shorts) => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(shorts));
+    localStorage.setItem(SEEDED_KEY, 'true');
     window.dispatchEvent(new CustomEvent('pia:shorts-updated', { detail: shorts }));
   } catch (e) {
     console.warn('Could not save shorts to localStorage:', e);
@@ -79,9 +83,16 @@ export async function getShortVideos() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error && Array.isArray(data) && data.length > 0) {
-      saveLocalShorts(data);
-      return data;
+    if (!error && Array.isArray(data)) {
+      if (data.length > 0) {
+        saveLocalShorts(data);
+        return data;
+      }
+      // If table exists and has 0 rows, check if user has deliberately deleted all
+      if (typeof window !== 'undefined' && localStorage.getItem(SEEDED_KEY) === 'true') {
+        saveLocalShorts([]);
+        return [];
+      }
     }
   } catch (err) {
     console.warn('Supabase short_videos fetch error (using cached fallback):', err);
